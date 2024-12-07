@@ -4,10 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Graph Plotter</title>
-    <link rel="stylesheet" href="styles.css">
     <style>
+        body {
+            margin: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
         canvas {
             border: 1px solid black;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        input, button {
+            margin: 5px;
+        }
+        .supported-functions {
+            margin-top: 10px;
+            text-align: center;
         }
     </style>
 </head>
@@ -23,14 +37,18 @@
     <input type="number" id="size" value="10" step="0.1">
     <br>
     <label for="width">Enter width: </label>
-    <input type="number" id="width" value="500">
+    <input type="number" id="width" value="1000" disabled>
     <br>
     <label for="height">Enter height: </label>
-    <input type="number" id="height" value="200">
+    <input type="number" id="height" value="500">
     <br>
     <button onclick="drawGraph()">Draw Graph</button>
     <br>
-    <canvas id="graphCanvas" width="500" height="200"></canvas>
+    <canvas id="graphCanvas"></canvas>
+    <div class="supported-functions">
+        <h2>Supported Functions</h2>
+        <p>sin(x), cos(x), x, quadratic, cubic, log(x), e^x, tan(x)</p>
+    </div>
     <script src="script.js"></script>
 </body>
 </html>
