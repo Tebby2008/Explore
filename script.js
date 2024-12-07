@@ -21,14 +21,22 @@ function evaluateFunction(func, x) {
     }
 }
 
+function resizeCanvas() {
+    const canvas = document.getElementById("graphCanvas");
+    const width = window.innerWidth - 40; // Adjust for margins
+    const height = parseInt(document.getElementById("height").value);
+    canvas.width = width;
+    canvas.height = height;
+    return { width, height };
+}
+
 function drawGraph() {
+    const { width, height } = resizeCanvas();
     const canvas = document.getElementById("graphCanvas");
     const ctx = canvas.getContext("2d");
     const func = document.getElementById("function").value;
     const symbol = document.getElementById("symbol").value;
     const size = parseFloat(document.getElementById("size").value);
-    const width = parseInt(document.getElementById("width").value);
-    const height = parseInt(document.getElementById("height").value);
 
     ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
     ctx.beginPath();
@@ -55,3 +63,9 @@ function drawGraph() {
         }
     }
 }
+
+// Adjust canvas size when window is resized
+window.addEventListener("resize", drawGraph);
+
+// Initial draw
+drawGraph();
