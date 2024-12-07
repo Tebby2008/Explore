@@ -23,7 +23,7 @@ function evaluateFunction(func, x) {
 
 function resizeCanvas() {
     const canvas = document.getElementById("graphCanvas");
-    const width = window.innerWidth - 40; // Adjust for margins
+    const width = canvas.parentNode.clientWidth; // Adjust to parent width (80% of body width)
     const height = parseInt(document.getElementById("height").value);
     canvas.width = width;
     canvas.height = height;
