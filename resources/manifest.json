@@ -5,7 +5,7 @@
   "display": "standalone",
   "scope": "/Explore/",
   "start_url": "/Explore/chat", 
-  "theme_color": "#8B5CF6",
+  "theme_color": "#37276e",
   "background_color": "#020617",
   "icons": [
     {
