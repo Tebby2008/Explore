@@ -47,12 +47,6 @@
             border: 1px solid rgba(255, 255, 255, 0.15);
             transition: all 0.5s ease-in-out;
         }
-
-        /* Custom Background Fixes for Fixed Elements (Reduced opacity to 0.8) */
-        .translucent-bg {
-            background-color: rgba(2, 6, 23, 0.8); /* bg-deep with 80% opacity */
-            backdrop-filter: blur(8px);
-        }
         
         /* State transition for the main container */
         .welcome-state {
@@ -189,19 +183,17 @@
                 mainContainer.classList.remove('welcome-state');
                 mainContainer.classList.add('chat-state');
 
-                // Header becomes FIXED and smaller (Uses translucent-bg)
-                header.classList.add('fixed', 'top-0', 'left-0', 'right-0', 'translucent-bg', 'border-b', 'border-glass-surface', 'z-20');
+                header.classList.add('fixed', 'top-0', 'left-0', 'right-0', 'border-b', 'border-glass-surface', 'z-20');
                 
                 // Adjust inner content size/padding
-                headerContent.classList.remove('py-8', 'md:py-12');
+                headerContent.classList.remove('py-8', 'md:py-25');
                 headerContent.classList.add('py-4', 'md:py-6');
-                headerContent.querySelector('h1').classList.remove('text-4xl', 'md:text-5xl');
-                headerContent.querySelector('h1').classList.add('text-xl');
+                headerContent.querySelector('h1').classList.remove('text-10xl', 'md:text-5xl');
+                headerContent.querySelector('h1').classList.add('text-3xl');
                 document.getElementById('app-description').style.display = 'none';
 
-                // Input bar snaps to the bottom (Uses translucent-bg)
                 inputContainer.classList.remove('pb-8', 'md:pb-12');
-                inputContainer.classList.add('fixed', 'bottom-0', 'left-0', 'right-0', 'translucent-bg', 'border-t', 'border-glass-surface', 'z-20', 'py-4', 'shadow-2xl');
+                inputContainer.classList.add('fixed', 'bottom-0', 'left-0', 'right-0', 'border-t', 'border-glass-surface', 'z-20', 'py-4', 'shadow-2xl');
                 inputContainer.querySelector('.w-full').classList.remove('max-w-3xl', 'px-4');
                 inputContainer.querySelector('.w-full').classList.add('max-w-3xl', 'lg:max-w-4xl', 'px-4', 'md:px-8');
 
@@ -215,7 +207,7 @@
                 mainContainer.classList.add('welcome-state');
 
                 // Header is large and centered (Remove fixed properties)
-                header.classList.remove('fixed', 'top-0', 'left-0', 'right-0', 'translucent-bg', 'border-b', 'border-glass-surface', 'z-20');
+                header.classList.remove('fixed', 'top-0', 'left-0', 'right-0', 'border-b', 'border-glass-surface', 'z-20');
 
                 // Adjust inner content size/padding back
                 headerContent.classList.add('py-8', 'md:py-12');
@@ -226,7 +218,7 @@
 
                 // Input bar is immediately below the header (Remove fixed properties)
                 inputContainer.classList.add('pb-8', 'md:pb-12');
-                inputContainer.classList.remove('fixed', 'bottom-0', 'left-0', 'right-0', 'translucent-bg', 'border-t', 'border-glass-surface', 'z-20', 'py-4', 'shadow-2xl');
+                inputContainer.classList.remove('fixed', 'bottom-0', 'left-0', 'right-0', 'border-t', 'border-glass-surface', 'z-20', 'py-4', 'shadow-2xl');
                 inputContainer.querySelector('.w-full').classList.add('max-w-3xl', 'px-4'); 
                 inputContainer.querySelector('.w-full').classList.remove('max-w-4xl', 'lg:max-w-4xl', 'px-4', 'md:px-8');
 
