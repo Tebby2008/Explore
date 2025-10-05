@@ -3,24 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lingo Chatbot (Gen Alpha)</title>
+    <title>LingoBot</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+        // Custom Tailwind Config for the Glassy/Liquid Theme
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        'primary-blue': '#007AFF', // iOS-like blue
-                        'dark-bg': '#10172A',
-                        'glass-light': 'rgba(255, 255, 255, 0.15)',
-                        'glass-dark': 'rgba(0, 0, 0, 0.15)',
+                        'bg-deep': '#020617', // Deepest dark blue/slate
+                        'accent-purple': '#8B5CF6', // Purple/Indigo accent for buttons/glow
+                        'glass-surface': 'rgba(30, 41, 59, 0.2)', // Dark, transparent slate for main panel
+                        'glass-input': 'rgba(17, 24, 39, 0.7)', // Darker transparent for input
+                        'glass-ai': 'rgba(30, 41, 59, 0.6)', // AI Message strip background
+                        'text-light': '#F3F4F6',
                     },
                     fontFamily: {
                         sans: ['Inter', 'sans-serif'],
                     },
                     boxShadow: {
-                        'liquid': '0 4px 30px rgba(0, 0, 0, 0.1)',
-                        'bubble': '0 8px 30px rgba(0, 0, 0, 0.15)',
+                        'liquid': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+                        'glow-lg': '0 10px 40px rgba(139, 92, 246, 0.4), 0 4px 6px rgba(0, 0, 0, 0.1)',
                     }
                 }
             }
@@ -29,41 +32,48 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
         
-        /* * Custom Glassmorphism Styles 
-         * Essential for the 'Liquid Glass' look 
-         */
-        .glass-container {
-            backdrop-filter: blur(20px) saturate(150%);
-            -webkit-backdrop-filter: blur(20px) saturate(150%);
-            background-color: rgba(255, 255, 255, 0.05); /* Very light, subtle transparency */
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        /* Full-screen background with subtle gradient for the 'dynamic fluid' look */
+        body {
+            background-color: #020617; 
+            background-image: radial-gradient(circle at 10% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+                              radial-gradient(circle at 90% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 50%);
+            transition: all 0.5s ease-in-out;
         }
 
-        .liquid-bg {
-            /* Deep, vibrant gradient background */
-            background: linear-gradient(135deg, #10172A 0%, #152040 50%, #0D1630 100%);
+        /* Essential Glassmorphism Styles applied to elements */
+        .glassy-element {
+            backdrop-filter: blur(30px) saturate(180%);
+            -webkit-backdrop-filter: blur(30px) saturate(180%);
+            background-color: var(--tw-colors-glass-surface);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.5s ease-in-out;
+        }
+        
+        /* State transition for the main container */
+        .welcome-state {
+            justify-content: center; /* Center content vertically when chat is empty */
+            align-items: center; /* Center content horizontally */
+        }
+        
+        .chat-state {
+            justify-content: flex-start; /* Push content to the top when chat is active */
+            align-items: center; /* Keep content centered horizontally for max-width */
         }
 
-        /* Scrollbar styling for a cleaner look */
-        .chat-scroll::-webkit-scrollbar {
-            width: 6px;
-        }
-
+        /* Scrollbar styling */
+        .chat-scroll::-webkit-scrollbar { width: 8px; }
         .chat-scroll::-webkit-scrollbar-thumb {
-            background-color: rgba(255, 255, 255, 0.2);
-            border-radius: 10px;
+            background-color: #8B5CF699; 
+            border-radius: 4px;
         }
-
-        .chat-scroll::-webkit-scrollbar-track {
-            background-color: transparent;
-        }
+        .chat-scroll::-webkit-scrollbar-track { background-color: transparent; }
 
         /* Loading animation for AI response */
         .dot {
             width: 8px;
             height: 8px;
             margin: 0 4px;
-            background-color: white;
+            background-color: #8B5CF6;
             border-radius: 50%;
             display: inline-block;
             animation: bounce 1.4s infinite ease-in-out both;
@@ -78,51 +88,59 @@
         }
     </style>
 </head>
-<body class="liquid-bg font-sans min-h-screen flex items-center justify-center p-4">
+<body class="font-sans min-h-screen flex flex-col items-center justify-between">
 
-    <!-- Main Chat Container (Glassy Panel) -->
-    <div class="glass-container w-full max-w-xl lg:max-w-3xl h-[90vh] rounded-3xl shadow-liquid flex flex-col overflow-hidden">
+    <!-- Main Container - Controls centering logic based on state -->
+    <!-- Removed p-4 md:p-8 to allow wrappers to control padding better and hug edges -->
+    <div id="main-container" class="w-full h-full max-w-4xl flex flex-col min-h-screen chat-state">
         
-        <!-- Header -->
-        <header class="p-5 border-b border-glass-light flex justify-between items-center bg-glass-dark">
-            <h1 class="text-xl font-bold text-white tracking-wider flex items-center">
-                <span class="mr-3 text-2xl">🤖</span>
-                Gen Alpha Lingo Bot
-            </h1>
-            <div id="session-info" class="text-xs text-gray-300 opacity-70">
-                Session: <span id="session-id-display" class="font-mono">...</span>
-            </div>
-        </header>
+        <!-- Header/Input Container - Positioned relative to the main container -->
+        <div id="header-input-wrapper" class="w-full transition-all duration-500 ease-in-out">
 
-        <!-- Chat History Area -->
-        <div id="chat-history" class="flex-grow p-4 md:p-6 space-y-4 overflow-y-auto chat-scroll">
-            <!-- Initial Greeting Message -->
-            <div class="flex justify-start">
-                <div class="max-w-[80%] md:max-w-[70%] text-sm p-4 rounded-xl rounded-tl-sm shadow-bubble text-white bg-glass-dark">
-                    ngl, u js found the freshest ai. i'm ready to cook up some answers for u, fr. what's the vibe rn, twin?
+            <!-- Title & Description Block (Centered when empty, transforms into sticky header) -->
+            <header id="app-header" class="py-8 md:py-12 px-4 text-center transition-all duration-500 ease-in-out">
+                <h1 class="text-4xl md:text-5xl font-extrabold text-white tracking-wider">
+                    LingoBot
+                </h1>
+                <p id="app-description" class="text-text-light text-opacity-80 mt-2 text-lg font-light transition-opacity duration-300">
+                    Your Gen Alpha Rizzler. Let's cook.
+                </p>
+            </header>
+
+            <!-- Input Area Container (Stays below header in welcome state) -->
+            <div id="input-bar-container" class="w-full flex justify-center pb-8 md:pb-12 transition-all duration-500 ease-in-out">
+                <!-- Adjusted max-w to 3xl for slightly wider input in welcome state -->
+                <div class="w-full max-w-3xl px-4"> 
+                     <!-- Input and Button -->
+                    <div class="flex items-center space-x-3 glassy-element rounded-[3rem] shadow-glow-lg p-2">
+                        <textarea 
+                            id="message-input" 
+                            placeholder="chat with the rizzler..."
+                            rows="1"
+                            class="flex-grow p-2 pl-6 bg-transparent text-text-light placeholder-gray-400 focus:outline-none resize-none overflow-hidden text-base"
+                            oninput="resizeTextarea()"
+                            onkeypress="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); document.getElementById('send-button').click(); }"
+                        ></textarea>
+                        
+                        <button 
+                            id="send-button" 
+                            onclick="handleChat()" 
+                            class="bg-accent-purple text-white p-3 rounded-full hover:bg-opacity-90 active:scale-95 transition duration-150 transform shadow-md focus:outline-none focus:ring-4 focus:ring-accent-purple/50 disabled:opacity-50"
+                            disabled
+                        >
+                            <!-- Lucide Send Icon (Inline SVG) -->
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send">
+                                <path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
-
-        <!-- Input Area -->
-        <div class="p-4 md:p-6 border-t border-glass-light bg-glass-dark flex items-center space-x-3">
-            <input 
-                type="text" 
-                id="message-input" 
-                placeholder="chat with the rizzler..."
-                class="flex-grow p-3 rounded-full bg-glass-light text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-blue transition duration-200 text-sm md:text-base"
-                onkeypress="if(event.key === 'Enter') document.getElementById('send-button').click()"
-            />
-            <button 
-                id="send-button" 
-                onclick="handleChat()" 
-                class="bg-primary-blue text-white p-3 rounded-full hover:bg-opacity-90 active:scale-95 transition duration-150 transform shadow-lg focus:outline-none focus:ring-4 focus:ring-primary-blue/50"
-            >
-                <!-- Lucide Send Icon (Inline SVG) -->
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send">
-                    <path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>
-                </svg>
-            </button>
+        
+        <!-- Chat History Area - Hidden initially -->
+        <div id="chat-history" class="flex-grow overflow-y-auto chat-scroll flex flex-col pt-8 hidden">
+            <!-- Messages will be injected here -->
         </div>
 
     </div>
@@ -134,11 +152,79 @@
         const BASE_DELAY_MS = 1000;
         
         let sessionId;
+        let isChatActive = false; // Tracks if messages have been sent/received
+
+        const mainContainer = document.getElementById('main-container');
         const chatHistory = document.getElementById('chat-history');
         const messageInput = document.getElementById('message-input');
         const sendButton = document.getElementById('send-button');
+        const header = document.getElementById('app-header');
+        const inputContainer = document.getElementById('input-bar-container');
+
+
+        // --- State Management ---
+        function updateUIState(hasMessages) {
+            if (hasMessages === isChatActive) return; // No change needed
+
+            isChatActive = hasMessages;
+
+            if (hasMessages) {
+                // CHAT STATE (Messages are present)
+                mainContainer.classList.remove('welcome-state');
+                mainContainer.classList.add('chat-state');
+
+                // Header becomes sticky and smaller
+                header.classList.remove('py-8', 'md:py-12');
+                header.classList.add('py-4', 'md:py-6', 'sticky', 'top-0', 'bg-bg-deep', 'border-b', 'border-glass-surface', 'z-20');
+                header.querySelector('h1').classList.remove('text-4xl', 'md:text-5xl');
+                header.querySelector('h1').classList.add('text-xl');
+                document.getElementById('app-description').style.display = 'none';
+
+                // Input bar snaps to the bottom
+                inputContainer.classList.remove('pb-8', 'md:pb-12');
+                inputContainer.classList.add('fixed', 'bottom-0', 'left-0', 'right-0', 'bg-bg-deep', 'border-t', 'border-glass-surface', 'z-20', 'py-4', 'shadow-2xl');
+                inputContainer.querySelector('.w-full').classList.remove('max-w-3xl', 'px-4');
+                inputContainer.querySelector('.w-full').classList.add('max-w-3xl', 'lg:max-w-4xl', 'px-4', 'md:px-8');
+
+                // History becomes visible
+                chatHistory.classList.remove('hidden');
+                chatHistory.classList.add('flex');
+
+            } else {
+                // WELCOME STATE (No messages)
+                mainContainer.classList.remove('chat-state');
+                mainContainer.classList.add('welcome-state');
+
+                // Header is large and centered
+                header.classList.add('py-8', 'md:py-12');
+                header.classList.remove('py-4', 'md:py-6', 'sticky', 'top-0', 'bg-bg-deep', 'border-b', 'border-glass-surface', 'z-20');
+                header.querySelector('h1').classList.add('text-4xl', 'md:text-5xl');
+                header.querySelector('h1').classList.remove('text-xl');
+                document.getElementById('app-description').style.display = 'block';
+
+                // Input bar is immediately below the header
+                inputContainer.classList.add('pb-8', 'md:pb-12');
+                inputContainer.classList.remove('fixed', 'bottom-0', 'left-0', 'right-0', 'bg-bg-deep', 'border-t', 'border-glass-surface', 'z-20', 'py-4', 'shadow-2xl');
+                inputContainer.querySelector('.w-full').classList.add('max-w-3xl', 'px-4'); // Adjusted max-w to 3xl for slightly wider input in welcome state
+                inputContainer.querySelector('.w-full').classList.remove('max-w-4xl', 'lg:max-w-4xl', 'px-4', 'md:px-8');
+
+                // History is hidden
+                chatHistory.classList.add('hidden');
+                chatHistory.classList.remove('flex');
+            }
+            scrollToBottom();
+        }
 
         // --- Utility Functions ---
+
+        // Auto-resizing textarea
+        function resizeTextarea() {
+            messageInput.style.height = 'auto';
+            messageInput.style.height = messageInput.scrollHeight + 'px';
+            
+            // Enable button only if text is present
+            sendButton.disabled = messageInput.value.trim() === '';
+        }
 
         // Exponential backoff for API robustness
         async function fetchWithRetry(url, options, retries = MAX_RETRIES) {
@@ -172,49 +258,54 @@
         function initSessionId() {
             sessionId = localStorage.getItem('sessionId');
             if (!sessionId) {
-                // Use crypto.randomUUID() for a strong, unique ID
                 sessionId = crypto.randomUUID();
                 localStorage.setItem('sessionId', sessionId);
             }
-            document.getElementById('session-id-display').textContent = sessionId.substring(0, 8) + '...';
-            console.log("Session ID:", sessionId);
         }
 
         // --- UI Rendering ---
 
         function addMessageToUI(message, role, isPending = false) {
             const wrapper = document.createElement('div');
-            wrapper.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'}`;
-
-            const bubble = document.createElement('div');
-            let baseClasses = 'max-w-[85%] md:max-w-[70%] text-sm p-3 md:p-4 rounded-xl shadow-bubble text-white transition-all duration-300';
+            const contentContainer = document.createElement('div');
             
-            if (role === 'user') {
-                // Subtle blue background for user messages
-                bubble.className = `${baseClasses} bg-primary-blue rounded-br-sm`;
+            // Base classes for the message bubble (transition is key for the dynamic effect)
+            const baseBubbleClasses = "rounded-3xl text-text-light whitespace-pre-wrap shadow-lg transition-all duration-300 ease-in-out";
+
+            if (role === 'ai') {
+                // AI message (Left-aligned)
+                // Removed aggressive padding here, using px-4 md:px-8 to hug the edges of the max-w-4xl container
+                wrapper.className = 'w-full py-3 flex justify-start px-4 md:px-8'; 
+
+                if (isPending) {
+                    // PENDING: Fixed small size on the left for fluid expansion
+                    contentContainer.className = `${baseBubbleClasses} bg-glass-ai p-3 w-24`;
+                    contentContainer.innerHTML = `
+                        <div class="flex items-center space-x-2">
+                            <span class="dot dot-1"></span>
+                            <span class="dot dot-2"></span>
+                            <span class="dot dot-3"></span>
+                        </div>
+                    `;
+                    contentContainer.id = 'ai-pending-message';
+                } else {
+                    // FINAL: Full message state (Max width, wider for less squishing)
+                    contentContainer.className = `${baseBubbleClasses} bg-glass-ai max-w-3xl p-4 border border-white/10 shadow-liquid`; 
+                    contentContainer.textContent = message;
+                }
             } else {
-                // Glassy, darker background for AI messages
-                bubble.className = `${baseClasses} bg-glass-dark rounded-tl-sm`;
+                // User message (Right-aligned)
+                wrapper.className = 'w-full py-3 flex justify-end px-4 md:px-8';
+                // User message bubble: Accent color, rounded-3xl
+                contentContainer.className = `${baseBubbleClasses} bg-accent-purple max-w-3xl p-4 text-white shadow-glow-lg`;
+                contentContainer.textContent = message;
             }
 
-            if (isPending) {
-                // Display loading indicator
-                bubble.innerHTML = `
-                    <div class="flex items-center">
-                        <span class="dot dot-1 bg-white"></span>
-                        <span class="dot dot-2 bg-white"></span>
-                        <span class="dot dot-3 bg-white"></span>
-                    </div>
-                `;
-                bubble.id = 'ai-pending-message';
-            } else {
-                bubble.textContent = message;
-            }
-
-            wrapper.appendChild(bubble);
+            wrapper.appendChild(contentContainer);
             chatHistory.appendChild(wrapper);
             scrollToBottom();
-            return bubble; // Return the bubble for later modification
+            // Only return the contentContainer if it's pending, so we can update it later
+            return isPending ? contentContainer : null; 
         }
 
         // --- Chat Logic ---
@@ -223,14 +314,23 @@
             const message = messageInput.value.trim();
             if (!message) return;
 
+            // Check if chat is starting (no messages yet)
+            const isFirstMessage = !isChatActive;
+
             // 1. Disable input and add user message
             messageInput.value = '';
+            resizeTextarea(); // Reset textarea height and disable button
             messageInput.disabled = true;
             sendButton.disabled = true;
 
+            // If this is the first message, update the UI state. 
+            if (isFirstMessage) {
+                 updateUIState(true);
+            }
+
             addMessageToUI(message, 'user');
 
-            // 2. Add pending AI message placeholder
+            // 2. Add pending AI message placeholder (returns the content element)
             const pendingBubble = addMessageToUI('', 'ai', true);
 
             try {
@@ -250,20 +350,34 @@
                 if (result.reply) {
                     aiReply = result.reply;
                 } else if (result.error && result.error.message) {
-                    aiReply = `cap! api got cooked: ${result.error.message.substring(0, 100)}... 😭`;
+                    aiReply = `cap! api got cooked: ${result.error.error.message.substring(0, 100)}... 😭`;
                 }
 
-                // 4. Update the pending message with the final reply
+                // 4. Transform the pending bubble into the final message
+                
+                // 4a. Reset classes for smooth transition from loading-state (w-24, p-3) to message-state
+                pendingBubble.className = pendingBubble.className
+                    .replace('w-24', 'max-w-3xl') // Expand width to 3xl
+                    .replace('p-3', 'p-4'); // Expand padding
+                
+                // Add the final style classes (if they were only on the final state)
+                pendingBubble.classList.add('border', 'border-white/10', 'shadow-liquid');
+
+
+                // 4b. Update content and remove ID
                 pendingBubble.textContent = aiReply;
                 pendingBubble.id = ''; // Remove the ID once done
                 
             } catch (error) {
                 console.error("Fetch Error:", error);
+                // If it fails, transform it to a smaller error message bubble
                 pendingBubble.textContent = `fam, connection busted. no cap. check ur console. 💀`;
+                pendingBubble.classList.remove('w-24');
+                pendingBubble.classList.add('max-w-3xl');
             } finally {
                 // 5. Re-enable input and scroll
                 messageInput.disabled = false;
-                sendButton.disabled = false;
+                resizeTextarea(); // Re-evaluate button state
                 messageInput.focus();
                 scrollToBottom();
             }
@@ -273,10 +387,9 @@
         window.onload = function() {
             initSessionId();
             messageInput.focus();
+            resizeTextarea();
+            updateUIState(false); // Start in Welcome State
         };
-
-        // Note: We use window.onload to ensure all DOM elements are available.
-        // The API call uses fetchWithRetry for robust communication with the worker.
     </script>
 </body>
 </html>
