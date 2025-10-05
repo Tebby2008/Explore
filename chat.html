@@ -6,16 +6,15 @@
     <title>LingoBot</title>
     <link rel="icon" type="image/png" href="https://icons.veryicon.com/png/o/weather/weather-5/stars-4.png">    <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        // Custom Tailwind Config for the Glassy/Liquid Theme
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        'bg-deep': '#020617', // Deepest dark blue/slate
-                        'accent-purple': '#8B5CF6', // Purple/Indigo accent for buttons/glow
-                        'glass-surface': 'rgba(30, 41, 59, 0.2)', // Dark, transparent slate for main panel
-                        'glass-input': 'rgba(17, 24, 39, 0.7)', // Darker transparent for input
-                        'glass-ai': 'rgba(30, 41, 59, 0.6)', // AI Message strip background
+                        'bg-deep': '#020617', 
+                        'accent-purple': '#8B5CF6',
+                        'glass-surface': 'rgba(30, 41, 59, 0.2)',
+                        'glass-input': 'rgba(17, 24, 39, 0.7)', 
+                        'glass-ai': 'rgba(30, 41, 59, 0.6)',
                         'text-light': '#F3F4F6',
                     },
                     fontFamily: {
@@ -32,7 +31,6 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
         
-        /* Full-screen background with subtle gradient for the 'dynamic fluid' look */
         body {
             background-color: #020617; 
             background-image: radial-gradient(circle at 10% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
@@ -40,7 +38,6 @@
             transition: all 0.5s ease-in-out;
         }
 
-        /* Essential Glassmorphism Styles applied to elements */
         .glassy-element {
             backdrop-filter: blur(30px) saturate(180%);
             -webkit-backdrop-filter: blur(30px) saturate(180%);
@@ -48,8 +45,6 @@
             transition: all 0.5s ease-in-out;
         }
         
-        
-        /* State transition for the main container */
         .welcome-state {
             justify-content: center; 
             align-items: center; 
@@ -60,7 +55,6 @@
             align-items: center; 
         }
 
-        /* Scrollbar styling */
         .chat-scroll::-webkit-scrollbar { width: 8px; }
         .chat-scroll::-webkit-scrollbar-thumb {
             background-color: #8B5CF699; 
@@ -68,7 +62,6 @@
         }
         .chat-scroll::-webkit-scrollbar-track { background-color: transparent; }
 
-        /* Loading animation for AI response */
         .dot {
             width: 8px;
             height: 8px;
@@ -87,7 +80,6 @@
             40% { transform: scale(1.0); }
         }
 
-        /* Class for the word fade-in effect */
         .word-fade-in {
             opacity: 0;
             transition: opacity 0.2s ease-in;
@@ -145,11 +137,10 @@
     </div>
 
     <script>
-        // --- Configuration ---
         const WORKER_URL = 'https://lingo-chatbot.tebby2008-li.workers.dev/chat';
         const MAX_RETRIES = 3;
         const BASE_DELAY_MS = 1000;
-        const TYPING_SPEED_MS = 20; // Delay between words
+        const TYPING_SPEED_MS = 20;
         const MAX_MESSAGE_LENGTH = 1500; 
 
         let sessionId;
@@ -164,20 +155,17 @@
         const inputContainer = document.getElementById('input-bar-container');
 
 
-        // --- State Management and UI Updates ---
         function updateUIState(hasMessages) {
             if (hasMessages === isChatActive) return;
 
             isChatActive = hasMessages;
 
             if (hasMessages) {
-                // CHAT STATE 
                 mainContainer.classList.remove('welcome-state');
                 mainContainer.classList.add('chat-state');
 
                 header.classList.add('fixed', 'top-0', 'left-0', 'right-0', 'z-20');
                 
-                // Adjust inner content size/padding
                 headerContent.classList.remove('py-20', 'md:py-25');
                 headerContent.classList.add('py-4', 'md:py-6');
                 headerContent.querySelector('h1').classList.remove('text-10xl', 'md:text-5xl');
@@ -188,52 +176,39 @@
                 inputContainer.classList.add('fixed', 'bottom-0', 'left-0', 'right-0', 'z-20', 'py-4', 'shadow-2xl');
                 inputContainer.querySelector('.w-full').classList.remove('max-w-3xl', 'px-4');
                 inputContainer.querySelector('.w-full').classList.add('max-w-3xl', 'lg:max-w-4xl', 'px-4', 'md:px-8');
-
-                // --- Flash Fix Refactor: Use requestAnimationFrame for smooth transition ---
                 
-                // 1. Ensure element is transparent (opacity-0 is required for transition to work)
                 chatHistory.classList.add('opacity-0'); 
                 
-                // 2. Remove 'hidden' and apply 'flex' to establish layout in DOM
                 chatHistory.classList.remove('hidden');
                 chatHistory.classList.add('flex', 'pt-20');
 
-                // 3. Use requestAnimationFrame to start the transition in the next repaint cycle
                 requestAnimationFrame(() => {
                     chatHistory.classList.remove('opacity-0');
                 });
-                // --------------------------------------------------------------------------
 
             } else {
-                // WELCOME STATE
                 mainContainer.classList.remove('chat-state');
                 mainContainer.classList.add('welcome-state');
 
-                // Header reverts
                 header.classList.remove('fixed', 'top-0', 'left-0', 'right-0', 'z-20');
 
-                // Adjust inner content size/padding back
                 headerContent.classList.add('py-20', 'md:py-25');
                 headerContent.classList.remove('py-4', 'md:py-6');
                 headerContent.querySelector('h1').classList.add('text-4xl', 'md:text-5xl');
                 headerContent.querySelector('h1').classList.remove('text-3xl');
                 document.getElementById('app-description').style.display = 'block';
 
-                // Input bar reverts
                 inputContainer.classList.add('pb-8', 'md:pb-12');
                 inputContainer.classList.remove('fixed', 'bottom-0', 'left-0', 'right-0', 'z-20', 'py-4', 'shadow-2xl');
                 inputContainer.querySelector('.w-full').classList.add('max-w-3xl', 'px-4'); 
                 inputContainer.querySelector('.w-full').classList.remove('max-w-4xl', 'lg:max-w-4xl', 'px-4', 'md:px-8');
 
-                // History is hidden
                 chatHistory.classList.add('hidden');
                 chatHistory.classList.remove('flex', 'pt-20', 'opacity-0'); 
             }
-            // Always ensure scroll is at the bottom after a state change
             setTimeout(scrollToBottom, 50); 
         }
 
-        // Auto-scroll to the latest message
         function scrollToBottom() {
             // Use smooth behavior for a better user experience
             chatHistory.scrollTo({
@@ -242,7 +217,6 @@
             });
         }
 
-        // Session Initialization
         function initSessionId() {
             sessionId = localStorage.getItem('sessionId');
             if (!sessionId) {
@@ -253,22 +227,18 @@
 
         // --- Typing Effect Implementation ---
         function typeMessage(element, text) {
-            // 1. Immediately apply final styling/sizing to trigger CSS transition
             element.className = element.className
-                .replace('w-24', 'max-w-3xl') // Expand width to 3xl
-                .replace('p-3', 'p-4'); // Expand padding
+                .replace('w-24', 'max-w-3xl') 
+                .replace('p-3', 'p-4'); 
             
             element.classList.add('border', 'border-white/10', 'shadow-liquid');
 
-            // 2. Clear initial dot content
             element.innerHTML = ''; 
 
-            // 3. Prepare words for typing (handle spaces, new lines, etc.)
             const words = text.split(/(\s+)/).filter(p => p.length > 0);
             let index = 0;
-            let scrollCounter = 0; // Counter to throttle scroll updates
+            let scrollCounter = 0; 
 
-            // IMPORTANT: Call scroll to bottom before typing loop starts
             scrollToBottom(); 
 
             return new Promise(resolve => {
@@ -276,18 +246,15 @@
                     if (index < words.length) {
                         const word = words[index];
                         
-                        // Create a span for the word and apply fade-in style
                         const span = document.createElement('span');
                         span.textContent = word;
                         span.className = 'word-fade-in';
                         
                         element.appendChild(span);
                         
-                        // Force reflow to ensure transition works from opacity 0
                         void span.offsetWidth; 
                         span.style.opacity = 1;
                         
-                        // Auto-scroll after a few words to follow the typing
                         scrollCounter++;
                         if (scrollCounter % 5 === 0) {
                             scrollToBottom();
@@ -296,7 +263,6 @@
                         index++;
                         setTimeout(writeWord, TYPING_SPEED_MS);
                     } else {
-                        // Ensure final scroll after typing is done
                         scrollToBottom();
                         resolve();
                     }
@@ -305,21 +271,16 @@
             });
         }
 
-        // --- UI Rendering ---
-
         function addMessageToUI(message, role, isPending = false) {
             const wrapper = document.createElement('div');
             const contentContainer = document.createElement('div');
             
-            // Base classes for the message bubble 
             const baseBubbleClasses = "rounded-3xl text-text-light whitespace-pre-wrap shadow-lg transition-all duration-300 ease-in-out";
 
             if (role === 'ai') {
-                // AI message (Left-aligned)
                 wrapper.className = 'w-full py-3 flex justify-start px-4 md:px-8'; 
 
                 if (isPending) {
-                    // PENDING: Fixed small size on the left for fluid expansion
                     contentContainer.className = `${baseBubbleClasses} bg-glass-ai p-3 w-24`;
                     contentContainer.innerHTML = `
                         <div class="flex items-center space-x-2">
@@ -330,12 +291,10 @@
                     `;
                     contentContainer.id = 'ai-pending-message';
                 } else {
-                    // FINAL: Full message state 
                     contentContainer.className = `${baseBubbleClasses} bg-glass-ai max-w-3xl p-4 border border-white/10 shadow-liquid`; 
                     contentContainer.textContent = message;
                 }
             } else {
-                // User message (Right-aligned)
                 wrapper.className = 'w-full py-3 flex justify-end px-4 md:px-8';
                 contentContainer.className = `${baseBubbleClasses} bg-accent-purple max-w-3xl p-4 text-white shadow-glow-lg`;
                 contentContainer.textContent = message;
@@ -343,97 +302,80 @@
 
             wrapper.appendChild(contentContainer);
             chatHistory.appendChild(wrapper);
-            // Scroll to bottom immediately after adding the new message
             scrollToBottom(); 
-            // Return the contentContainer for the typing effect logic
             return isPending ? contentContainer : null; 
         }
-
-        // --- Chat Logic ---
 
         async function handleChat() {
             const message = messageInput.value.trim();
             if (!message) return;
-
-            // ADDED: Size check for the user's message
-            if (message.length > MAX_MESSAGE_LENGTH) {
-                // Provide immediate feedback to the user and halt the request
-                const errorMsg = `yo bro, no cap, that's too much text (max ${MAX_MESSAGE_LENGTH} characters). keep it brief, fam. 🚫`;
-                
-                // If chat history is not visible, transition to chat state to show the error
-                if (!isChatActive) {
-                    updateUIState(true);
-                }
-                
-                // Add a "self-correction" AI message to the chat history
-                addMessageToUI(errorMsg, 'ai'); 
-                
-                // Clear input and re-enable it
-                messageInput.value = '';
-                resizeTextarea();
-                messageInput.focus();
-                sendButton.disabled = true; // Still disabled since input is empty
-
-                return; // Stop the function execution
-            }
-
+        
             const isFirstMessage = !isChatActive;
-
-            // 1. Disable input and add user message
+        
             messageInput.value = '';
             resizeTextarea(); 
             messageInput.disabled = true;
             sendButton.disabled = true;
-
+        
             if (isFirstMessage) {
-                    updateUIState(true);
+                updateUIState(true);
             }
-
+        
             addMessageToUI(message, 'user');
-
-            // 2. Add pending AI message placeholder 
+        
+            if (message.length > MAX_MESSAGE_LENGTH) {
+                const errorMsg = `No cap, that's too much text (max ${MAX_MESSAGE_LENGTH} characters). Keep it brief, fam. 🚫`;
+        
+                const pendingBubble = addMessageToUI('', 'ai', true); 
+                await typeMessage(pendingBubble, errorMsg); 
+        
+                if (pendingBubble) pendingBubble.id = ''; 
+                messageInput.disabled = false;
+                resizeTextarea(); 
+                messageInput.focus();
+                scrollToBottom();
+        
+                return;
+            }
+            
             const pendingBubble = addMessageToUI('', 'ai', true);
-
+        
             try {
-                // 3. API Call
                 const response = await fetchWithRetry(WORKER_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ message, sessionId })
                 });
-
+        
                 const result = await response.json();
                 
                 let aiReply = "icls, the server be mad sus rn. check console for tea. 💀";
-
+        
                 if (result.reply) {
                     aiReply = result.reply;
                 } else if (result.error && result.error.message) {
-                    aiReply = `cap! api got cooked: ${result.error.error.message.substring(0, 100)}... 😭`;
+                    aiReply = `crap! api got cooked: ${result.error.error.message.substring(0, 100)}... 😭`;
                 }
-
-                // 4. Run the Typewriter/Fade-in effect 
+        
                 await typeMessage(pendingBubble, aiReply);
                 
             } catch (error) {
                 console.error("Fetch Error:", error);
-                // Handle fetch error visually
                 pendingBubble.className = pendingBubble.className
                     .replace('w-24', 'max-w-3xl')
                     .replace('p-3', 'p-4'); 
                 pendingBubble.classList.add('border', 'border-white/10', 'shadow-liquid');
                 pendingBubble.innerHTML = `fam, connection busted. no cap. check ur console. 💀`;
-
+        
             } finally {
-                // 5. Cleanup
-                if (pendingBubble) pendingBubble.id = ''; // Remove the ID once done
+                // 7. Cleanup
+                if (pendingBubble) pendingBubble.id = '';
                 messageInput.disabled = false;
                 resizeTextarea(); 
                 messageInput.focus();
                 scrollToBottom();
             }
         }
-
         // --- Utility Functions ---
 
         // Auto-resizing textarea
@@ -465,7 +407,6 @@
             throw new Error(`Failed to fetch from ${url} after ${retries} attempts.`);
         }
 
-        // Initialize on page load
         window.onload = function() {
             initSessionId();
             messageInput.focus();
