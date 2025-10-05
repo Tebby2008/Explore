@@ -87,16 +87,12 @@
             transition: opacity 0.2s ease-in;
             display: inline-block;
         }
-        
-        /* NEW AND UPDATED CSS: Blur Mask for a smooth blur transition (blur-to-clear) */
-        
-        /* The structural class is kept, but its blur/gradient logic is moved to ::before */
+                
         .header-blur-overlay {
             border-bottom: 1px solid rgba(255, 255, 255, 0.1); 
-            position: relative; /* Essential to contain the ::before element */
+            position: relative;
         }
         
-        /* The element that contains the actual blur and masking logic */
         #app-header::before {
             content: '';
             position: absolute;
@@ -106,15 +102,14 @@
             bottom: 0;
             z-index: -1; 
             
-            /* 1. APPLY CONSTANT BLUR */
             backdrop-filter: blur(15px) saturate(180%);
             -webkit-backdrop-filter: blur(15px) saturate(180%);
             
-            /* 2. APPLY MASK (Black = Opaque/Blur Visible, Transparent = Clear) */
+
             mask-image: linear-gradient(to bottom, 
-                rgba(0, 0, 0, 1) 0%,    /* Full blur visibility at the top */
-                rgba(0, 0, 0, 1) 40%,   /* Blur remains fully visible down to 40% of height */
-                rgba(0, 0, 0, 0) 100%   /* Blur fades to invisible at the bottom */
+                rgba(0, 0, 0, 1) 0%,   
+                rgba(0, 0, 0, 1) 40%, 
+                rgba(0, 0, 0, 0) 100%  
             );
             -webkit-mask-image: linear-gradient(to bottom, 
                 rgba(0, 0, 0, 1) 0%, 
@@ -122,7 +117,6 @@
                 rgba(0, 0, 0, 0) 100%
             );
             
-            /* 3. ADD DARK OVERLAY (The color gradient) */
             background-image: linear-gradient(to bottom, 
                 rgba(2, 6, 23, 0.98) 0%,  
                 rgba(2, 6, 23, 0.8) 50%,  
@@ -271,7 +265,6 @@
             }
         }
 
-        // --- Typing Effect Implementation ---
         function typeMessage(element, text) {
             element.className = element.className
                 .replace('w-24', 'max-w-3xl') 
@@ -422,16 +415,13 @@
                 scrollToBottom();
             }
         }
-        // --- Utility Functions ---
 
-        // Auto-resizing textarea
         function resizeTextarea() {
             messageInput.style.height = 'auto';
             messageInput.style.height = messageInput.scrollHeight + 'px';
             sendButton.disabled = messageInput.value.trim() === '';
         }
 
-        // Exponential backoff for API robustness
         async function fetchWithRetry(url, options, retries = MAX_RETRIES) {
             for (let i = 0; i < retries; i++) {
                 try {
