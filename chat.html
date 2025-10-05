@@ -1,419 +1,418 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LingoBot</title>
-    <link rel="icon" type="image/png" href="https://icons.veryicon.com/png/o/weather/weather-5/stars-4.png">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'bg-deep': '#020617', 
-                        'accent-purple': '#8B5CF6',
-                        'glass-surface': 'rgba(30, 41, 59, 0.2)',
-                        'glass-input': 'rgba(17, 24, 39, 0.7)', 
-                        'glass-ai': 'rgba(30, 41, 59, 0.6)',
-                        'text-light': '#F3F4F6',
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                    boxShadow: {
-                        'liquid': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
-                        'glow-lg': '0 10px 40px rgba(139, 92, 246, 0.4), 0 4px 6px rgba(0, 0, 0, 0.1)',
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
-        
-        body {
-            background-color: #020617; 
-            background-image: radial-gradient(circle at 10% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
-                              radial-gradient(circle at 90% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 50%);
-            transition: all 0.5s ease-in-out;
-        }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LingoBot</title>
+    <link rel="icon" type="image/png" href="https://icons.veryicon.com/png/o/weather/weather-5/stars-4.png">    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'bg-deep': '#020617', 
+                        'accent-purple': '#8B5CF6',
+                        'glass-surface': 'rgba(30, 41, 59, 0.2)',
+                        'glass-input': 'rgba(17, 24, 39, 0.7)', 
+                        'glass-ai': 'rgba(30, 41, 59, 0.6)',
+                        'text-light': '#F3F4F6',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'liquid': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+                        'glow-lg': '0 10px 40px rgba(139, 92, 246, 0.4), 0 4px 6px rgba(0, 0, 0, 0.1)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        
+        body {
+            background-color: #020617; 
+            background-image: radial-gradient(circle at 10% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+                              radial-gradient(circle at 90% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 50%);
+            transition: all 0.5s ease-in-out;
+        }
 
-        .glassy-element {
-            backdrop-filter: blur(30px) saturate(180%);
-            -webkit-backdrop-filter: blur(30px) saturate(180%);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            transition: all 0.5s ease-in-out;
-        }
-        
-        .welcome-state {
-            justify-content: center; 
-            align-items: center; 
-        }
-        
-        .chat-state {
-            justify-content: flex-start; 
-            align-items: center; 
-        }
+        .glassy-element {
+            backdrop-filter: blur(30px) saturate(180%);
+            -webkit-backdrop-filter: blur(30px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.5s ease-in-out;
+        }
+        
+        .welcome-state {
+            justify-content: center; 
+            align-items: center; 
+        }
+        
+        .chat-state {
+            justify-content: flex-start; 
+            align-items: center; 
+        }
 
-        .chat-scroll::-webkit-scrollbar { width: 8px; }
-        .chat-scroll::-webkit-scrollbar-thumb {
-            background-color: #8B5CF699; 
-            border-radius: 4px;
-        }
-        .chat-scroll::-webkit-scrollbar-track { background-color: transparent; }
+        .chat-scroll::-webkit-scrollbar { width: 8px; }
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background-color: #8B5CF699; 
+            border-radius: 4px;
+        }
+        .chat-scroll::-webkit-scrollbar-track { background-color: transparent; }
 
-        .dot {
-            width: 8px;
-            height: 8px;
-            margin: 0 4px;
-            background-color: #8B5CF6;
-            border-radius: 50%;
-            display: inline-block;
-            animation: bounce 1.4s infinite ease-in-out both;
-        }
-        .dot-1 { animation-delay: -0.32s; }
-        .dot-2 { animation-delay: -0.16s; }
-        .dot-3 { animation-delay: 0s; }
+        .dot {
+            width: 8px;
+            height: 8px;
+            margin: 0 4px;
+            background-color: #8B5CF6;
+            border-radius: 50%;
+            display: inline-block;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .dot-1 { animation-delay: -0.32s; }
+        .dot-2 { animation-delay: -0.16s; }
+        .dot-3 { animation-delay: 0s; }
 
-        @keyframes bounce {
-            0%, 80%, 100% { transform: scale(0); }
-            40% { transform: scale(1.0); }
-        }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
+        }
 
-        .word-fade-in {
-            opacity: 0;
-            transition: opacity 0.2s ease-in;
-            display: inline-block;
-        }
-    </style>
+        .word-fade-in {
+            opacity: 0;
+            transition: opacity 0.2s ease-in;
+            display: inline-block;
+        }
+    </style>
 </head>
 <body class="font-sans min-h-screen flex flex-col items-center justify-between">
 
-    <div id="main-container" class="w-full h-full max-w-4xl flex flex-col min-h-screen chat-state">
-        
-        <div id="header-input-wrapper" class="w-full transition-all duration-500 ease-in-out">
-            
-            <header id="app-header" class="w-full transition-all duration-500 ease-in-out">
-                <div id="header-content" class="px-4 text-center py-20 md:py-25 w-full max-w-6xl mx-auto">
-                    <h1 class="text-4xl md:text-5xl font-extrabold text-white tracking-wider">
-                        LingoBot
-                    </h1>
-                    <p id="app-description" class="text-text-light text-opacity-80 mt-2 text-lg font-light transition-opacity duration-300">
-                        Your Gen Alpha Rizzler. Let's cook.
-                    </p>
-                </div>
-            </header>
+    <div id="main-container" class="w-full h-full max-w-4xl flex flex-col min-h-screen chat-state">
+        
+        <div id="header-input-wrapper" class="w-full transition-all duration-500 ease-in-out">
+            
+            <header id="app-header" class="w-full transition-all duration-500 ease-in-out">
+                <div id="header-content" class="px-4 text-center py-20 md:py-25 w-full max-w-6xl mx-auto">
+                    <h1 class="text-4xl md:text-5xl font-extrabold text-white tracking-wider">
+                        LingoBot
+                    </h1>
+                    <p id="app-description" class="text-text-light text-opacity-80 mt-2 text-lg font-light transition-opacity duration-300">
+                        Your Gen Alpha Rizzler. Let's cook.
+                    </p>
+                </div>
+            </header>
 
-            <div id="input-bar-container" class="w-full flex justify-center pb-8 md:pb-12 transition-all duration-500 ease-in-out">
-                <div class="w-full max-w-3xl px-4"> 
-                     <div class="flex items-center space-x-3 glassy-element rounded-[3rem] shadow-glow-lg p-2">
-                        <textarea 
-                            id="message-input" 
-                            placeholder="chat with the rizzler..."
-                            rows="1"
-                            class="flex-grow p-2 pl-6 bg-transparent text-text-light placeholder-gray-400 focus:outline-none resize-none overflow-hidden text-base"
-                            oninput="resizeTextarea()"
-                            onkeypress="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); document.getElementById('send-button').click(); }"
-                        ></textarea>
-                        
-                        <button 
-                            id="send-button" 
-                            onclick="handleChat()" 
-                            class="bg-accent-purple text-white p-3 rounded-full hover:bg-opacity-90 active:scale-95 transition duration-150 transform shadow-md focus:outline-none focus:ring-4 focus:ring-accent-purple/50 disabled:opacity-50"
-                            disabled
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send">
-                                <path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div id="chat-history" class="w-full flex-grow overflow-y-auto chat-scroll flex flex-col pb-28 hidden transition-opacity duration-300">
-            </div>
+            <div id="input-bar-container" class="w-full flex justify-center pb-8 md:pb-12 transition-all duration-500 ease-in-out">
+                <div class="w-full max-w-3xl px-4"> 
+                     <div class="flex items-center space-x-3 glassy-element rounded-[3rem] shadow-glow-lg p-2">
+                        <textarea 
+                            id="message-input" 
+                            placeholder="chat with the rizzler..."
+                            rows="1"
+                            class="flex-grow p-2 pl-6 bg-transparent text-text-light placeholder-gray-400 focus:outline-none resize-none overflow-hidden text-base"
+                            oninput="resizeTextarea()"
+                            onkeypress="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); document.getElementById('send-button').click(); }"
+                        ></textarea>
+                        
+                        <button 
+                            id="send-button" 
+                            onclick="handleChat()" 
+                            class="bg-accent-purple text-white p-3 rounded-full hover:bg-opacity-90 active:scale-95 transition duration-150 transform shadow-md focus:outline-none focus:ring-4 focus:ring-accent-purple/50 disabled:opacity-50"
+                            disabled
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send">
+                                <path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="chat-history" class="w-full flex-grow overflow-y-auto chat-scroll flex flex-col pb-28 hidden transition-opacity duration-300">
+            </div>
 
-    </div>
+    </div>
 
-    <script>
-        const WORKER_URL = 'https://lingo-chatbot.tebby2008-li.workers.dev/chat';
-        const MAX_RETRIES = 3;
-        const BASE_DELAY_MS = 1000;
-        const TYPING_SPEED_MS = 20;
-        const MAX_MESSAGE_LENGTH = 1000; 
+    <script>
+        const WORKER_URL = 'https://lingo-chatbot.tebby2008-li.workers.dev/chat';
+        const MAX_RETRIES = 3;
+        const BASE_DELAY_MS = 1000;
+        const TYPING_SPEED_MS = 20;
+        const MAX_MESSAGE_LENGTH = 1000; 
 
-        let sessionId;
-        let isChatActive = false; 
+        let sessionId;
+        let isChatActive = false; 
 
-        const mainContainer = document.getElementById('main-container');
-        const chatHistory = document.getElementById('chat-history');
-        const messageInput = document.getElementById('message-input');
-        const sendButton = document.getElementById('send-button');
-        const header = document.getElementById('app-header');
-        const headerContent = document.getElementById('header-content');
-        const inputContainer = document.getElementById('input-bar-container');
+        const mainContainer = document.getElementById('main-container');
+        const chatHistory = document.getElementById('chat-history');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const header = document.getElementById('app-header');
+        const headerContent = document.getElementById('header-content');
+        const inputContainer = document.getElementById('input-bar-container');
 
 
-        function updateUIState(hasMessages) {
-            if (hasMessages === isChatActive) return;
+        function updateUIState(hasMessages) {
+            if (hasMessages === isChatActive) return;
 
-            isChatActive = hasMessages;
+            isChatActive = hasMessages;
 
-            if (hasMessages) {
-                mainContainer.classList.remove('welcome-state');
-                mainContainer.classList.add('chat-state');
+            if (hasMessages) {
+                mainContainer.classList.remove('welcome-state');
+                mainContainer.classList.add('chat-state');
 
-                header.classList.add('fixed', 'top-0', 'left-0', 'right-0', 'z-20');
-                
-                headerContent.classList.remove('py-20', 'md:py-25');
-                headerContent.classList.add('py-4', 'md:py-6');
-                headerContent.querySelector('h1').classList.remove('text-10xl', 'md:text-5xl');
-                headerContent.querySelector('h1').classList.add('text-3xl');
-                document.getElementById('app-description').style.display = 'none';
+                header.classList.add('fixed', 'top-0', 'left-0', 'right-0', 'z-20');
+                
+                headerContent.classList.remove('py-20', 'md:py-25');
+                headerContent.classList.add('py-4', 'md:py-6');
+                headerContent.querySelector('h1').classList.remove('text-10xl', 'md:text-5xl');
+                headerContent.querySelector('h1').classList.add('text-3xl');
+                document.getElementById('app-description').style.display = 'none';
 
-                inputContainer.classList.remove('pb-8', 'md:pb-12');
-                inputContainer.classList.add('fixed', 'bottom-0', 'left-0', 'right-0', 'z-20', 'py-4', 'shadow-2xl');
-                inputContainer.querySelector('.w-full').classList.remove('max-w-3xl', 'px-4');
-                inputContainer.querySelector('.w-full').classList.add('max-w-3xl', 'lg:max-w-4xl', 'px-4', 'md:px-8');
-                
-                chatHistory.classList.add('opacity-0'); 
-                
-                chatHistory.classList.remove('hidden');
-                chatHistory.classList.add('flex', 'pt-20');
+                inputContainer.classList.remove('pb-8', 'md:pb-12');
+                inputContainer.classList.add('fixed', 'bottom-0', 'left-0', 'right-0', 'z-20', 'py-4', 'shadow-2xl');
+                inputContainer.querySelector('.w-full').classList.remove('max-w-3xl', 'px-4');
+                inputContainer.querySelector('.w-full').classList.add('max-w-3xl', 'lg:max-w-4xl', 'px-4', 'md:px-8');
+                
+                chatHistory.classList.add('opacity-0'); 
+                
+                chatHistory.classList.remove('hidden');
+                chatHistory.classList.add('flex', 'pt-20');
 
-                requestAnimationFrame(() => {
-                    chatHistory.classList.remove('opacity-0');
-                });
+                requestAnimationFrame(() => {
+                    chatHistory.classList.remove('opacity-0');
+                });
 
-            } else {
-                mainContainer.classList.remove('chat-state');
-                mainContainer.classList.add('welcome-state');
+            } else {
+                mainContainer.classList.remove('chat-state');
+                mainContainer.classList.add('welcome-state');
 
-                header.classList.remove('fixed', 'top-0', 'left-0', 'right-0', 'z-20');
+                header.classList.remove('fixed', 'top-0', 'left-0', 'right-0', 'z-20');
 
-                headerContent.classList.add('py-20', 'md:py-25');
-                headerContent.classList.remove('py-4', 'md:py-6');
-                headerContent.querySelector('h1').classList.add('text-4xl', 'md:text-5xl');
-                headerContent.querySelector('h1').classList.remove('text-3xl');
-                document.getElementById('app-description').style.display = 'block';
+                headerContent.classList.add('py-20', 'md:py-25');
+                headerContent.classList.remove('py-4', 'md:py-6');
+                headerContent.querySelector('h1').classList.add('text-4xl', 'md:text-5xl');
+                headerContent.querySelector('h1').classList.remove('text-3xl');
+                document.getElementById('app-description').style.display = 'block';
 
-                inputContainer.classList.add('pb-8', 'md:pb-12');
-                inputContainer.classList.remove('fixed', 'bottom-0', 'left-0', 'right-0', 'z-20', 'py-4', 'shadow-2xl');
-                inputContainer.querySelector('.w-full').classList.add('max-w-3xl', 'px-4'); 
-                inputContainer.querySelector('.w-full').classList.remove('max-w-4xl', 'lg:max-w-4xl', 'px-4', 'md:px-8');
+                inputContainer.classList.add('pb-8', 'md:pb-12');
+                inputContainer.classList.remove('fixed', 'bottom-0', 'left-0', 'right-0', 'z-20', 'py-4', 'shadow-2xl');
+                inputContainer.querySelector('.w-full').classList.add('max-w-3xl', 'px-4'); 
+                inputContainer.querySelector('.w-full').classList.remove('max-w-4xl', 'lg:max-w-4xl', 'px-4', 'md:px-8');
 
-                chatHistory.classList.add('hidden');
-                chatHistory.classList.remove('flex', 'pt-20', 'opacity-0'); 
-            }
-            setTimeout(scrollToBottom, 50); 
-        }
+                chatHistory.classList.add('hidden');
+                chatHistory.classList.remove('flex', 'pt-20', 'opacity-0'); 
+            }
+            setTimeout(scrollToBottom, 50); 
+        }
 
-        function scrollToBottom() {
-            // Use smooth behavior for a better user experience
-            chatHistory.scrollTo({
-                top: chatHistory.scrollHeight,
-                behavior: 'smooth'
-            });
-        }
+        function scrollToBottom() {
+            // Use smooth behavior for a better user experience
+            chatHistory.scrollTo({
+                top: chatHistory.scrollHeight,
+                behavior: 'smooth'
+            });
+        }
 
-        function initSessionId() {
-            sessionId = localStorage.getItem('sessionId');
-            if (!sessionId) {
-                sessionId = crypto.randomUUID();
-                localStorage.setItem('sessionId', sessionId);
-            }
-        }
+        function initSessionId() {
+            sessionId = localStorage.getItem('sessionId');
+            if (!sessionId) {
+                sessionId = crypto.randomUUID();
+                localStorage.setItem('sessionId', sessionId);
+            }
+        }
 
-        // --- Typing Effect Implementation ---
-        function typeMessage(element, text) {
-            element.className = element.className
-                .replace('w-24', 'max-w-3xl') 
-                .replace('p-3', 'p-4'); 
-            
-            element.classList.add('border', 'border-white/10', 'shadow-liquid');
+        // --- Typing Effect Implementation ---
+        function typeMessage(element, text) {
+            element.className = element.className
+                .replace('w-24', 'max-w-3xl') 
+                .replace('p-3', 'p-4'); 
+            
+            element.classList.add('border', 'border-white/10', 'shadow-liquid');
 
-            element.innerHTML = ''; 
+            element.innerHTML = ''; 
 
-            const words = text.split(/(\s+)/).filter(p => p.length > 0);
-            let index = 0;
-            let scrollCounter = 0; 
+            const words = text.split(/(\s+)/).filter(p => p.length > 0);
+            let index = 0;
+            let scrollCounter = 0; 
 
-            scrollToBottom(); 
+            scrollToBottom(); 
 
-            return new Promise(resolve => {
-                function writeWord() {
-                    if (index < words.length) {
-                        const word = words[index];
-                        
-                        const span = document.createElement('span');
-                        span.textContent = word;
-                        span.className = 'word-fade-in';
-                        
-                        element.appendChild(span);
-                        
-                        void span.offsetWidth; 
-                        span.style.opacity = 1;
-                        
-                        scrollCounter++;
-                        if (scrollCounter % 5 === 0) {
-                            scrollToBottom();
-                        }
+            return new Promise(resolve => {
+                function writeWord() {
+                    if (index < words.length) {
+                        const word = words[index];
+                        
+                        const span = document.createElement('span');
+                        span.textContent = word;
+                        span.className = 'word-fade-in';
+                        
+                        element.appendChild(span);
+                        
+                        void span.offsetWidth; 
+                        span.style.opacity = 1;
+                        
+                        scrollCounter++;
+                        if (scrollCounter % 5 === 0) {
+                            scrollToBottom();
+                        }
 
-                        index++;
-                        setTimeout(writeWord, TYPING_SPEED_MS);
-                    } else {
-                        scrollToBottom();
-                        resolve();
-                    }
-                }
-                writeWord();
-            });
-        }
+                        index++;
+                        setTimeout(writeWord, TYPING_SPEED_MS);
+                    } else {
+                        scrollToBottom();
+                        resolve();
+                    }
+                }
+                writeWord();
+            });
+        }
 
-        function addMessageToUI(message, role, isPending = false) {
-            const wrapper = document.createElement('div');
-            const contentContainer = document.createElement('div');
-            
-            const baseBubbleClasses = "rounded-3xl text-text-light whitespace-pre-wrap shadow-lg transition-all duration-300 ease-in-out";
+        function addMessageToUI(message, role, isPending = false) {
+            const wrapper = document.createElement('div');
+            const contentContainer = document.createElement('div');
+            
+            const baseBubbleClasses = "rounded-3xl text-text-light whitespace-pre-wrap shadow-lg transition-all duration-300 ease-in-out";
 
-            if (role === 'ai') {
-                wrapper.className = 'w-full py-3 flex justify-start px-4 md:px-8'; 
+            if (role === 'ai') {
+                wrapper.className = 'w-full py-3 flex justify-start px-4 md:px-8'; 
 
-                if (isPending) {
-                    contentContainer.className = `${baseBubbleClasses} bg-glass-ai p-3 w-24`;
-                    contentContainer.innerHTML = `
-                        <div class="flex items-center space-x-2">
-                            <span class="dot dot-1"></span>
-                            <span class="dot dot-2"></span>
-                            <span class="dot dot-3"></span>
-                        </div>
-                    `;
-                    contentContainer.id = 'ai-pending-message';
-                } else {
-                    contentContainer.className = `${baseBubbleClasses} bg-glass-ai max-w-3xl p-4 border border-white/10 shadow-liquid`; 
-                    contentContainer.textContent = message;
-                }
-            } else {
-                wrapper.className = 'w-full py-3 flex justify-end px-4 md:px-8';
-                contentContainer.className = `${baseBubbleClasses} bg-accent-purple max-w-3xl p-4 text-white shadow-glow-lg`;
-                contentContainer.textContent = message;
-            }
+                if (isPending) {
+                    contentContainer.className = `${baseBubbleClasses} bg-glass-ai p-3 w-24`;
+                    contentContainer.innerHTML = `
+                        <div class="flex items-center space-x-2">
+                            <span class="dot dot-1"></span>
+                            <span class="dot dot-2"></span>
+                            <span class="dot dot-3"></span>
+                        </div>
+                    `;
+                    contentContainer.id = 'ai-pending-message';
+                } else {
+                    contentContainer.className = `${baseBubbleClasses} bg-glass-ai max-w-3xl p-4 border border-white/10 shadow-liquid`; 
+                    contentContainer.textContent = message;
+                }
+            } else {
+                wrapper.className = 'w-full py-3 flex justify-end px-4 md:px-8';
+                contentContainer.className = `${baseBubbleClasses} bg-accent-purple max-w-3xl p-4 text-white shadow-glow-lg`;
+                contentContainer.textContent = message;
+            }
 
-            wrapper.appendChild(contentContainer);
-            chatHistory.appendChild(wrapper);
-            scrollToBottom(); 
-            return isPending ? contentContainer : null; 
-        }
+            wrapper.appendChild(contentContainer);
+            chatHistory.appendChild(wrapper);
+            scrollToBottom(); 
+            return isPending ? contentContainer : null; 
+        }
 
-        async function handleChat() {
-            const message = messageInput.value.trim();
-            if (!message) return;
-        
-            const isFirstMessage = !isChatActive;
-        
-            messageInput.value = '';
-            resizeTextarea(); 
-            messageInput.disabled = true;
-            sendButton.disabled = true;
-        
-            if (isFirstMessage) {
-                updateUIState(true);
-            }
-        
-            addMessageToUI(message, 'user');
-        
-            if (message.length > MAX_MESSAGE_LENGTH) {
-                const errorMsg = `No cap, that's too much text (max ${MAX_MESSAGE_LENGTH} characters). Keep it brief, fam. 🚫`;
-        
-                const pendingBubble = addMessageToUI('', 'ai', true); 
-                await typeMessage(pendingBubble, errorMsg); 
-        
-                if (pendingBubble) pendingBubble.id = ''; 
-                messageInput.disabled = false;
-                resizeTextarea(); 
-                messageInput.focus();
-                scrollToBottom();
-        
-                return;
-            }
-            
-            const pendingBubble = addMessageToUI('', 'ai', true);
-        
-            try {
-                const response = await fetchWithRetry(WORKER_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message, sessionId })
-                });
-        
-                const result = await response.json();
-                
-                let aiReply = "icls, the server be mad sus rn. check console for tea. 💀";
-        
-                if (result.reply) {
-                    aiReply = result.reply;
-                } else if (result.error && result.error.message) {
-                    aiReply = `crap! api got cooked: ${result.error.error.message.substring(0, 100)}... 😭`;
-                }
-        
-                await typeMessage(pendingBubble, aiReply);
-                
-            } catch (error) {
-                console.error("Fetch Error:", error);
-                pendingBubble.className = pendingBubble.className
-                    .replace('w-24', 'max-w-3xl')
-                    .replace('p-3', 'p-4'); 
-                pendingBubble.classList.add('border', 'border-white/10', 'shadow-liquid');
-                pendingBubble.innerHTML = `fam, connection busted. no cap. check ur console. 💀`;
-        
-            } finally {
-                // 7. Cleanup
-                if (pendingBubble) pendingBubble.id = '';
-                messageInput.disabled = false;
-                resizeTextarea(); 
-                messageInput.focus();
-                scrollToBottom();
-            }
-        }
-        // --- Utility Functions ---
+        async function handleChat() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+        
+            const isFirstMessage = !isChatActive;
+        
+            messageInput.value = '';
+            resizeTextarea(); 
+            messageInput.disabled = true;
+            sendButton.disabled = true;
+        
+            if (isFirstMessage) {
+                updateUIState(true);
+            }
+        
+            addMessageToUI(message, 'user');
+        
+            if (message.length > MAX_MESSAGE_LENGTH) {
+                const errorMsg = `No cap, that's too much text (max ${MAX_MESSAGE_LENGTH} characters). Keep it brief, fam. 🚫`;
+        
+                const pendingBubble = addMessageToUI('', 'ai', true); 
+                await typeMessage(pendingBubble, errorMsg); 
+        
+                if (pendingBubble) pendingBubble.id = ''; 
+                messageInput.disabled = false;
+                resizeTextarea(); 
+                messageInput.focus();
+                scrollToBottom();
+        
+                return;
+            }
+            
+            const pendingBubble = addMessageToUI('', 'ai', true);
+        
+            try {
+                const response = await fetchWithRetry(WORKER_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message, sessionId })
+                });
+        
+                const result = await response.json();
+                
+                let aiReply = "icls, the server be mad sus rn. check console for tea. 💀";
+        
+                if (result.reply) {
+                    aiReply = result.reply;
+                } else if (result.error && result.error.message) {
+                    aiReply = `crap! api got cooked: ${result.error.error.message.substring(0, 100)}... 😭`;
+                }
+        
+                await typeMessage(pendingBubble, aiReply);
+                
+            } catch (error) {
+                console.error("Fetch Error:", error);
+                pendingBubble.className = pendingBubble.className
+                    .replace('w-24', 'max-w-3xl')
+                    .replace('p-3', 'p-4'); 
+                pendingBubble.classList.add('border', 'border-white/10', 'shadow-liquid');
+                pendingBubble.innerHTML = `fam, connection busted. no cap. check ur console. 💀`;
+        
+            } finally {
+                // 7. Cleanup
+                if (pendingBubble) pendingBubble.id = '';
+                messageInput.disabled = false;
+                resizeTextarea(); 
+                messageInput.focus();
+                scrollToBottom();
+            }
+        }
+        // --- Utility Functions ---
 
-        // Auto-resizing textarea
-        function resizeTextarea() {
-            messageInput.style.height = 'auto';
-            messageInput.style.height = messageInput.scrollHeight + 'px';
-            sendButton.disabled = messageInput.value.trim() === '';
-        }
+        // Auto-resizing textarea
+        function resizeTextarea() {
+            messageInput.style.height = 'auto';
+            messageInput.style.height = messageInput.scrollHeight + 'px';
+            sendButton.disabled = messageInput.value.trim() === '';
+        }
 
-        // Exponential backoff for API robustness
-        async function fetchWithRetry(url, options, retries = MAX_RETRIES) {
-            for (let i = 0; i < retries; i++) {
-                try {
-                    const response = await fetch(url, options);
-                    if (response.ok) {
-                        return response;
-                    }
-                    if (response.status === 403) {
-                         throw new Error("Forbidden: Access blocked by CORS policy (incorrect origin).");
-                    }
-                } catch (error) {
-                    console.error(`Attempt ${i + 1} failed:`, error);
-                }
-                const delay = BASE_DELAY_MS * Math.pow(2, i);
-                if (i < retries - 1) {
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                }
-            }
-            throw new Error(`Failed to fetch from ${url} after ${retries} attempts.`);
-        }
+        // Exponential backoff for API robustness
+        async function fetchWithRetry(url, options, retries = MAX_RETRIES) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.ok) {
+                        return response;
+                    }
+                    if (response.status === 403) {
+                         throw new Error("Forbidden: Access blocked by CORS policy (incorrect origin).");
+                    }
+                } catch (error) {
+                    console.error(`Attempt ${i + 1} failed:`, error);
+                }
+                const delay = BASE_DELAY_MS * Math.pow(2, i);
+                if (i < retries - 1) {
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+            throw new Error(`Failed to fetch from ${url} after ${retries} attempts.`);
+        }
 
-        window.onload = function() {
-            initSessionId();
-            messageInput.focus();
-            resizeTextarea();
-            updateUIState(false); 
-        };
-    </script>
+        window.onload = function() {
+            initSessionId();
+            messageInput.focus();
+            resizeTextarea();
+            updateUIState(false); 
+        };
+    </script>
 </body>
 </html>
