@@ -150,8 +150,7 @@
         const MAX_RETRIES = 3;
         const BASE_DELAY_MS = 1000;
         const TYPING_SPEED_MS = 20; // Delay between words
-        // ADDED: Maximum character length for a user message (e.g., 500 characters)
-        const MAX_MESSAGE_LENGTH = 500; 
+        const MAX_MESSAGE_LENGTH = 1500; 
 
         let sessionId;
         let isChatActive = false; 
@@ -359,7 +358,7 @@
             // ADDED: Size check for the user's message
             if (message.length > MAX_MESSAGE_LENGTH) {
                 // Provide immediate feedback to the user and halt the request
-                const errorMsg = `No cap, that's too much text (max ${MAX_MESSAGE_LENGTH} characters). Keep it brief, fam. 🚫`;
+                const errorMsg = `yo bro, no cap, that's too much text (max ${MAX_MESSAGE_LENGTH} characters). keep it brief, fam. 🚫`;
                 
                 // If chat history is not visible, transition to chat state to show the error
                 if (!isChatActive) {
