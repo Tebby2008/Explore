@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LingoBot</title>
-    <link rel="icon" type="image/png" href="https://icons.veryicon.com/png/o/weather/weather-5/stars-4.png">    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="https://icons.veryicon.com/png/o/weather/weather-5/stars-4.png">
+    <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -22,7 +23,7 @@
                     },
                     boxShadow: {
                         'liquid': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
-                        'glow-lg': '0 10px 40px rgba(139, 92, 246, 0.4), 0 4px 6px rgba(0, 0, 0, 0.1)',
+                        'glow-lg': '0 10px 40px rgba(139, 92, 246, 0.4), 0 4px 6px rgba(0, 0, 0, 0.1)'
                     }
                 }
             }
@@ -34,7 +35,7 @@
         body {
             background-color: #020617; 
             background-image: radial-gradient(circle at 10% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
-                              radial-gradient(circle at 90% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 50%);
+                                             radial-gradient(circle at 90% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 50%);
             transition: all 0.5s ease-in-out;
         }
 
@@ -85,6 +86,21 @@
             transition: opacity 0.2s ease-in;
             display: inline-block;
         }
+        
+        /* NEW CSS: Blur and gradient overlay for the active header */
+        .header-blur-overlay {
+            /* Use the same blur effect as other glassy elements */
+            backdrop-filter: blur(15px) saturate(180%); 
+            -webkit-backdrop-filter: blur(15px) saturate(180%);
+            /* Background that transitions from blurred dark blue to transparent */
+            background-image: linear-gradient(to bottom, 
+                rgba(2, 6, 23, 0.95) 0%, /* bg-deep, slightly transparent */
+                rgba(2, 6, 23, 0.9) 80%,
+                rgba(2, 6, 23, 0.0) 100% /* transparent */
+            );
+            /* Add a light border to the bottom for definition, matching the glassy style */
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1); 
+        }
     </style>
 </head>
 <body class="font-sans min-h-screen flex flex-col items-center justify-between">
@@ -107,32 +123,32 @@
             <div id="input-bar-container" class="w-full flex justify-center pb-8 md:pb-12 transition-all duration-500 ease-in-out">
                 <div class="w-full max-w-3xl px-4"> 
                      <div class="flex items-center space-x-3 glassy-element rounded-[3rem] shadow-glow-lg p-2">
-                        <textarea 
-                            id="message-input" 
-                            placeholder="chat with the rizzler..."
-                            rows="1"
-                            class="flex-grow p-2 pl-6 bg-transparent text-text-light placeholder-gray-400 focus:outline-none resize-none overflow-hidden text-base"
-                            oninput="resizeTextarea()"
-                            onkeypress="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); document.getElementById('send-button').click(); }"
-                        ></textarea>
-                        
-                        <button 
-                            id="send-button" 
-                            onclick="handleChat()" 
-                            class="bg-accent-purple text-white p-3 rounded-full hover:bg-opacity-90 active:scale-95 transition duration-150 transform shadow-md focus:outline-none focus:ring-4 focus:ring-accent-purple/50 disabled:opacity-50"
-                            disabled
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send">
-                                <path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div id="chat-history" class="w-full flex-grow overflow-y-auto chat-scroll flex flex-col pb-28 hidden transition-opacity duration-300">
-            </div>
+                         <textarea 
+                             id="message-input" 
+                             placeholder="chat with the rizzler..."
+                             rows="1"
+                             class="flex-grow p-2 pl-6 bg-transparent text-text-light placeholder-gray-400 focus:outline-none resize-none overflow-hidden text-base"
+                             oninput="resizeTextarea()"
+                             onkeypress="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); document.getElementById('send-button').click(); }"
+                         ></textarea>
+                         
+                         <button 
+                             id="send-button" 
+                             onclick="handleChat()" 
+                             class="bg-accent-purple text-white p-3 rounded-full hover:bg-opacity-90 active:scale-95 transition duration-150 transform shadow-md focus:outline-none focus:ring-4 focus:ring-accent-purple/50 disabled:opacity-50"
+                             disabled
+                         >
+                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send">
+                                 <path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>
+                             </svg>
+                         </button>
+                     </div>
+                 </div>
+             </div>
+         </div>
+         
+         <div id="chat-history" class="w-full flex-grow overflow-y-auto chat-scroll flex flex-col pb-28 hidden transition-opacity duration-300">
+             </div>
 
     </div>
 
@@ -164,7 +180,8 @@
                 mainContainer.classList.remove('welcome-state');
                 mainContainer.classList.add('chat-state');
 
-                header.classList.add('fixed', 'top-0', 'left-0', 'right-0', 'z-20');
+                // *** NEW: Add fixed positioning and blur/gradient overlay ***
+                header.classList.add('fixed', 'top-0', 'left-0', 'right-0', 'z-20', 'header-blur-overlay');
                 
                 headerContent.classList.remove('py-20', 'md:py-25');
                 headerContent.classList.add('py-4', 'md:py-6');
@@ -190,7 +207,8 @@
                 mainContainer.classList.remove('chat-state');
                 mainContainer.classList.add('welcome-state');
 
-                header.classList.remove('fixed', 'top-0', 'left-0', 'right-0', 'z-20');
+                // *** NEW: Remove fixed positioning and blur/gradient overlay ***
+                header.classList.remove('fixed', 'top-0', 'left-0', 'right-0', 'z-20', 'header-blur-overlay');
 
                 headerContent.classList.add('py-20', 'md:py-25');
                 headerContent.classList.remove('py-4', 'md:py-6');
@@ -225,7 +243,7 @@
             }
         }
 
-        // --- Typing Effect Implementation ---
+        // --- Typing Effect Implementation (Reverted to Original) ---
         function typeMessage(element, text) {
             element.className = element.className
                 .replace('w-24', 'max-w-3xl') 
