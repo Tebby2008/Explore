@@ -106,7 +106,7 @@
             <!-- The w-full and flex justify-center allow the fixed header to span the screen -->
             <header id="app-header" class="w-full transition-all duration-500 ease-in-out">
                 <!-- Inner container to keep content constrained to max-w-4xl -->
-                <div id="header-content" class="px-4 text-center py-8 md:py-12 w-full max-w-4xl mx-auto">
+                <div id="header-content" class="px-4 text-center py-8 md:py-25 w-full max-w-4xl mx-auto">
                     <h1 class="text-4xl md:text-5xl font-extrabold text-white tracking-wider">
                         LingoBot
                     </h1>
@@ -210,7 +210,7 @@
                 header.classList.remove('fixed', 'top-0', 'left-0', 'right-0', 'border-b', 'border-glass-surface', 'z-20');
 
                 // Adjust inner content size/padding back
-                headerContent.classList.add('py-8', 'md:py-12');
+                headerContent.classList.add('py-8', 'md:py-25');
                 headerContent.classList.remove('py-4', 'md:py-6');
                 headerContent.querySelector('h1').classList.add('text-4xl', 'md:text-5xl');
                 headerContent.querySelector('h1').classList.remove('text-xl');
