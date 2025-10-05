@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LingoBot</title>
-    <link rel="icon" type="image/png" href="https://icons.veryicon.com/png/o/weather/weather-5/stars-4.png">    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="https://icons.veryicon.com/png/o/weather/weather-5/stars-4.png">
+    <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -86,17 +87,46 @@
             display: inline-block;
         }
         
-        /* UPDATED CSS: Smoother gradient for the header */
+        /* NEW AND UPDATED CSS: Blur Mask for a smooth blur transition (blur-to-clear) */
+        
+        /* The structural class is kept, but its blur/gradient logic is moved to ::before */
         .header-blur-overlay {
-            backdrop-filter: blur(15px) saturate(180%); 
-            -webkit-backdrop-filter: blur(15px) saturate(180%);
-            /* Smoother gradient: Starts mostly opaque, fades to transparent mid-way */
-            background-image: linear-gradient(to bottom, 
-                rgba(2, 6, 23, 0.98) 0%,   /* Almost opaque bg-deep at the top */
-                rgba(2, 6, 23, 0.8) 50%,   /* More transparent mid-way */
-                rgba(2, 6, 23, 0.0) 100%  /* Fully transparent at the bottom */
-            );
             border-bottom: 1px solid rgba(255, 255, 255, 0.1); 
+            position: relative; /* Essential to contain the ::before element */
+        }
+        
+        /* The element that contains the actual blur and masking logic */
+        #app-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: -1; 
+            
+            /* 1. APPLY CONSTANT BLUR */
+            backdrop-filter: blur(15px) saturate(180%);
+            -webkit-backdrop-filter: blur(15px) saturate(180%);
+            
+            /* 2. APPLY MASK (Black = Opaque/Blur Visible, Transparent = Clear) */
+            mask-image: linear-gradient(to bottom, 
+                rgba(0, 0, 0, 1) 0%,    /* Full blur visibility at the top */
+                rgba(0, 0, 0, 1) 40%,   /* Blur remains fully visible down to 40% of height */
+                rgba(0, 0, 0, 0) 100%   /* Blur fades to invisible at the bottom */
+            );
+            -webkit-mask-image: linear-gradient(to bottom, 
+                rgba(0, 0, 0, 1) 0%, 
+                rgba(0, 0, 0, 1) 40%, 
+                rgba(0, 0, 0, 0) 100%
+            );
+            
+            /* 3. ADD DARK OVERLAY (The color gradient) */
+            background-image: linear-gradient(to bottom, 
+                rgba(2, 6, 23, 0.98) 0%,  
+                rgba(2, 6, 23, 0.8) 50%,  
+                rgba(2, 6, 23, 0.0) 100% 
+            );
         }
     </style>
 </head>
@@ -105,6 +135,7 @@
     <div id="main-container" class="w-full h-full max-w-4xl flex flex-col min-h-screen chat-state">
         
         <div id="header-input-wrapper" class="w-full transition-all duration-500 ease-in-out">
+            
             
             <header id="app-header" class="w-full">
                 <div id="header-content" class="px-4 text-center py-20 md:py-25 w-full max-w-6xl mx-auto">
