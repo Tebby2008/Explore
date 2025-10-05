@@ -48,9 +48,9 @@
             transition: all 0.5s ease-in-out;
         }
 
-        /* Custom Background Fixes for Sticky/Fixed Elements (Semi-transparent to let gradient show) */
+        /* Custom Background Fixes for Fixed Elements (Reduced opacity to 0.8) */
         .translucent-bg {
-            background-color: rgba(2, 6, 23, 0.9); /* bg-deep with 90% opacity */
+            background-color: rgba(2, 6, 23, 0.8); /* bg-deep with 80% opacity */
             backdrop-filter: blur(8px);
         }
         
@@ -105,17 +105,21 @@
     <!-- Main Container - max-w-4xl is the boundary for all content -->
     <div id="main-container" class="w-full h-full max-w-4xl flex flex-col min-h-screen chat-state">
         
-        <!-- Header/Input Container - Fixed position wrappers -->
+        <!-- Header/Input Container - Used to hold the Welcome State header and manage transitions -->
         <div id="header-input-wrapper" class="w-full transition-all duration-500 ease-in-out">
-
-            <!-- Title & Description Block (Transforms to sticky header) -->
-            <header id="app-header" class="py-8 md:py-12 px-4 text-center transition-all duration-500 ease-in-out">
-                <h1 class="text-4xl md:text-5xl font-extrabold text-white tracking-wider">
-                    LingoBot
-                </h1>
-                <p id="app-description" class="text-text-light text-opacity-80 mt-2 text-lg font-light transition-opacity duration-300">
-                    Your Gen Alpha Rizzler. Let's cook.
-                </p>
+            
+            <!-- Header (Used in Welcome State / Fixed in Chat State) -->
+            <!-- The w-full and flex justify-center allow the fixed header to span the screen -->
+            <header id="app-header" class="w-full transition-all duration-500 ease-in-out">
+                <!-- Inner container to keep content constrained to max-w-4xl -->
+                <div id="header-content" class="px-4 text-center py-8 md:py-12 w-full max-w-4xl mx-auto">
+                    <h1 class="text-4xl md:text-5xl font-extrabold text-white tracking-wider">
+                        LingoBot
+                    </h1>
+                    <p id="app-description" class="text-text-light text-opacity-80 mt-2 text-lg font-light transition-opacity duration-300">
+                        Your Gen Alpha Rizzler. Let's cook.
+                    </p>
+                </div>
             </header>
 
             <!-- Input Area Container (Transforms to fixed bottom bar) -->
@@ -148,9 +152,8 @@
             </div>
         </div>
         
-        <!-- Chat History Area - Full Width within max-w-4xl container -->
-        <!-- pb-28 ADDED to ensure the last message is visible above the fixed input bar -->
-        <div id="chat-history" class="w-full flex-grow overflow-y-auto chat-scroll flex flex-col pt-8 pb-28 hidden">
+        <!-- Chat History Area - Added pt-20 to clear fixed header. pb-28 clears fixed input bar. -->
+        <div id="chat-history" class="w-full flex-grow overflow-y-auto chat-scroll flex flex-col pb-28 hidden">
             <!-- Messages will be injected here -->
         </div>
 
@@ -171,6 +174,7 @@
         const messageInput = document.getElementById('message-input');
         const sendButton = document.getElementById('send-button');
         const header = document.getElementById('app-header');
+        const headerContent = document.getElementById('header-content');
         const inputContainer = document.getElementById('input-bar-container');
 
 
@@ -185,45 +189,50 @@
                 mainContainer.classList.remove('welcome-state');
                 mainContainer.classList.add('chat-state');
 
-                // Header becomes sticky and smaller (Uses translucent-bg)
-                header.classList.remove('py-8', 'md:py-12');
-                header.classList.add('py-4', 'md:py-6', 'sticky', 'top-0', 'translucent-bg', 'border-b', 'border-glass-surface', 'z-20');
-                header.querySelector('h1').classList.remove('text-4xl', 'md:text-5xl');
-                header.querySelector('h1').classList.add('text-xl');
+                // Header becomes FIXED and smaller (Uses translucent-bg)
+                header.classList.add('fixed', 'top-0', 'left-0', 'right-0', 'translucent-bg', 'border-b', 'border-glass-surface', 'z-20');
+                
+                // Adjust inner content size/padding
+                headerContent.classList.remove('py-8', 'md:py-12');
+                headerContent.classList.add('py-4', 'md:py-6');
+                headerContent.querySelector('h1').classList.remove('text-4xl', 'md:text-5xl');
+                headerContent.querySelector('h1').classList.add('text-xl');
                 document.getElementById('app-description').style.display = 'none';
 
                 // Input bar snaps to the bottom (Uses translucent-bg)
                 inputContainer.classList.remove('pb-8', 'md:pb-12');
-                // Removed bg-bg-deep and replaced with translucent-bg
                 inputContainer.classList.add('fixed', 'bottom-0', 'left-0', 'right-0', 'translucent-bg', 'border-t', 'border-glass-surface', 'z-20', 'py-4', 'shadow-2xl');
                 inputContainer.querySelector('.w-full').classList.remove('max-w-3xl', 'px-4');
                 inputContainer.querySelector('.w-full').classList.add('max-w-3xl', 'lg:max-w-4xl', 'px-4', 'md:px-8');
 
-                // History becomes visible
+                // History becomes visible and gets top padding to clear fixed header
                 chatHistory.classList.remove('hidden');
-                chatHistory.classList.add('flex');
+                chatHistory.classList.add('flex', 'pt-20');
 
             } else {
                 // WELCOME STATE
                 mainContainer.classList.remove('chat-state');
                 mainContainer.classList.add('welcome-state');
 
-                // Header is large and centered (Remove translucent-bg)
-                header.classList.add('py-8', 'md:py-12');
-                header.classList.remove('py-4', 'md:py-6', 'sticky', 'top-0', 'translucent-bg', 'border-b', 'border-glass-surface', 'z-20');
-                header.querySelector('h1').classList.add('text-4xl', 'md:text-5xl');
-                header.querySelector('h1').classList.remove('text-xl');
+                // Header is large and centered (Remove fixed properties)
+                header.classList.remove('fixed', 'top-0', 'left-0', 'right-0', 'translucent-bg', 'border-b', 'border-glass-surface', 'z-20');
+
+                // Adjust inner content size/padding back
+                headerContent.classList.add('py-8', 'md:py-12');
+                headerContent.classList.remove('py-4', 'md:py-6');
+                headerContent.querySelector('h1').classList.add('text-4xl', 'md:text-5xl');
+                headerContent.querySelector('h1').classList.remove('text-xl');
                 document.getElementById('app-description').style.display = 'block';
 
-                // Input bar is immediately below the header (Remove translucent-bg)
+                // Input bar is immediately below the header (Remove fixed properties)
                 inputContainer.classList.add('pb-8', 'md:pb-12');
                 inputContainer.classList.remove('fixed', 'bottom-0', 'left-0', 'right-0', 'translucent-bg', 'border-t', 'border-glass-surface', 'z-20', 'py-4', 'shadow-2xl');
                 inputContainer.querySelector('.w-full').classList.add('max-w-3xl', 'px-4'); 
                 inputContainer.querySelector('.w-full').classList.remove('max-w-4xl', 'lg:max-w-4xl', 'px-4', 'md:px-8');
 
-                // History is hidden
+                // History is hidden and loses top padding
                 chatHistory.classList.add('hidden');
-                chatHistory.classList.remove('flex');
+                chatHistory.classList.remove('flex', 'pt-20');
             }
             // Always ensure scroll is at the bottom after a state change
             setTimeout(scrollToBottom, 50); 
@@ -444,8 +453,6 @@
             initSessionId();
             messageInput.focus();
             resizeTextarea();
-            // Check if there are messages in local storage or history to determine initial state if needed.
-            // For now, assume fresh start:
             updateUIState(false); 
         };
     </script>
