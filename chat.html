@@ -1,180 +1,282 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Lingo Chatbot</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    :root {
-      --primary: #6366f1;
-      --bg: linear-gradient(135deg, #1e1b4b, #312e81);
-      --glass: rgba(255, 255, 255, 0.15);
-      --border: rgba(255, 255, 255, 0.25);
-      --blur: 20px;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      background: var(--bg);
-      font-family: system-ui, sans-serif;
-      color: #fff;
-    }
-    header {
-      padding: 1rem;
-      text-align: center;
-      font-weight: 600;
-      font-size: 1.1rem;
-      backdrop-filter: blur(var(--blur));
-      background: var(--glass);
-      border-bottom: 1px solid var(--border);
-    }
-    #chat {
-      flex: 1;
-      overflow-y: auto;
-      padding: 1rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-    .msg {
-      max-width: 75%;
-      padding: 0.8rem 1rem;
-      border-radius: 16px;
-      line-height: 1.4;
-      word-wrap: break-word;
-      animation: fadeIn 0.25s ease-in;
-      backdrop-filter: blur(var(--blur));
-      background: var(--glass);
-      border: 1px solid var(--border);
-    }
-    .user {
-      align-self: flex-end;
-      background: var(--primary);
-      border-bottom-right-radius: 0;
-      color: #fff;
-    }
-    .bot {
-      align-self: flex-start;
-      border-bottom-left-radius: 0;
-      color: #f1f5f9;
-    }
-    .typing {
-      font-style: italic;
-      font-size: 0.9rem;
-      color: #cbd5e1;
-      padding: 0.3rem 0.6rem;
-    }
-    #input-area {
-      display: flex;
-      gap: 0.5rem;
-      padding: 0.75rem;
-      backdrop-filter: blur(var(--blur));
-      background: var(--glass);
-      border-top: 1px solid var(--border);
-    }
-    #input {
-      flex: 1;
-      padding: 0.7rem 0.9rem;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      font-size: 1rem;
-      background: rgba(255,255,255,0.1);
-      color: #fff;
-    }
-    #input::placeholder { color: #cbd5e1; }
-    #send {
-      padding: 0.7rem 1.2rem;
-      background: var(--primary);
-      color: white;
-      border: none;
-      border-radius: 12px;
-      cursor: pointer;
-      font-weight: 600;
-      transition: background 0.2s;
-    }
-    #send:disabled { opacity: 0.6; cursor: not-allowed; }
-    #send:hover:not(:disabled) { background: #4f46e5; }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(5px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-  </style>
-</head>
-<body>
-  <header>💬 Lingo Chatbot</header>
-  <div id="chat"></div>
-  <div id="input-area">
-    <input id="input" placeholder="Type a message..." autocomplete="off" />
-    <button id="send">Send</button>
-  </div>
-
-  <script>
-    const chat = document.getElementById("chat");
-    const input = document.getElementById("input");
-    const sendBtn = document.getElementById("send");
-    const sessionId = crypto.randomUUID();
-    const endpoint = "https://lingo-chatbot.tebby2008-li.workers.dev/chat"; // your Worker endpoint
-
-    function addMessage(text, cls) {
-      const div = document.createElement("div");
-      div.className = "msg " + cls;
-      div.textContent = text;
-      chat.appendChild(div);
-      chat.scrollTop = chat.scrollHeight;
-    }
-
-    function addTyping() {
-      const div = document.createElement("div");
-      div.className = "typing";
-      div.textContent = "…thinking";
-      div.id = "typing";
-      chat.appendChild(div);
-      chat.scrollTop = chat.scrollHeight;
-    }
-
-    function removeTyping() {
-      const t = document.getElementById("typing");
-      if (t) t.remove();
-    }
-
-    async function sendMessage() {
-      const text = input.value.trim();
-      if (!text) return;
-      addMessage(text, "user");
-      input.value = "";
-      sendBtn.disabled = true;
-      addTyping();
-
-      try {
-        const res = await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: text, sessionId })
-        });
-        let data;
-        try {
-          data = await res.json();
-        } catch {
-          const raw = await res.text();
-          data = { reply: raw };
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lingo Chatbot (Gen Alpha)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary-blue': '#007AFF', // iOS-like blue
+                        'dark-bg': '#10172A',
+                        'glass-light': 'rgba(255, 255, 255, 0.15)',
+                        'glass-dark': 'rgba(0, 0, 0, 0.15)',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'liquid': '0 4px 30px rgba(0, 0, 0, 0.1)',
+                        'bubble': '0 8px 30px rgba(0, 0, 0, 0.15)',
+                    }
+                }
+            }
         }
-        removeTyping();
-        addMessage(data.reply || "(no reply)", "bot");
-      } catch (err) {
-        removeTyping();
-        addMessage("⚠️ connection error", "bot");
-      } finally {
-        sendBtn.disabled = false;
-      }
-    }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        
+        /* * Custom Glassmorphism Styles 
+         * Essential for the 'Liquid Glass' look 
+         */
+        .glass-container {
+            backdrop-filter: blur(20px) saturate(150%);
+            -webkit-backdrop-filter: blur(20px) saturate(150%);
+            background-color: rgba(255, 255, 255, 0.05); /* Very light, subtle transparency */
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
 
-    sendBtn.onclick = sendMessage;
-    input.addEventListener("keypress", e => {
-      if (e.key === "Enter") sendMessage();
-    });
-  </script>
+        .liquid-bg {
+            /* Deep, vibrant gradient background */
+            background: linear-gradient(135deg, #10172A 0%, #152040 50%, #0D1630 100%);
+        }
+
+        /* Scrollbar styling for a cleaner look */
+        .chat-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-scroll::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+
+        .chat-scroll::-webkit-scrollbar-track {
+            background-color: transparent;
+        }
+
+        /* Loading animation for AI response */
+        .dot {
+            width: 8px;
+            height: 8px;
+            margin: 0 4px;
+            background-color: white;
+            border-radius: 50%;
+            display: inline-block;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .dot-1 { animation-delay: -0.32s; }
+        .dot-2 { animation-delay: -0.16s; }
+        .dot-3 { animation-delay: 0s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
+        }
+    </style>
+</head>
+<body class="liquid-bg font-sans min-h-screen flex items-center justify-center p-4">
+
+    <!-- Main Chat Container (Glassy Panel) -->
+    <div class="glass-container w-full max-w-xl lg:max-w-3xl h-[90vh] rounded-3xl shadow-liquid flex flex-col overflow-hidden">
+        
+        <!-- Header -->
+        <header class="p-5 border-b border-glass-light flex justify-between items-center bg-glass-dark">
+            <h1 class="text-xl font-bold text-white tracking-wider flex items-center">
+                <span class="mr-3 text-2xl">🤖</span>
+                Gen Alpha Lingo Bot
+            </h1>
+            <div id="session-info" class="text-xs text-gray-300 opacity-70">
+                Session: <span id="session-id-display" class="font-mono">...</span>
+            </div>
+        </header>
+
+        <!-- Chat History Area -->
+        <div id="chat-history" class="flex-grow p-4 md:p-6 space-y-4 overflow-y-auto chat-scroll">
+            <!-- Initial Greeting Message -->
+            <div class="flex justify-start">
+                <div class="max-w-[80%] md:max-w-[70%] text-sm p-4 rounded-xl rounded-tl-sm shadow-bubble text-white bg-glass-dark">
+                    ngl, u js found the freshest ai. i'm ready to cook up some answers for u, fr. what's the vibe rn, twin?
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="p-4 md:p-6 border-t border-glass-light bg-glass-dark flex items-center space-x-3">
+            <input 
+                type="text" 
+                id="message-input" 
+                placeholder="chat with the rizzler..."
+                class="flex-grow p-3 rounded-full bg-glass-light text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-blue transition duration-200 text-sm md:text-base"
+                onkeypress="if(event.key === 'Enter') document.getElementById('send-button').click()"
+            />
+            <button 
+                id="send-button" 
+                onclick="handleChat()" 
+                class="bg-primary-blue text-white p-3 rounded-full hover:bg-opacity-90 active:scale-95 transition duration-150 transform shadow-lg focus:outline-none focus:ring-4 focus:ring-primary-blue/50"
+            >
+                <!-- Lucide Send Icon (Inline SVG) -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send">
+                    <path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>
+                </svg>
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const WORKER_URL = 'https://lingo-chatbot.tebby2008-li.workers.dev/chat';
+        const MAX_RETRIES = 3;
+        const BASE_DELAY_MS = 1000;
+        
+        let sessionId;
+        const chatHistory = document.getElementById('chat-history');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+
+        // --- Utility Functions ---
+
+        // Exponential backoff for API robustness
+        async function fetchWithRetry(url, options, retries = MAX_RETRIES) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.ok) {
+                        return response;
+                    }
+                    if (response.status === 403) {
+                         throw new Error("Forbidden: Access blocked by CORS policy (incorrect origin).");
+                    }
+                } catch (error) {
+                    console.error(`Attempt ${i + 1} failed:`, error);
+                }
+                const delay = BASE_DELAY_MS * Math.pow(2, i);
+                if (i < retries - 1) {
+                    console.log(`Retrying in ${delay / 1000}s...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+            throw new Error(`Failed to fetch from ${url} after ${retries} attempts.`);
+        }
+
+        // Auto-scroll to the latest message
+        function scrollToBottom() {
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        // Session Initialization
+        function initSessionId() {
+            sessionId = localStorage.getItem('sessionId');
+            if (!sessionId) {
+                // Use crypto.randomUUID() for a strong, unique ID
+                sessionId = crypto.randomUUID();
+                localStorage.setItem('sessionId', sessionId);
+            }
+            document.getElementById('session-id-display').textContent = sessionId.substring(0, 8) + '...';
+            console.log("Session ID:", sessionId);
+        }
+
+        // --- UI Rendering ---
+
+        function addMessageToUI(message, role, isPending = false) {
+            const wrapper = document.createElement('div');
+            wrapper.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+
+            const bubble = document.createElement('div');
+            let baseClasses = 'max-w-[85%] md:max-w-[70%] text-sm p-3 md:p-4 rounded-xl shadow-bubble text-white transition-all duration-300';
+            
+            if (role === 'user') {
+                // Subtle blue background for user messages
+                bubble.className = `${baseClasses} bg-primary-blue rounded-br-sm`;
+            } else {
+                // Glassy, darker background for AI messages
+                bubble.className = `${baseClasses} bg-glass-dark rounded-tl-sm`;
+            }
+
+            if (isPending) {
+                // Display loading indicator
+                bubble.innerHTML = `
+                    <div class="flex items-center">
+                        <span class="dot dot-1 bg-white"></span>
+                        <span class="dot dot-2 bg-white"></span>
+                        <span class="dot dot-3 bg-white"></span>
+                    </div>
+                `;
+                bubble.id = 'ai-pending-message';
+            } else {
+                bubble.textContent = message;
+            }
+
+            wrapper.appendChild(bubble);
+            chatHistory.appendChild(wrapper);
+            scrollToBottom();
+            return bubble; // Return the bubble for later modification
+        }
+
+        // --- Chat Logic ---
+
+        async function handleChat() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // 1. Disable input and add user message
+            messageInput.value = '';
+            messageInput.disabled = true;
+            sendButton.disabled = true;
+
+            addMessageToUI(message, 'user');
+
+            // 2. Add pending AI message placeholder
+            const pendingBubble = addMessageToUI('', 'ai', true);
+
+            try {
+                // 3. API Call with Exponential Backoff
+                const response = await fetchWithRetry(WORKER_URL, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message, sessionId })
+                });
+
+                const result = await response.json();
+                
+                let aiReply = "icls, the server be mad sus rn. check console for tea. 💀";
+
+                if (result.reply) {
+                    aiReply = result.reply;
+                } else if (result.error && result.error.message) {
+                    aiReply = `cap! api got cooked: ${result.error.message.substring(0, 100)}... 😭`;
+                }
+
+                // 4. Update the pending message with the final reply
+                pendingBubble.textContent = aiReply;
+                pendingBubble.id = ''; // Remove the ID once done
+                
+            } catch (error) {
+                console.error("Fetch Error:", error);
+                pendingBubble.textContent = `fam, connection busted. no cap. check ur console. 💀`;
+            } finally {
+                // 5. Re-enable input and scroll
+                messageInput.disabled = false;
+                sendButton.disabled = false;
+                messageInput.focus();
+                scrollToBottom();
+            }
+        }
+
+        // Initialize on page load
+        window.onload = function() {
+            initSessionId();
+            messageInput.focus();
+        };
+
+        // Note: We use window.onload to ensure all DOM elements are available.
+        // The API call uses fetchWithRetry for robust communication with the worker.
+    </script>
 </body>
 </html>
