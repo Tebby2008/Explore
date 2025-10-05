@@ -86,7 +86,7 @@
   </style>
 </head>
 <body>
-  <header>💬 My AI Chatbot</header>
+  <header>💬 Lingo Chatbot</header>
   <div id="chat"></div>
   <div id="input-area">
     <input id="input" placeholder="Type a message..." />
@@ -98,7 +98,7 @@
     const input = document.getElementById("input");
     const sendBtn = document.getElementById("send");
     const sessionId = crypto.randomUUID();
-    const endpoint = "https://lingo-chatbot.tebby2008-li.workers.dev";
+    const endpoint = "https://lingo-chatbot.tebby2008-li.workers.dev/chat"; // note the /chat
 
     function addMessage(text, cls) {
       const div = document.createElement("div");
