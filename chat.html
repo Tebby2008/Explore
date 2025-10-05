@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LingoBot</title>
-    <link rel="icon" type="image/png" href="https://icons.veryicon.com/png/o/weather/weather-5/stars-4.png">    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="https://icons.veryicon.com/png/o/weather/weather-5/stars-4.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -85,6 +87,26 @@
             transition: opacity 0.2s ease-in;
             display: inline-block;
         }
+
+        /* New class for the header gradient */
+        .header-gradient-bg {
+            background: linear-gradient(180deg, rgba(2, 6, 23, 1) 40%, rgba(2, 6, 23, 0.7) 70%, rgba(2, 6, 23, 0) 100%);
+        }
+
+        /* Styles for rendered Markdown elements within the chat bubble */
+        .ai-message-content p {
+            margin-bottom: 0.5rem; /* Space between paragraphs if applicable */
+        }
+
+        .ai-message-content code {
+            /* Basic styling for inline code or math to make it stand out */
+            background-color: rgba(139, 92, 246, 0.2); /* Light purple background */
+            padding: 0.1rem 0.3rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+            font-size: 0.95em;
+        }
+
     </style>
 </head>
 <body class="font-sans min-h-screen flex flex-col items-center justify-between">
@@ -132,7 +154,7 @@
         </div>
         
         <div id="chat-history" class="w-full flex-grow overflow-y-auto chat-scroll flex flex-col pb-28 hidden transition-opacity duration-300">
-            </div>
+        </div>
 
     </div>
 
@@ -154,6 +176,31 @@
         const headerContent = document.getElementById('header-content');
         const inputContainer = document.getElementById('input-bar-container');
 
+        // Setup marked.js to allow only safe, basic elements
+        // This creates an instance of marked with specific options
+        const customMarked = new marked.Marked({
+            mangle: false,
+            headerIds: false,
+            silent: true, // Prevents throwing errors for unhandled markdown
+            // Basic renderer to specifically target the elements we want to style
+            renderer: {
+                // Only allow these common, safe inline/block elements
+                paragraph: (text) => `<p>${text}</p>`,
+                strong: (text) => `<strong>${text}</strong>`,
+                em: (text) => `<em>${text}</em>`,
+                codespan: (text) => `<code>${text}</code>`, // Used for inline math/code
+                // Block code can be simple pre-formatted text
+                code: (code) => `<pre><code>${code}</code></pre>`,
+                // Reject everything else to keep it simple and safe
+                link: (href, title, text) => text, // Render links as just text
+                image: () => '',
+                table: () => '',
+                html: () => '',
+            }
+        });
+        // Marked's parser returns a promise, so we use .then or await it
+        const parseMarkdown = (markdown) => customMarked.parse(markdown);
+
 
         function updateUIState(hasMessages) {
             if (hasMessages === isChatActive) return;
@@ -164,7 +211,7 @@
                 mainContainer.classList.remove('welcome-state');
                 mainContainer.classList.add('chat-state');
 
-                header.classList.add('fixed', 'top-0', 'left-0', 'right-0', 'z-20');
+                header.classList.add('fixed', 'top-0', 'left-0', 'right-0', 'z-20', 'header-gradient-bg'); // <-- ADDED GRADIENT
                 
                 headerContent.classList.remove('py-20', 'md:py-25');
                 headerContent.classList.add('py-4', 'md:py-6');
@@ -190,7 +237,7 @@
                 mainContainer.classList.remove('chat-state');
                 mainContainer.classList.add('welcome-state');
 
-                header.classList.remove('fixed', 'top-0', 'left-0', 'right-0', 'z-20');
+                header.classList.remove('fixed', 'top-0', 'left-0', 'right-0', 'z-20', 'header-gradient-bg'); // <-- REMOVED GRADIENT
 
                 headerContent.classList.add('py-20', 'md:py-25');
                 headerContent.classList.remove('py-4', 'md:py-6');
@@ -226,19 +273,31 @@
         }
 
         // --- Typing Effect Implementation ---
-        function typeMessage(element, text) {
+        async function typeMessage(element, text) {
             element.className = element.className
                 .replace('w-24', 'max-w-3xl') 
                 .replace('p-3', 'p-4'); 
             
-            element.classList.add('border', 'border-white/10', 'shadow-liquid');
+            element.classList.add('border', 'border-white/10', 'shadow-liquid', 'ai-message-content'); // ADDED ai-message-content class
 
-            element.innerHTML = ''; 
+            // Convert the full markdown text to HTML first
+            const fullHtml = await parseMarkdown(text);
+            
+            // Create a temporary container to split the HTML into word elements
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = fullHtml;
 
+            // Get all text content and split into words/whitespace for typing
+            // NOTE: This is a simplified approach for word-by-word typing on complex HTML.
+            // For basic formatting (strong, em, code, p), it mostly works by typing out
+            // the inner text of the resulting HTML structure.
             const words = text.split(/(\s+)/).filter(p => p.length > 0);
+            
+            element.innerHTML = ''; // Clear existing content (the loading dots)
+
             let index = 0;
             let scrollCounter = 0; 
-
+            
             scrollToBottom(); 
 
             return new Promise(resolve => {
@@ -246,15 +305,16 @@
                     if (index < words.length) {
                         const word = words[index];
                         
-                        const span = document.createElement('span');
-                        span.textContent = word;
-                        span.className = 'word-fade-in';
-                        
-                        element.appendChild(span);
-                        
-                        void span.offsetWidth; 
-                        span.style.opacity = 1;
-                        
+                        // We can't type word-by-word on the rendered HTML structure directly
+                        // without a much more complex DOM manipulation approach.
+                        // For simplicity and to show the formatted result, we'll append the word
+                        // as plain text and then render the full HTML at the end of the typing.
+                        // OR, we can do a simplified typing using the initial HTML structure:
+
+                        // Simplified approach: Type out plain text of the word, then replace with HTML at the end.
+                        // This ensures the typing effect is preserved.
+                        element.textContent += word;
+
                         scrollCounter++;
                         if (scrollCounter % 5 === 0) {
                             scrollToBottom();
@@ -263,6 +323,8 @@
                         index++;
                         setTimeout(writeWord, TYPING_SPEED_MS);
                     } else {
+                        // FINALLY: Replace the plain text with the rendered HTML
+                        element.innerHTML = fullHtml;
                         scrollToBottom();
                         resolve();
                     }
@@ -291,8 +353,11 @@
                     `;
                     contentContainer.id = 'ai-pending-message';
                 } else {
-                    contentContainer.className = `${baseBubbleClasses} bg-glass-ai max-w-3xl p-4 border border-white/10 shadow-liquid`; 
-                    contentContainer.textContent = message;
+                    contentContainer.className = `${baseBubbleClasses} bg-glass-ai max-w-3xl p-4 border border-white/10 shadow-liquid ai-message-content`;  // ADDED ai-message-content
+                    // If not pending, it's a historical message, so we render the final HTML immediately
+                    parseMarkdown(message).then(html => {
+                        contentContainer.innerHTML = html;
+                    });
                 }
             } else {
                 wrapper.className = 'w-full py-3 flex justify-end px-4 md:px-8';
