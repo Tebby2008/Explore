@@ -48,8 +48,7 @@
             transition: all 0.5s ease-in-out;
         }
 
-        /* --- Custom Background Fixes for Sticky/Fixed Elements --- */
-        /* Use a semi-transparent dark color to show the gradient beneath while covering content */
+        /* Custom Background Fixes for Sticky/Fixed Elements (Semi-transparent to let gradient show) */
         .translucent-bg {
             background-color: rgba(2, 6, 23, 0.9); /* bg-deep with 90% opacity */
             backdrop-filter: blur(8px);
@@ -103,14 +102,13 @@
 </head>
 <body class="font-sans min-h-screen flex flex-col items-center justify-between">
 
-    <!-- Main Container - Controls centering logic based on state, max-w controls content width -->
+    <!-- Main Container - max-w-4xl is the boundary for all content -->
     <div id="main-container" class="w-full h-full max-w-4xl flex flex-col min-h-screen chat-state">
         
-        <!-- Header/Input Container - Contains the sticky header and fixed input bar -->
+        <!-- Header/Input Container - Fixed position wrappers -->
         <div id="header-input-wrapper" class="w-full transition-all duration-500 ease-in-out">
 
             <!-- Title & Description Block (Transforms to sticky header) -->
-            <!-- ADDED translucent-bg class here -->
             <header id="app-header" class="py-8 md:py-12 px-4 text-center transition-all duration-500 ease-in-out">
                 <h1 class="text-4xl md:text-5xl font-extrabold text-white tracking-wider">
                     LingoBot
@@ -121,7 +119,6 @@
             </header>
 
             <!-- Input Area Container (Transforms to fixed bottom bar) -->
-            <!-- ADDED translucent-bg class here -->
             <div id="input-bar-container" class="w-full flex justify-center pb-8 md:pb-12 transition-all duration-500 ease-in-out">
                 <div class="w-full max-w-3xl px-4"> 
                      <!-- Input and Button -->
@@ -151,8 +148,9 @@
             </div>
         </div>
         
-        <!-- Chat History Area - Hidden initially -->
-        <div id="chat-history" class="flex-grow overflow-y-auto chat-scroll flex flex-col pt-8 hidden">
+        <!-- Chat History Area - Full Width within max-w-4xl container -->
+        <!-- pb-28 ADDED to ensure the last message is visible above the fixed input bar -->
+        <div id="chat-history" class="w-full flex-grow overflow-y-auto chat-scroll flex flex-col pt-8 pb-28 hidden">
             <!-- Messages will be injected here -->
         </div>
 
@@ -183,7 +181,7 @@
             isChatActive = hasMessages;
 
             if (hasMessages) {
-                // CHAT STATE (Messages are present)
+                // CHAT STATE 
                 mainContainer.classList.remove('welcome-state');
                 mainContainer.classList.add('chat-state');
 
@@ -196,6 +194,7 @@
 
                 // Input bar snaps to the bottom (Uses translucent-bg)
                 inputContainer.classList.remove('pb-8', 'md:pb-12');
+                // Removed bg-bg-deep and replaced with translucent-bg
                 inputContainer.classList.add('fixed', 'bottom-0', 'left-0', 'right-0', 'translucent-bg', 'border-t', 'border-glass-surface', 'z-20', 'py-4', 'shadow-2xl');
                 inputContainer.querySelector('.w-full').classList.remove('max-w-3xl', 'px-4');
                 inputContainer.querySelector('.w-full').classList.add('max-w-3xl', 'lg:max-w-4xl', 'px-4', 'md:px-8');
@@ -205,7 +204,7 @@
                 chatHistory.classList.add('flex');
 
             } else {
-                // WELCOME STATE (No messages)
+                // WELCOME STATE
                 mainContainer.classList.remove('chat-state');
                 mainContainer.classList.add('welcome-state');
 
@@ -232,7 +231,11 @@
 
         // Auto-scroll to the latest message
         function scrollToBottom() {
-            chatHistory.scrollTop = chatHistory.scrollHeight;
+            // Use smooth behavior for a better user experience
+            chatHistory.scrollTo({
+                top: chatHistory.scrollHeight,
+                behavior: 'smooth'
+            });
         }
 
         // Session Initialization
@@ -244,7 +247,7 @@
             }
         }
 
-        // --- Typing Effect Implementation (Fix #2) ---
+        // --- Typing Effect Implementation ---
         function typeMessage(element, text) {
             // 1. Immediately apply final styling/sizing to trigger CSS transition
             element.className = element.className
@@ -259,6 +262,10 @@
             // 3. Prepare words for typing (handle spaces, new lines, etc.)
             const words = text.split(/(\s+)/).filter(p => p.length > 0);
             let index = 0;
+            let scrollCounter = 0; // Counter to throttle scroll updates
+
+            // IMPORTANT: Call scroll to bottom before typing loop starts
+            scrollToBottom(); 
 
             return new Promise(resolve => {
                 function writeWord() {
@@ -277,14 +284,16 @@
                         span.style.opacity = 1;
                         
                         // Auto-scroll after a few words to follow the typing
-                        if (index % 5 === 0) {
+                        scrollCounter++;
+                        if (scrollCounter % 5 === 0) {
                             scrollToBottom();
                         }
 
                         index++;
                         setTimeout(writeWord, TYPING_SPEED_MS);
                     } else {
-                        // 4. Resolve promise when typing is done
+                        // Ensure final scroll after typing is done
+                        scrollToBottom();
                         resolve();
                     }
                 }
@@ -298,7 +307,7 @@
             const wrapper = document.createElement('div');
             const contentContainer = document.createElement('div');
             
-            // Base classes for the message bubble (transition is key for the dynamic effect)
+            // Base classes for the message bubble 
             const baseBubbleClasses = "rounded-3xl text-text-light whitespace-pre-wrap shadow-lg transition-all duration-300 ease-in-out";
 
             if (role === 'ai') {
@@ -306,7 +315,7 @@
                 wrapper.className = 'w-full py-3 flex justify-start px-4 md:px-8'; 
 
                 if (isPending) {
-                    // PENDING: Fixed small size on the left for fluid expansion (Fix #3 alignment)
+                    // PENDING: Fixed small size on the left for fluid expansion
                     contentContainer.className = `${baseBubbleClasses} bg-glass-ai p-3 w-24`;
                     contentContainer.innerHTML = `
                         <div class="flex items-center space-x-2">
@@ -330,7 +339,8 @@
 
             wrapper.appendChild(contentContainer);
             chatHistory.appendChild(wrapper);
-            scrollToBottom();
+            // Scroll to bottom immediately after adding the new message
+            scrollToBottom(); 
             // Return the contentContainer for the typing effect logic
             return isPending ? contentContainer : null; 
         }
@@ -376,7 +386,7 @@
                     aiReply = `cap! api got cooked: ${result.error.error.message.substring(0, 100)}... 😭`;
                 }
 
-                // 4. Run the Typewriter/Fade-in effect (Resolves when typing is done)
+                // 4. Run the Typewriter/Fade-in effect 
                 await typeMessage(pendingBubble, aiReply);
                 
             } catch (error) {
@@ -434,6 +444,8 @@
             initSessionId();
             messageInput.focus();
             resizeTextarea();
+            // Check if there are messages in local storage or history to determine initial state if needed.
+            // For now, assume fresh start:
             updateUIState(false); 
         };
     </script>
