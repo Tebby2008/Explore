@@ -248,132 +248,128 @@
             }
         }
 
-        // --- Typing Effect Implementation (MODIFIED) ---
-        function typeMessage(element, markdownText) {
+        // --- Typing Effect Implementation (REVISED FOR LINE-BY-LINE MARKDOWN) ---
+        async function typeMessage(element, markdownText) {
+            // Step 1: Prepare the bubble for width snap and final style
+            // We snap to max width immediately for a smooth width transition, and let height grow line-by-line.
             element.className = element.className
                 .replace('w-24', 'max-w-3xl') 
                 .replace('p-3', 'p-4'); 
             
             element.classList.add('border', 'border-white/10', 'shadow-liquid');
-
-            // 1. Convert the entire Markdown text to HTML first
-            const htmlText = marked.parse(markdownText);
-
-            // 2. Wrap the HTML in a temporary container to access word/text nodes
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = htmlText;
-
-            // 3. Extract text nodes and create a flat list of 'words' (text chunks)
-            // This is a more complex approach for Markdown to ensure tags are preserved
-            const nodes = [];
-            function traverseNodes(node) {
-                if (node.nodeType === 3) { // Text Node
-                    // Split text nodes into 'words' including whitespace
-                    const words = node.textContent.split(/(\s+)/).filter(p => p.length > 0);
-                    words.forEach(word => nodes.push(document.createTextNode(word)));
-                } else if (node.nodeType === 1) { // Element Node
-                    const element = node.cloneNode(false); // Clone the element tag itself
-                    nodes.push(element);
-                    
-                    // Recursively process children
-                    Array.from(node.childNodes).forEach(child => {
-                        // Create a list of the children elements/text nodes
-                        const childNodesList = [];
-                        traverseNodesCustom(child, childNodesList);
-                        // Append the list of children to the cloned parent element
-                        childNodesList.forEach(childNode => element.appendChild(childNode));
-                    });
-                }
-            }
-
-            // Simplified node traversal for Markdown. We'll simply process the text content.
-            // The typing effect is now applied to **plain text** within the Markdown structure
-            // by splitting text content, but keeping HTML elements intact.
-            // A perfect word-by-word animation for arbitrary HTML is very complex, so we'll
-            // focus on animating the top-level text nodes' content.
-
-            // Clear the existing content (the loading dots)
             element.innerHTML = ''; 
-
-            // Create a custom element to hold the final rendered content
-            const finalContent = document.createElement('div');
-            finalContent.innerHTML = htmlText; // Insert the full HTML content
-
-            // We will now iterate through all text nodes inside 'finalContent'
-            let allTextNodes = [];
-            function collectTextNodes(node) {
-                if (node.nodeType === 3) { // Text Node
-                    if (node.textContent.trim().length > 0) {
-                        allTextNodes.push(node);
-                    }
-                } else if (node.nodeType === 1) { // Element Node
-                    Array.from(node.childNodes).forEach(collectTextNodes);
-                }
-            }
-            collectTextNodes(finalContent);
+    
+            // Split the markdown into lines based on newline characters
+            const lines = markdownText.split('\n');
             
-            // Put placeholder text for all text nodes before typing
-            allTextNodes.forEach(node => {
-                node.originalText = node.textContent;
-                node.textContent = ''; // Clear the text content for typing animation
-            });
-
-            element.appendChild(finalContent); // Add the HTML structure to the bubble
-
-            let textNodeIndex = 0;
-            let wordIndex = 0;
-            let currentTextNode = allTextNodes[0];
-            let currentWords = currentTextNode ? currentTextNode.originalText.split(/(\s+)/).filter(p => p.length > 0) : [];
-            let scrollCounter = 0; 
-            
-            scrollToBottom(); 
-
-            return new Promise(resolve => {
-                function writeWord() {
-                    if (textNodeIndex < allTextNodes.length) {
-                        currentTextNode = allTextNodes[textNodeIndex];
-                        currentWords = currentTextNode.originalText.split(/(\s+)/).filter(p => p.length > 0);
-
-                        if (wordIndex < currentWords.length) {
-                            const word = currentWords[wordIndex];
-                            
-                            // Append the next word to the current text node
-                            currentTextNode.textContent += word;
-
-                            scrollCounter++;
-                            if (scrollCounter % 5 === 0) {
-                                scrollToBottom();
-                            }
-
-                            wordIndex++;
-                            setTimeout(writeWord, TYPING_SPEED_MS);
+            let scrollCounter = 0;
+            let animationPromise = Promise.resolve();
+    
+            if (lines.length === 0) return;
+    
+            animationPromise = new Promise(resolve => {
+                let lineIndex = 0;
+    
+                function processNextLine() {
+                    if (lineIndex < lines.length) {
+                        const line = lines[lineIndex];
+                        
+                        // Step 2: Convert the individual line of Markdown to HTML
+                        // We need to trim to avoid converting empty lines to <p></p>
+                        let lineHtml = '';
+                        if (line.trim().length > 0) {
+                            // marked.parse wraps content in <p> tags, which is generally what we want for text lines.
+                            lineHtml = marked.parse(line.trim());
                         } else {
-                            // Move to the next text node
-                            textNodeIndex++;
-                            wordIndex = 0;
-                            // Start typing in the next node after a short delay for separation
-                            if (textNodeIndex < allTextNodes.length) {
-                                setTimeout(writeWord, TYPING_SPEED_MS * 5); // Slight pause
-                            } else {
-                                scrollToBottom();
-                                resolve();
+                            // Handle empty lines by inserting a non-breaking space or just a <br>
+                            lineHtml = '<br>';
+                        }
+                        
+                        // Step 3: Insert the HTML structure for this line
+                        const lineWrapper = document.createElement('div');
+                        lineWrapper.innerHTML = lineHtml;
+                        
+                        // If marked added a <p> tag, we flatten the structure to avoid nested divs/paragraphs
+                        const contentToType = lineWrapper.firstChild || lineWrapper; 
+    
+                        // Step 4: Wrap every word in the content with an invisible span
+                        const allNodes = [];
+                        
+                        function collectAndWrapText(node) {
+                            if (node.nodeType === 3) { // Text Node
+                                const text = node.textContent;
+                                if (text.trim().length > 0) {
+                                    const words = text.split(/(\s+)/).filter(p => p.length > 0);
+                                    const fragment = document.createDocumentFragment();
+                                    
+                                    words.forEach(word => {
+                                        const span = document.createElement('span');
+                                        span.textContent = word;
+                                        span.className = 'word-fade-in'; 
+                                        fragment.appendChild(span);
+                                        allNodes.push(span); // Collect the span for animation
+                                    });
+                                    
+                                    node.parentNode.replaceChild(fragment, node);
+                                } else if (text.length > 0) {
+                                    // Keep raw whitespace (spaces, tabs) nodes
+                                    node.parentNode.replaceChild(document.createTextNode(text), node);
+                                }
+                            } else if (node.nodeType === 1) {
+                                Array.from(node.childNodes).forEach(collectAndWrapText);
                             }
                         }
+                        
+                        // Process the line's HTML structure
+                        Array.from(lineWrapper.childNodes).forEach(collectAndWrapText);
+                        
+                        // Append the ready-to-type line to the main bubble element
+                        element.appendChild(lineWrapper);
+                        
+                        // Step 5: Animate the words for this line
+                        let wordIndex = 0;
+                        
+                        function revealWordInLine() {
+                            if (wordIndex < allNodes.length) {
+                                const span = allNodes[wordIndex];
+                                
+                                void span.offsetWidth;
+                                span.style.opacity = 1; // Reveals the word
+    
+                                scrollCounter++;
+                                if (scrollCounter % 5 === 0) {
+                                    scrollToBottom();
+                                }
+    
+                                wordIndex++;
+                                // Use a slightly faster typing speed for the line-by-line method
+                                setTimeout(revealWordInLine, TYPING_SPEED_MS / 1.5); 
+                            } else {
+                                // Line finished, move to the next line after a short pause
+                                lineIndex++;
+                                setTimeout(processNextLine, TYPING_SPEED_MS * 5); // Pause between lines
+                            }
+                        }
+    
+                        if (allNodes.length > 0) {
+                            revealWordInLine();
+                        } else {
+                            // If the line was just a <br> or didn't have text to type
+                            lineIndex++;
+                            setTimeout(processNextLine, 50);
+                        }
                     } else {
-                        // All text nodes have been processed
+                        // All lines finished
                         scrollToBottom();
                         resolve();
                     }
                 }
-                if (allTextNodes.length > 0) {
-                    writeWord();
-                } else {
-                    // Handle empty response or only HTML tags (unlikely with marked.parse)
-                    resolve();
-                }
+                processNextLine();
             });
+    
+            await animationPromise;
+            scrollToBottom();
         }
-        // --- END Typing Effect Implementation (MODIFIED) ---
 
 
         // --- addMessageToUI (MODIFIED) ---
