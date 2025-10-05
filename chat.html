@@ -149,7 +149,7 @@
                      <div class="flex items-center space-x-3 glassy-element rounded-[3rem] shadow-glow-lg p-2">
                          <textarea 
                              id="message-input" 
-                             placeholder="chat with the rizzler..."
+                             placeholder="Chat with the rizzler..."
                              rows="1"
                              class="flex-grow p-2 pl-6 bg-transparent text-text-light placeholder-gray-400 focus:outline-none resize-none overflow-hidden text-base"
                              oninput="resizeTextarea()"
@@ -214,7 +214,7 @@
                 document.getElementById('app-description').style.display = 'none';
 
                 inputContainer.classList.remove('pb-8', 'md:pb-12');
-                inputContainer.classList.add('fixed', 'bottom-0', 'left-0', 'right-0', 'z-20', 'py-4', 'shadow-2xl');
+                inputContainer.classList.add('fixed', 'bottom-5', 'left-0', 'right-0', 'z-20', 'py-4', 'shadow-2xl');
                 inputContainer.querySelector('.w-full').classList.remove('max-w-3xl', 'px-4');
                 inputContainer.querySelector('.w-full').classList.add('max-w-3xl', 'lg:max-w-4xl', 'px-4', 'md:px-8');
                 
@@ -231,7 +231,6 @@
                 mainContainer.classList.remove('chat-state');
                 mainContainer.classList.add('welcome-state');
 
-                // Remove fixed positioning and blur/gradient overlay
                 header.classList.remove('fixed', 'top-0', 'left-0', 'right-0', 'z-20', 'header-blur-overlay');
 
                 headerContent.classList.add('py-20', 'md:py-25');
@@ -241,7 +240,7 @@
                 document.getElementById('app-description').style.display = 'block';
 
                 inputContainer.classList.add('pb-8', 'md:pb-12');
-                inputContainer.classList.remove('fixed', 'bottom-0', 'left-0', 'right-0', 'z-20', 'py-4', 'shadow-2xl');
+                inputContainer.classList.remove('fixed', 'bottom-5', 'left-0', 'right-0', 'z-20', 'py-4', 'shadow-2xl');
                 inputContainer.querySelector('.w-full').classList.add('max-w-3xl', 'px-4'); 
                 inputContainer.querySelector('.w-full').classList.remove('max-w-4xl', 'lg:max-w-4xl', 'px-4', 'md:px-8');
 
