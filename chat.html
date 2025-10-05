@@ -149,7 +149,7 @@
                      <div class="flex items-center space-x-3 glassy-element rounded-[3rem] shadow-glow-lg p-2">
                          <textarea 
                              id="message-input" 
-                             placeholder="Chat with the rizzler..."
+                             placeholder="chat with the rizzler..."
                              rows="1"
                              class="flex-grow p-2 pl-6 bg-transparent text-text-light placeholder-gray-400 focus:outline-none resize-none overflow-hidden text-base"
                              oninput="resizeTextarea()"
@@ -160,8 +160,11 @@
                              id="send-button" 
                              onclick="handleChat()" 
                              class="bg-accent-purple text-white p-3 rounded-full hover:bg-opacity-90 active:scale-95 transition duration-150 transform shadow-md focus:outline-none focus:ring-4 focus:ring-accent-purple/50 disabled:opacity-50"
-                             disabled>
-                                 <svg viewBox="0 0 24 24" id="magicoon-Filled" xmlns="http://www.w3.org/2000/svg" fill="#FFFFFF" transform="rotate(45)"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <defs> <style>.cls-1{fill:#41416e;}</style> </defs> <title>send</title> <g id="send-Filled"> <path id="send-Filled-2" data-name="send-Filled" class="cls-1" d="M21.421,5.669l-3.28,13.12a3.529,3.529,0,0,1-3.47,2.71h-.02a3.524,3.524,0,0,1-3.46-2.76l-.86-3.65,5.38-5.38a1,1,0,1,0-1.42-1.42l-5.38,5.38-3.65-.86a3.575,3.575,0,0,1-.05-6.95l13.12-3.28a2.548,2.548,0,0,1,3.09,3.09Z"></path> </g> </g></svg>
+                             disabled
+                         >
+                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send">
+                                 <path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>
+                             </svg>
                          </button>
                      </div>
                  </div>
@@ -211,7 +214,7 @@
                 document.getElementById('app-description').style.display = 'none';
 
                 inputContainer.classList.remove('pb-8', 'md:pb-12');
-                inputContainer.classList.add('fixed', 'bottom-3', 'left-0', 'right-0', 'z-20', 'py-4', 'shadow-2xl');
+                inputContainer.classList.add('fixed', 'bottom-0', 'left-0', 'right-0', 'z-20', 'py-4', 'shadow-2xl');
                 inputContainer.querySelector('.w-full').classList.remove('max-w-3xl', 'px-4');
                 inputContainer.querySelector('.w-full').classList.add('max-w-3xl', 'lg:max-w-4xl', 'px-4', 'md:px-8');
                 
@@ -238,7 +241,7 @@
                 document.getElementById('app-description').style.display = 'block';
 
                 inputContainer.classList.add('pb-8', 'md:pb-12');
-                inputContainer.classList.remove('fixed', 'bottom-3', 'left-0', 'right-0', 'z-20', 'py-4', 'shadow-2xl');
+                inputContainer.classList.remove('fixed', 'bottom-0', 'left-0', 'right-0', 'z-20', 'py-4', 'shadow-2xl');
                 inputContainer.querySelector('.w-full').classList.add('max-w-3xl', 'px-4'); 
                 inputContainer.querySelector('.w-full').classList.remove('max-w-4xl', 'lg:max-w-4xl', 'px-4', 'md:px-8');
 
@@ -405,6 +408,7 @@
                 pendingBubble.innerHTML = `fam, connection busted. no cap. check ur console. 💀`;
         
             } finally {
+                // 7. Cleanup
                 if (pendingBubble) pendingBubble.id = '';
                 messageInput.disabled = false;
                 resizeTextarea(); 
