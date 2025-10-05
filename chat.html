@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LingoBot</title>
     <link rel="icon" type="image/png" href="https://icons.veryicon.com/png/o/weather/weather-5/stars-4.png">    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -35,10 +34,10 @@
         body {
             background-color: #020617; 
             background-image: radial-gradient(circle at 10% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
-                                             radial-gradient(circle at 90% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 50%);
+                              radial-gradient(circle at 90% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 50%);
             transition: all 0.5s ease-in-out;
         }
-    
+
         .glassy-element {
             backdrop-filter: blur(30px) saturate(180%);
             -webkit-backdrop-filter: blur(30px) saturate(180%);
@@ -55,14 +54,14 @@
             justify-content: flex-start; 
             align-items: center; 
         }
-    
+
         .chat-scroll::-webkit-scrollbar { width: 8px; }
         .chat-scroll::-webkit-scrollbar-thumb {
             background-color: #8B5CF699; 
             border-radius: 4px;
         }
         .chat-scroll::-webkit-scrollbar-track { background-color: transparent; }
-    
+
         .dot {
             width: 8px;
             height: 8px;
@@ -75,43 +74,16 @@
         .dot-1 { animation-delay: -0.32s; }
         .dot-2 { animation-delay: -0.16s; }
         .dot-3 { animation-delay: 0s; }
-    
+
         @keyframes bounce {
             0%, 80%, 100% { transform: scale(0); }
             40% { transform: scale(1.0); }
         }
-    
+
         .word-fade-in {
             opacity: 0;
             transition: opacity 0.2s ease-in;
             display: inline-block;
-        }
-    
-        /* FIX: Remove default margins from elements inside the bubble */
-        .glass-ai p:last-child, 
-        .glass-ai ul, 
-        .glass-ai ol, 
-        .glass-ai pre { 
-            margin-bottom: 0 !important; /* Remove bottom margin */
-        }
-        .glass-ai p:first-child,
-        .glass-ai h1, .glass-ai h2, .glass-ai h3, .glass-ai h4 {
-            margin-top: 0 !important; /* Remove top margin */
-        }
-    
-        /* ADDED: Basic Markdown styling for chat bubbles */
-        .glass-ai p { margin-top: 0.5em; margin-bottom: 0.5em; }
-        .glass-ai ul, .glass-ai ol { list-style-position: inside; padding-left: 1.5em; }
-        .glass-ai ul { list-style-type: disc; }
-        .glass-ai ol { list-style-type: decimal; }
-        .glass-ai code { background-color: rgba(255, 255, 255, 0.1); padding: 2px 4px; border-radius: 4px; }
-        .glass-ai pre { 
-            background-color: rgba(0, 0, 0, 0.3); 
-            padding: 10px; 
-            border-radius: 8px; 
-            overflow-x: auto; 
-            margin-top: 10px; 
-            margin-bottom: 10px;
         }
     </style>
 </head>
@@ -160,7 +132,7 @@
         </div>
         
         <div id="chat-history" class="w-full flex-grow overflow-y-auto chat-scroll flex flex-col pb-28 hidden transition-opacity duration-300">
-             </div>
+            </div>
 
     </div>
 
@@ -181,13 +153,6 @@
         const header = document.getElementById('app-header');
         const headerContent = document.getElementById('header-content');
         const inputContainer = document.getElementById('input-bar-container');
-
-        // Initial setup for marked library (optional but good practice)
-        marked.setOptions({
-            gfm: true, // Use GitHub Flavored Markdown
-            breaks: true, // Use GFM line breaks
-            sanitize: true // Sanitize the output HTML to prevent XSS attacks
-        });
 
 
         function updateUIState(hasMessages) {
@@ -260,178 +225,52 @@
             }
         }
 
-        async function typeMessage(element, markdownText) {
-            // Step 1: Prepare the bubble for width snap and final style
+        // --- Typing Effect Implementation ---
+        function typeMessage(element, text) {
             element.className = element.className
                 .replace('w-24', 'max-w-3xl') 
                 .replace('p-3', 'p-4'); 
             
             element.classList.add('border', 'border-white/10', 'shadow-liquid');
+
             element.innerHTML = ''; 
-    
-            // CRUCIAL LOGIC: Check for multi-line markdown structures (lists, code blocks)
-            // If present, we must process the whole text as one block to prevent rendering errors.
-            const isComplexMarkdown = markdownText.includes('\n* ') || markdownText.includes('\n- ') || markdownText.includes('```');
-    
-            let scrollCounter = 0;
-            let animationPromise = Promise.resolve();
-            const fullContentWrapper = document.createElement('div');
-            fullContentWrapper.style.display = 'contents'; // Use 'contents' to avoid adding an extra box
-    
-            if (isComplexMarkdown) {
-                // Case 1: Complex Markdown (Lists, Code Blocks, etc.) - Type as one block
-                const htmlText = marked.parse(markdownText);
-                
-                // Append and proceed to word-wrap the entire block at once
-                fullContentWrapper.innerHTML = htmlText;
-    
-                const allNodes = [];
-                
-                // Helper to recursively collect all text nodes and replace them with word-wrapped spans
-                function collectAndWrapText(node) {
-                    if (node.nodeType === 3) { // Text Node
-                        const text = node.textContent;
-                        if (text.trim().length > 0) {
-                            const words = text.split(/(\s+)/).filter(p => p.length > 0);
-                            const fragment = document.createDocumentFragment();
-                            words.forEach(word => {
-                                const span = document.createElement('span');
-                                span.textContent = word;
-                                span.className = 'word-fade-in'; 
-                                fragment.appendChild(span);
-                                allNodes.push(span);
-                            });
-                            node.parentNode.replaceChild(fragment, node);
-                        } else if (text.length > 0) {
-                            node.parentNode.replaceChild(document.createTextNode(text), node);
+
+            const words = text.split(/(\s+)/).filter(p => p.length > 0);
+            let index = 0;
+            let scrollCounter = 0; 
+
+            scrollToBottom(); 
+
+            return new Promise(resolve => {
+                function writeWord() {
+                    if (index < words.length) {
+                        const word = words[index];
+                        
+                        const span = document.createElement('span');
+                        span.textContent = word;
+                        span.className = 'word-fade-in';
+                        
+                        element.appendChild(span);
+                        
+                        void span.offsetWidth; 
+                        span.style.opacity = 1;
+                        
+                        scrollCounter++;
+                        if (scrollCounter % 5 === 0) {
+                            scrollToBottom();
                         }
-                    } else if (node.nodeType === 1) {
-                        Array.from(node.childNodes).forEach(collectAndWrapText);
+
+                        index++;
+                        setTimeout(writeWord, TYPING_SPEED_MS);
+                    } else {
+                        scrollToBottom();
+                        resolve();
                     }
                 }
-                
-                Array.from(fullContentWrapper.childNodes).forEach(collectAndWrapText);
-                element.appendChild(fullContentWrapper);
-    
-                // Animate all collected words
-                animationPromise = new Promise(resolve => {
-                    let index = 0;
-                    function revealWord() {
-                        if (index < allNodes.length) {
-                            const span = allNodes[index];
-                            void span.offsetWidth;
-                            span.style.opacity = 1;
-    
-                            scrollCounter++;
-                            if (scrollCounter % 5 === 0) {
-                                scrollToBottom();
-                            }
-    
-                            index++;
-                            // Use original speed for complex blocks
-                            setTimeout(revealWord, TYPING_SPEED_MS); 
-                        } else {
-                            scrollToBottom();
-                            resolve();
-                        }
-                    }
-                    revealWord();
-                });
-    
-            } else {
-                // Case 2: Simple Markdown (Line-by-Line) - The dynamic resizing method
-                const lines = markdownText.split('\n');
-    
-                animationPromise = new Promise(resolve => {
-                    let lineIndex = 0;
-    
-                    function processNextLine() {
-                        if (lineIndex < lines.length) {
-                            const line = lines[lineIndex];
-                            
-                            let lineHtml = '';
-                            if (line.trim().length > 0) {
-                                lineHtml = marked.parse(line.trim());
-                            } else {
-                                lineHtml = '<br>';
-                            }
-                            
-                            const lineWrapper = document.createElement('div');
-                            lineWrapper.innerHTML = lineHtml;
-                            lineWrapper.style.display = 'contents'; // Crucial for no extra margin/padding
-                            
-                            const allNodes = [];
-                            
-                            function collectAndWrapText(node) {
-                                if (node.nodeType === 3) { 
-                                    const text = node.textContent;
-                                    if (text.trim().length > 0) {
-                                        const words = text.split(/(\s+)/).filter(p => p.length > 0);
-                                        const fragment = document.createDocumentFragment();
-                                        
-                                        words.forEach(word => {
-                                            const span = document.createElement('span');
-                                            span.textContent = word;
-                                            span.className = 'word-fade-in'; 
-                                            fragment.appendChild(span);
-                                            allNodes.push(span);
-                                        });
-                                        
-                                        node.parentNode.replaceChild(fragment, node);
-                                    } else if (text.length > 0) {
-                                        node.parentNode.replaceChild(document.createTextNode(text), node);
-                                    }
-                                } else if (node.nodeType === 1) {
-                                    Array.from(node.childNodes).forEach(collectAndWrapText);
-                                }
-                            }
-                            
-                            Array.from(lineWrapper.childNodes).forEach(collectAndWrapText);
-                            element.appendChild(lineWrapper);
-                            
-                            let wordIndex = 0;
-                            
-                            function revealWordInLine() {
-                                if (wordIndex < allNodes.length) {
-                                    const span = allNodes[wordIndex];
-                                    
-                                    void span.offsetWidth;
-                                    span.style.opacity = 1;
-    
-                                    scrollCounter++;
-                                    if (scrollCounter % 5 === 0) {
-                                        scrollToBottom();
-                                    }
-    
-                                    wordIndex++;
-                                    setTimeout(revealWordInLine, TYPING_SPEED_MS / 1.5); 
-                                } else {
-                                    lineIndex++;
-                                    setTimeout(processNextLine, TYPING_SPEED_MS * 5);
-                                }
-                            }
-    
-                            if (allNodes.length > 0) {
-                                revealWordInLine();
-                            } else {
-                                lineIndex++;
-                                setTimeout(processNextLine, 50);
-                            }
-                        } else {
-                            scrollToBottom();
-                            resolve();
-                        }
-                    }
-                    processNextLine();
-                });
-            }
-    
-    
-            await animationPromise;
-            scrollToBottom();
+                writeWord();
+            });
         }
 
-        // --- addMessageToUI (MODIFIED) ---
         function addMessageToUI(message, role, isPending = false) {
             const wrapper = document.createElement('div');
             const contentContainer = document.createElement('div');
@@ -452,10 +291,8 @@
                     `;
                     contentContainer.id = 'ai-pending-message';
                 } else {
-                    // MODIFIED: Convert Markdown to HTML for the final AI message
-                    const htmlMessage = marked.parse(message);
                     contentContainer.className = `${baseBubbleClasses} bg-glass-ai max-w-3xl p-4 border border-white/10 shadow-liquid`; 
-                    contentContainer.innerHTML = htmlMessage; // Use innerHTML for Markdown
+                    contentContainer.textContent = message;
                 }
             } else {
                 wrapper.className = 'w-full py-3 flex justify-end px-4 md:px-8';
@@ -468,8 +305,6 @@
             scrollToBottom(); 
             return isPending ? contentContainer : null; 
         }
-        // --- END addMessageToUI (MODIFIED) ---
-
 
         async function handleChat() {
             const message = messageInput.value.trim();
@@ -530,10 +365,7 @@
                     .replace('w-24', 'max-w-3xl')
                     .replace('p-3', 'p-4'); 
                 pendingBubble.classList.add('border', 'border-white/10', 'shadow-liquid');
-                
-                // Use marked.parse for the error message as well, just in case.
-                const errorMessageHtml = marked.parse(`fam, connection busted. **no cap**. check ur console. 💀`);
-                pendingBubble.innerHTML = errorMessageHtml;
+                pendingBubble.innerHTML = `fam, connection busted. no cap. check ur console. 💀`;
         
             } finally {
                 // 7. Cleanup
