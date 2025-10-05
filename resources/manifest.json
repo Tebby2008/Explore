@@ -2,7 +2,6 @@
   "name": "LingoBot",
   "short_name": "LingoBot",
   "description": "Your Gen Alpha Rizzler Chatbot.",
-  "start_url": "/",
   "display": "standalone",
   "scope": "/Explore/",
   "start_url": "/Explore/chat", 
