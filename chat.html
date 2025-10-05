@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LingoBot</title>
-    <link rel="icon" type="image/png" href="https://icons.veryicon.com/png/o/weather/weather-5/stars-4.png">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="https://icons.veryicon.com/png/o/weather/weather-5/stars-4.png">    <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -87,18 +86,16 @@
             display: inline-block;
         }
         
-        /* NEW CSS: Blur and gradient overlay for the active header */
+        /* UPDATED CSS: Smoother gradient for the header */
         .header-blur-overlay {
-            /* Use the same blur effect as other glassy elements */
             backdrop-filter: blur(15px) saturate(180%); 
             -webkit-backdrop-filter: blur(15px) saturate(180%);
-            /* Background that transitions from blurred dark blue to transparent */
+            /* Smoother gradient: Starts mostly opaque, fades to transparent mid-way */
             background-image: linear-gradient(to bottom, 
-                rgba(2, 6, 23, 0.95) 0%, /* bg-deep, slightly transparent */
-                rgba(2, 6, 23, 0.9) 80%,
-                rgba(2, 6, 23, 0.0) 100% /* transparent */
+                rgba(2, 6, 23, 0.98) 0%,   /* Almost opaque bg-deep at the top */
+                rgba(2, 6, 23, 0.8) 50%,   /* More transparent mid-way */
+                rgba(2, 6, 23, 0.0) 100%  /* Fully transparent at the bottom */
             );
-            /* Add a light border to the bottom for definition, matching the glassy style */
             border-bottom: 1px solid rgba(255, 255, 255, 0.1); 
         }
     </style>
@@ -109,7 +106,7 @@
         
         <div id="header-input-wrapper" class="w-full transition-all duration-500 ease-in-out">
             
-            <header id="app-header" class="w-full transition-all duration-500 ease-in-out">
+            <header id="app-header" class="w-full">
                 <div id="header-content" class="px-4 text-center py-20 md:py-25 w-full max-w-6xl mx-auto">
                     <h1 class="text-4xl md:text-5xl font-extrabold text-white tracking-wider">
                         LingoBot
@@ -180,7 +177,7 @@
                 mainContainer.classList.remove('welcome-state');
                 mainContainer.classList.add('chat-state');
 
-                // *** NEW: Add fixed positioning and blur/gradient overlay ***
+                // Apply fixed positioning and blur/gradient overlay
                 header.classList.add('fixed', 'top-0', 'left-0', 'right-0', 'z-20', 'header-blur-overlay');
                 
                 headerContent.classList.remove('py-20', 'md:py-25');
@@ -207,7 +204,7 @@
                 mainContainer.classList.remove('chat-state');
                 mainContainer.classList.add('welcome-state');
 
-                // *** NEW: Remove fixed positioning and blur/gradient overlay ***
+                // Remove fixed positioning and blur/gradient overlay
                 header.classList.remove('fixed', 'top-0', 'left-0', 'right-0', 'z-20', 'header-blur-overlay');
 
                 headerContent.classList.add('py-20', 'md:py-25');
@@ -228,7 +225,6 @@
         }
 
         function scrollToBottom() {
-            // Use smooth behavior for a better user experience
             chatHistory.scrollTo({
                 top: chatHistory.scrollHeight,
                 behavior: 'smooth'
@@ -243,7 +239,7 @@
             }
         }
 
-        // --- Typing Effect Implementation (Reverted to Original) ---
+        // --- Typing Effect Implementation ---
         function typeMessage(element, text) {
             element.className = element.className
                 .replace('w-24', 'max-w-3xl') 
