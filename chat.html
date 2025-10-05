@@ -97,17 +97,11 @@
 </head>
 <body class="font-sans min-h-screen flex flex-col items-center justify-between">
 
-    <!-- Main Container - max-w-4xl is the boundary for all content -->
     <div id="main-container" class="w-full h-full max-w-4xl flex flex-col min-h-screen chat-state">
         
-        <!-- Header/Input Container - Used to hold the Welcome State header and manage transitions -->
-        <!-- RESTORED: transition classes for gliding effect -->
         <div id="header-input-wrapper" class="w-full transition-all duration-500 ease-in-out">
             
-            <!-- Header (Used in Welcome State / Fixed in Chat State) -->
-            <!-- RESTORED: transition classes for gliding effect -->
             <header id="app-header" class="w-full transition-all duration-500 ease-in-out">
-                <!-- Inner container to keep content constrained to max-w-4xl -->
                 <div id="header-content" class="px-4 text-center py-20 md:py-25 w-full max-w-6xl mx-auto">
                     <h1 class="text-4xl md:text-5xl font-extrabold text-white tracking-wider">
                         LingoBot
@@ -118,12 +112,9 @@
                 </div>
             </header>
 
-            <!-- Input Area Container (Transforms to fixed bottom bar) -->
-            <!-- RESTORED: transition classes for gliding effect -->
             <div id="input-bar-container" class="w-full flex justify-center pb-8 md:pb-12 transition-all duration-500 ease-in-out">
                 <div class="w-full max-w-3xl px-4"> 
-                     <!-- Input and Button -->
-                    <div class="flex items-center space-x-3 glassy-element rounded-[3rem] shadow-glow-lg p-2">
+                     <div class="flex items-center space-x-3 glassy-element rounded-[3rem] shadow-glow-lg p-2">
                         <textarea 
                             id="message-input" 
                             placeholder="chat with the rizzler..."
@@ -139,7 +130,6 @@
                             class="bg-accent-purple text-white p-3 rounded-full hover:bg-opacity-90 active:scale-95 transition duration-150 transform shadow-md focus:outline-none focus:ring-4 focus:ring-accent-purple/50 disabled:opacity-50"
                             disabled
                         >
-                            <!-- Lucide Send Icon (Inline SVG) -->
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send">
                                 <path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>
                             </svg>
@@ -149,10 +139,8 @@
             </div>
         </div>
         
-        <!-- Chat History Area - Added transition-opacity for smooth fade-in -->
         <div id="chat-history" class="w-full flex-grow overflow-y-auto chat-scroll flex flex-col pb-28 hidden transition-opacity duration-300">
-            <!-- Messages will be injected here -->
-        </div>
+            </div>
 
     </div>
 
@@ -162,6 +150,8 @@
         const MAX_RETRIES = 3;
         const BASE_DELAY_MS = 1000;
         const TYPING_SPEED_MS = 20; // Delay between words
+        // ADDED: Maximum character length for a user message (e.g., 500 characters)
+        const MAX_MESSAGE_LENGTH = 500; 
 
         let sessionId;
         let isChatActive = false; 
@@ -366,6 +356,28 @@
             const message = messageInput.value.trim();
             if (!message) return;
 
+            // ADDED: Size check for the user's message
+            if (message.length > MAX_MESSAGE_LENGTH) {
+                // Provide immediate feedback to the user and halt the request
+                const errorMsg = `No cap, that's too much text (max ${MAX_MESSAGE_LENGTH} characters). Keep it brief, fam. 🚫`;
+                
+                // If chat history is not visible, transition to chat state to show the error
+                if (!isChatActive) {
+                    updateUIState(true);
+                }
+                
+                // Add a "self-correction" AI message to the chat history
+                addMessageToUI(errorMsg, 'ai'); 
+                
+                // Clear input and re-enable it
+                messageInput.value = '';
+                resizeTextarea();
+                messageInput.focus();
+                sendButton.disabled = true; // Still disabled since input is empty
+
+                return; // Stop the function execution
+            }
+
             const isFirstMessage = !isChatActive;
 
             // 1. Disable input and add user message
@@ -375,7 +387,7 @@
             sendButton.disabled = true;
 
             if (isFirstMessage) {
-                 updateUIState(true);
+                    updateUIState(true);
             }
 
             addMessageToUI(message, 'user');
