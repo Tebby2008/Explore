@@ -4,7 +4,8 @@
   "description": "Your Gen Alpha Rizzler Chatbot.",
   "start_url": "/",
   "display": "standalone",
-  "scope": "/",
+  "scope": "/Explore/",
+  "start_url": "/Explore/chat", 
   "theme_color": "#8B5CF6",
   "background_color": "#020617",
   "icons": [
