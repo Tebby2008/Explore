@@ -213,7 +213,7 @@
                 headerContent.classList.add('py-20', 'md:py-25');
                 headerContent.classList.remove('py-4', 'md:py-6');
                 headerContent.querySelector('h1').classList.add('text-4xl', 'md:text-5xl');
-                headerContent.querySelector('h1').classList.remove('text-4xl');
+                headerContent.querySelector('h1').classList.remove('text-xl');
                 document.getElementById('app-description').style.display = 'block';
 
                 // Input bar is immediately below the header (Remove fixed properties)
@@ -255,7 +255,6 @@
                 .replace('w-24', 'max-w-3xl') // Expand width to 3xl
                 .replace('p-3', 'p-4'); // Expand padding
             
-            element.classList.add('border', 'border-white/10', 'shadow-liquid');
 
             // 2. Clear initial dot content
             element.innerHTML = ''; 
