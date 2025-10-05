@@ -15,11 +15,6 @@
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "any maskable"
-    },
-    {
       "src": "/icons/icon-square.png",
       "type": "image/png"
     }
