@@ -48,6 +48,7 @@
             transition: all 0.5s ease-in-out;
         }
         
+        
         /* State transition for the main container */
         .welcome-state {
             justify-content: center; 
@@ -100,10 +101,11 @@
     <div id="main-container" class="w-full h-full max-w-4xl flex flex-col min-h-screen chat-state">
         
         <!-- Header/Input Container - Used to hold the Welcome State header and manage transitions -->
+        <!-- RESTORED: transition classes for gliding effect -->
         <div id="header-input-wrapper" class="w-full transition-all duration-500 ease-in-out">
             
             <!-- Header (Used in Welcome State / Fixed in Chat State) -->
-            <!-- The w-full and flex justify-center allow the fixed header to span the screen -->
+            <!-- RESTORED: transition classes for gliding effect -->
             <header id="app-header" class="w-full transition-all duration-500 ease-in-out">
                 <!-- Inner container to keep content constrained to max-w-4xl -->
                 <div id="header-content" class="px-4 text-center py-20 md:py-25 w-full max-w-6xl mx-auto">
@@ -117,6 +119,7 @@
             </header>
 
             <!-- Input Area Container (Transforms to fixed bottom bar) -->
+            <!-- RESTORED: transition classes for gliding effect -->
             <div id="input-bar-container" class="w-full flex justify-center pb-8 md:pb-12 transition-all duration-500 ease-in-out">
                 <div class="w-full max-w-3xl px-4"> 
                      <!-- Input and Button -->
@@ -146,8 +149,8 @@
             </div>
         </div>
         
-        <!-- Chat History Area - Added pt-20 to clear fixed header. pb-28 clears fixed input bar. -->
-        <div id="chat-history" class="w-full flex-grow overflow-y-auto chat-scroll flex flex-col pb-28 hidden">
+        <!-- Chat History Area - Added transition-opacity for smooth fade-in -->
+        <div id="chat-history" class="w-full flex-grow overflow-y-auto chat-scroll flex flex-col pb-28 hidden transition-opacity duration-300">
             <!-- Messages will be injected here -->
         </div>
 
@@ -183,7 +186,7 @@
                 mainContainer.classList.remove('welcome-state');
                 mainContainer.classList.add('chat-state');
 
-                header.classList.add('fixed', 'top-0', 'left-0', 'right-0', 'border-b', 'border-glass-surface', 'z-20');
+                header.classList.add('fixed', 'top-0', 'left-0', 'right-0', 'z-20');
                 
                 // Adjust inner content size/padding
                 headerContent.classList.remove('py-20', 'md:py-25');
@@ -193,38 +196,49 @@
                 document.getElementById('app-description').style.display = 'none';
 
                 inputContainer.classList.remove('pb-8', 'md:pb-12');
-                inputContainer.classList.add('fixed', 'bottom-0', 'left-0', 'right-0', 'border-t', 'border-glass-surface', 'z-20', 'py-4', 'shadow-2xl');
+                inputContainer.classList.add('fixed', 'bottom-0', 'left-0', 'right-0', 'z-20', 'py-4', 'shadow-2xl');
                 inputContainer.querySelector('.w-full').classList.remove('max-w-3xl', 'px-4');
                 inputContainer.querySelector('.w-full').classList.add('max-w-3xl', 'lg:max-w-4xl', 'px-4', 'md:px-8');
 
-                // History becomes visible and gets top padding to clear fixed header
+                // --- Flash Fix Refactor: Use requestAnimationFrame for smooth transition ---
+                
+                // 1. Ensure element is transparent (opacity-0 is required for transition to work)
+                chatHistory.classList.add('opacity-0'); 
+                
+                // 2. Remove 'hidden' and apply 'flex' to establish layout in DOM
                 chatHistory.classList.remove('hidden');
                 chatHistory.classList.add('flex', 'pt-20');
+
+                // 3. Use requestAnimationFrame to start the transition in the next repaint cycle
+                requestAnimationFrame(() => {
+                    chatHistory.classList.remove('opacity-0');
+                });
+                // --------------------------------------------------------------------------
 
             } else {
                 // WELCOME STATE
                 mainContainer.classList.remove('chat-state');
                 mainContainer.classList.add('welcome-state');
 
-                // Header is large and centered (Remove fixed properties)
-                header.classList.remove('fixed', 'top-0', 'left-0', 'right-0', 'border-b', 'border-glass-surface', 'z-20');
+                // Header reverts
+                header.classList.remove('fixed', 'top-0', 'left-0', 'right-0', 'z-20');
 
                 // Adjust inner content size/padding back
                 headerContent.classList.add('py-20', 'md:py-25');
                 headerContent.classList.remove('py-4', 'md:py-6');
                 headerContent.querySelector('h1').classList.add('text-4xl', 'md:text-5xl');
-                headerContent.querySelector('h1').classList.remove('text-xl');
+                headerContent.querySelector('h1').classList.remove('text-3xl');
                 document.getElementById('app-description').style.display = 'block';
 
-                // Input bar is immediately below the header (Remove fixed properties)
+                // Input bar reverts
                 inputContainer.classList.add('pb-8', 'md:pb-12');
-                inputContainer.classList.remove('fixed', 'bottom-0', 'left-0', 'right-0', 'border-t', 'border-glass-surface', 'z-20', 'py-4', 'shadow-2xl');
+                inputContainer.classList.remove('fixed', 'bottom-0', 'left-0', 'right-0', 'z-20', 'py-4', 'shadow-2xl');
                 inputContainer.querySelector('.w-full').classList.add('max-w-3xl', 'px-4'); 
                 inputContainer.querySelector('.w-full').classList.remove('max-w-4xl', 'lg:max-w-4xl', 'px-4', 'md:px-8');
 
-                // History is hidden and loses top padding
+                // History is hidden
                 chatHistory.classList.add('hidden');
-                chatHistory.classList.remove('flex', 'pt-20');
+                chatHistory.classList.remove('flex', 'pt-20', 'opacity-0'); 
             }
             // Always ensure scroll is at the bottom after a state change
             setTimeout(scrollToBottom, 50); 
@@ -255,6 +269,7 @@
                 .replace('w-24', 'max-w-3xl') // Expand width to 3xl
                 .replace('p-3', 'p-4'); // Expand padding
             
+            element.classList.add('border', 'border-white/10', 'shadow-liquid');
 
             // 2. Clear initial dot content
             element.innerHTML = ''; 
