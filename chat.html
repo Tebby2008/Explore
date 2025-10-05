@@ -44,20 +44,26 @@
         .glassy-element {
             backdrop-filter: blur(30px) saturate(180%);
             -webkit-backdrop-filter: blur(30px) saturate(180%);
-            background-color: var(--tw-colors-glass-surface);
             border: 1px solid rgba(255, 255, 255, 0.15);
             transition: all 0.5s ease-in-out;
+        }
+
+        /* --- Custom Background Fixes for Sticky/Fixed Elements --- */
+        /* Use a semi-transparent dark color to show the gradient beneath while covering content */
+        .translucent-bg {
+            background-color: rgba(2, 6, 23, 0.9); /* bg-deep with 90% opacity */
+            backdrop-filter: blur(8px);
         }
         
         /* State transition for the main container */
         .welcome-state {
-            justify-content: center; /* Center content vertically when chat is empty */
-            align-items: center; /* Center content horizontally */
+            justify-content: center; 
+            align-items: center; 
         }
         
         .chat-state {
-            justify-content: flex-start; /* Push content to the top when chat is active */
-            align-items: center; /* Keep content centered horizontally for max-width */
+            justify-content: flex-start; 
+            align-items: center; 
         }
 
         /* Scrollbar styling */
@@ -86,18 +92,25 @@
             0%, 80%, 100% { transform: scale(0); }
             40% { transform: scale(1.0); }
         }
+
+        /* Class for the word fade-in effect */
+        .word-fade-in {
+            opacity: 0;
+            transition: opacity 0.2s ease-in;
+            display: inline-block;
+        }
     </style>
 </head>
 <body class="font-sans min-h-screen flex flex-col items-center justify-between">
 
-    <!-- Main Container - Controls centering logic based on state -->
-    <!-- Removed p-4 md:p-8 to allow wrappers to control padding better and hug edges -->
+    <!-- Main Container - Controls centering logic based on state, max-w controls content width -->
     <div id="main-container" class="w-full h-full max-w-4xl flex flex-col min-h-screen chat-state">
         
-        <!-- Header/Input Container - Positioned relative to the main container -->
+        <!-- Header/Input Container - Contains the sticky header and fixed input bar -->
         <div id="header-input-wrapper" class="w-full transition-all duration-500 ease-in-out">
 
-            <!-- Title & Description Block (Centered when empty, transforms into sticky header) -->
+            <!-- Title & Description Block (Transforms to sticky header) -->
+            <!-- ADDED translucent-bg class here -->
             <header id="app-header" class="py-8 md:py-12 px-4 text-center transition-all duration-500 ease-in-out">
                 <h1 class="text-4xl md:text-5xl font-extrabold text-white tracking-wider">
                     LingoBot
@@ -107,9 +120,9 @@
                 </p>
             </header>
 
-            <!-- Input Area Container (Stays below header in welcome state) -->
+            <!-- Input Area Container (Transforms to fixed bottom bar) -->
+            <!-- ADDED translucent-bg class here -->
             <div id="input-bar-container" class="w-full flex justify-center pb-8 md:pb-12 transition-all duration-500 ease-in-out">
-                <!-- Adjusted max-w to 3xl for slightly wider input in welcome state -->
                 <div class="w-full max-w-3xl px-4"> 
                      <!-- Input and Button -->
                     <div class="flex items-center space-x-3 glassy-element rounded-[3rem] shadow-glow-lg p-2">
@@ -150,9 +163,10 @@
         const WORKER_URL = 'https://lingo-chatbot.tebby2008-li.workers.dev/chat';
         const MAX_RETRIES = 3;
         const BASE_DELAY_MS = 1000;
-        
+        const TYPING_SPEED_MS = 20; // Delay between words
+
         let sessionId;
-        let isChatActive = false; // Tracks if messages have been sent/received
+        let isChatActive = false; 
 
         const mainContainer = document.getElementById('main-container');
         const chatHistory = document.getElementById('chat-history');
@@ -162,9 +176,9 @@
         const inputContainer = document.getElementById('input-bar-container');
 
 
-        // --- State Management ---
+        // --- State Management and UI Updates ---
         function updateUIState(hasMessages) {
-            if (hasMessages === isChatActive) return; // No change needed
+            if (hasMessages === isChatActive) return;
 
             isChatActive = hasMessages;
 
@@ -173,16 +187,16 @@
                 mainContainer.classList.remove('welcome-state');
                 mainContainer.classList.add('chat-state');
 
-                // Header becomes sticky and smaller
+                // Header becomes sticky and smaller (Uses translucent-bg)
                 header.classList.remove('py-8', 'md:py-12');
-                header.classList.add('py-4', 'md:py-6', 'sticky', 'top-0', 'bg-bg-deep', 'border-b', 'border-glass-surface', 'z-20');
+                header.classList.add('py-4', 'md:py-6', 'sticky', 'top-0', 'translucent-bg', 'border-b', 'border-glass-surface', 'z-20');
                 header.querySelector('h1').classList.remove('text-4xl', 'md:text-5xl');
                 header.querySelector('h1').classList.add('text-xl');
                 document.getElementById('app-description').style.display = 'none';
 
-                // Input bar snaps to the bottom
+                // Input bar snaps to the bottom (Uses translucent-bg)
                 inputContainer.classList.remove('pb-8', 'md:pb-12');
-                inputContainer.classList.add('fixed', 'bottom-0', 'left-0', 'right-0', 'bg-bg-deep', 'border-t', 'border-glass-surface', 'z-20', 'py-4', 'shadow-2xl');
+                inputContainer.classList.add('fixed', 'bottom-0', 'left-0', 'right-0', 'translucent-bg', 'border-t', 'border-glass-surface', 'z-20', 'py-4', 'shadow-2xl');
                 inputContainer.querySelector('.w-full').classList.remove('max-w-3xl', 'px-4');
                 inputContainer.querySelector('.w-full').classList.add('max-w-3xl', 'lg:max-w-4xl', 'px-4', 'md:px-8');
 
@@ -195,24 +209,193 @@
                 mainContainer.classList.remove('chat-state');
                 mainContainer.classList.add('welcome-state');
 
-                // Header is large and centered
+                // Header is large and centered (Remove translucent-bg)
                 header.classList.add('py-8', 'md:py-12');
-                header.classList.remove('py-4', 'md:py-6', 'sticky', 'top-0', 'bg-bg-deep', 'border-b', 'border-glass-surface', 'z-20');
+                header.classList.remove('py-4', 'md:py-6', 'sticky', 'top-0', 'translucent-bg', 'border-b', 'border-glass-surface', 'z-20');
                 header.querySelector('h1').classList.add('text-4xl', 'md:text-5xl');
                 header.querySelector('h1').classList.remove('text-xl');
                 document.getElementById('app-description').style.display = 'block';
 
-                // Input bar is immediately below the header
+                // Input bar is immediately below the header (Remove translucent-bg)
                 inputContainer.classList.add('pb-8', 'md:pb-12');
-                inputContainer.classList.remove('fixed', 'bottom-0', 'left-0', 'right-0', 'bg-bg-deep', 'border-t', 'border-glass-surface', 'z-20', 'py-4', 'shadow-2xl');
-                inputContainer.querySelector('.w-full').classList.add('max-w-3xl', 'px-4'); // Adjusted max-w to 3xl for slightly wider input in welcome state
+                inputContainer.classList.remove('fixed', 'bottom-0', 'left-0', 'right-0', 'translucent-bg', 'border-t', 'border-glass-surface', 'z-20', 'py-4', 'shadow-2xl');
+                inputContainer.querySelector('.w-full').classList.add('max-w-3xl', 'px-4'); 
                 inputContainer.querySelector('.w-full').classList.remove('max-w-4xl', 'lg:max-w-4xl', 'px-4', 'md:px-8');
 
                 // History is hidden
                 chatHistory.classList.add('hidden');
                 chatHistory.classList.remove('flex');
             }
+            // Always ensure scroll is at the bottom after a state change
+            setTimeout(scrollToBottom, 50); 
+        }
+
+        // Auto-scroll to the latest message
+        function scrollToBottom() {
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        // Session Initialization
+        function initSessionId() {
+            sessionId = localStorage.getItem('sessionId');
+            if (!sessionId) {
+                sessionId = crypto.randomUUID();
+                localStorage.setItem('sessionId', sessionId);
+            }
+        }
+
+        // --- Typing Effect Implementation (Fix #2) ---
+        function typeMessage(element, text) {
+            // 1. Immediately apply final styling/sizing to trigger CSS transition
+            element.className = element.className
+                .replace('w-24', 'max-w-3xl') // Expand width to 3xl
+                .replace('p-3', 'p-4'); // Expand padding
+            
+            element.classList.add('border', 'border-white/10', 'shadow-liquid');
+
+            // 2. Clear initial dot content
+            element.innerHTML = ''; 
+
+            // 3. Prepare words for typing (handle spaces, new lines, etc.)
+            const words = text.split(/(\s+)/).filter(p => p.length > 0);
+            let index = 0;
+
+            return new Promise(resolve => {
+                function writeWord() {
+                    if (index < words.length) {
+                        const word = words[index];
+                        
+                        // Create a span for the word and apply fade-in style
+                        const span = document.createElement('span');
+                        span.textContent = word;
+                        span.className = 'word-fade-in';
+                        
+                        element.appendChild(span);
+                        
+                        // Force reflow to ensure transition works from opacity 0
+                        void span.offsetWidth; 
+                        span.style.opacity = 1;
+                        
+                        // Auto-scroll after a few words to follow the typing
+                        if (index % 5 === 0) {
+                            scrollToBottom();
+                        }
+
+                        index++;
+                        setTimeout(writeWord, TYPING_SPEED_MS);
+                    } else {
+                        // 4. Resolve promise when typing is done
+                        resolve();
+                    }
+                }
+                writeWord();
+            });
+        }
+
+        // --- UI Rendering ---
+
+        function addMessageToUI(message, role, isPending = false) {
+            const wrapper = document.createElement('div');
+            const contentContainer = document.createElement('div');
+            
+            // Base classes for the message bubble (transition is key for the dynamic effect)
+            const baseBubbleClasses = "rounded-3xl text-text-light whitespace-pre-wrap shadow-lg transition-all duration-300 ease-in-out";
+
+            if (role === 'ai') {
+                // AI message (Left-aligned)
+                wrapper.className = 'w-full py-3 flex justify-start px-4 md:px-8'; 
+
+                if (isPending) {
+                    // PENDING: Fixed small size on the left for fluid expansion (Fix #3 alignment)
+                    contentContainer.className = `${baseBubbleClasses} bg-glass-ai p-3 w-24`;
+                    contentContainer.innerHTML = `
+                        <div class="flex items-center space-x-2">
+                            <span class="dot dot-1"></span>
+                            <span class="dot dot-2"></span>
+                            <span class="dot dot-3"></span>
+                        </div>
+                    `;
+                    contentContainer.id = 'ai-pending-message';
+                } else {
+                    // FINAL: Full message state 
+                    contentContainer.className = `${baseBubbleClasses} bg-glass-ai max-w-3xl p-4 border border-white/10 shadow-liquid`; 
+                    contentContainer.textContent = message;
+                }
+            } else {
+                // User message (Right-aligned)
+                wrapper.className = 'w-full py-3 flex justify-end px-4 md:px-8';
+                contentContainer.className = `${baseBubbleClasses} bg-accent-purple max-w-3xl p-4 text-white shadow-glow-lg`;
+                contentContainer.textContent = message;
+            }
+
+            wrapper.appendChild(contentContainer);
+            chatHistory.appendChild(wrapper);
             scrollToBottom();
+            // Return the contentContainer for the typing effect logic
+            return isPending ? contentContainer : null; 
+        }
+
+        // --- Chat Logic ---
+
+        async function handleChat() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            const isFirstMessage = !isChatActive;
+
+            // 1. Disable input and add user message
+            messageInput.value = '';
+            resizeTextarea(); 
+            messageInput.disabled = true;
+            sendButton.disabled = true;
+
+            if (isFirstMessage) {
+                 updateUIState(true);
+            }
+
+            addMessageToUI(message, 'user');
+
+            // 2. Add pending AI message placeholder 
+            const pendingBubble = addMessageToUI('', 'ai', true);
+
+            try {
+                // 3. API Call
+                const response = await fetchWithRetry(WORKER_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message, sessionId })
+                });
+
+                const result = await response.json();
+                
+                let aiReply = "icls, the server be mad sus rn. check console for tea. 💀";
+
+                if (result.reply) {
+                    aiReply = result.reply;
+                } else if (result.error && result.error.message) {
+                    aiReply = `cap! api got cooked: ${result.error.error.message.substring(0, 100)}... 😭`;
+                }
+
+                // 4. Run the Typewriter/Fade-in effect (Resolves when typing is done)
+                await typeMessage(pendingBubble, aiReply);
+                
+            } catch (error) {
+                console.error("Fetch Error:", error);
+                // Handle fetch error visually
+                pendingBubble.className = pendingBubble.className
+                    .replace('w-24', 'max-w-3xl')
+                    .replace('p-3', 'p-4'); 
+                pendingBubble.classList.add('border', 'border-white/10', 'shadow-liquid');
+                pendingBubble.innerHTML = `fam, connection busted. no cap. check ur console. 💀`;
+
+            } finally {
+                // 5. Cleanup
+                if (pendingBubble) pendingBubble.id = ''; // Remove the ID once done
+                messageInput.disabled = false;
+                resizeTextarea(); 
+                messageInput.focus();
+                scrollToBottom();
+            }
         }
 
         // --- Utility Functions ---
@@ -221,8 +404,6 @@
         function resizeTextarea() {
             messageInput.style.height = 'auto';
             messageInput.style.height = messageInput.scrollHeight + 'px';
-            
-            // Enable button only if text is present
             sendButton.disabled = messageInput.value.trim() === '';
         }
 
@@ -242,145 +423,10 @@
                 }
                 const delay = BASE_DELAY_MS * Math.pow(2, i);
                 if (i < retries - 1) {
-                    console.log(`Retrying in ${delay / 1000}s...`);
                     await new Promise(resolve => setTimeout(resolve, delay));
                 }
             }
             throw new Error(`Failed to fetch from ${url} after ${retries} attempts.`);
-        }
-
-        // Auto-scroll to the latest message
-        function scrollToBottom() {
-            chatHistory.scrollTop = chatHistory.scrollHeight;
-        }
-
-        // Session Initialization
-        function initSessionId() {
-            sessionId = localStorage.getItem('sessionId');
-            if (!sessionId) {
-                sessionId = crypto.randomUUID();
-                localStorage.setItem('sessionId', sessionId);
-            }
-        }
-
-        // --- UI Rendering ---
-
-        function addMessageToUI(message, role, isPending = false) {
-            const wrapper = document.createElement('div');
-            const contentContainer = document.createElement('div');
-            
-            // Base classes for the message bubble (transition is key for the dynamic effect)
-            const baseBubbleClasses = "rounded-3xl text-text-light whitespace-pre-wrap shadow-lg transition-all duration-300 ease-in-out";
-
-            if (role === 'ai') {
-                // AI message (Left-aligned)
-                // Removed aggressive padding here, using px-4 md:px-8 to hug the edges of the max-w-4xl container
-                wrapper.className = 'w-full py-3 flex justify-start px-4 md:px-8'; 
-
-                if (isPending) {
-                    // PENDING: Fixed small size on the left for fluid expansion
-                    contentContainer.className = `${baseBubbleClasses} bg-glass-ai p-3 w-24`;
-                    contentContainer.innerHTML = `
-                        <div class="flex items-center space-x-2">
-                            <span class="dot dot-1"></span>
-                            <span class="dot dot-2"></span>
-                            <span class="dot dot-3"></span>
-                        </div>
-                    `;
-                    contentContainer.id = 'ai-pending-message';
-                } else {
-                    // FINAL: Full message state (Max width, wider for less squishing)
-                    contentContainer.className = `${baseBubbleClasses} bg-glass-ai max-w-3xl p-4 border border-white/10 shadow-liquid`; 
-                    contentContainer.textContent = message;
-                }
-            } else {
-                // User message (Right-aligned)
-                wrapper.className = 'w-full py-3 flex justify-end px-4 md:px-8';
-                // User message bubble: Accent color, rounded-3xl
-                contentContainer.className = `${baseBubbleClasses} bg-accent-purple max-w-3xl p-4 text-white shadow-glow-lg`;
-                contentContainer.textContent = message;
-            }
-
-            wrapper.appendChild(contentContainer);
-            chatHistory.appendChild(wrapper);
-            scrollToBottom();
-            // Only return the contentContainer if it's pending, so we can update it later
-            return isPending ? contentContainer : null; 
-        }
-
-        // --- Chat Logic ---
-
-        async function handleChat() {
-            const message = messageInput.value.trim();
-            if (!message) return;
-
-            // Check if chat is starting (no messages yet)
-            const isFirstMessage = !isChatActive;
-
-            // 1. Disable input and add user message
-            messageInput.value = '';
-            resizeTextarea(); // Reset textarea height and disable button
-            messageInput.disabled = true;
-            sendButton.disabled = true;
-
-            // If this is the first message, update the UI state. 
-            if (isFirstMessage) {
-                 updateUIState(true);
-            }
-
-            addMessageToUI(message, 'user');
-
-            // 2. Add pending AI message placeholder (returns the content element)
-            const pendingBubble = addMessageToUI('', 'ai', true);
-
-            try {
-                // 3. API Call with Exponential Backoff
-                const response = await fetchWithRetry(WORKER_URL, {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ message, sessionId })
-                });
-
-                const result = await response.json();
-                
-                let aiReply = "icls, the server be mad sus rn. check console for tea. 💀";
-
-                if (result.reply) {
-                    aiReply = result.reply;
-                } else if (result.error && result.error.message) {
-                    aiReply = `cap! api got cooked: ${result.error.error.message.substring(0, 100)}... 😭`;
-                }
-
-                // 4. Transform the pending bubble into the final message
-                
-                // 4a. Reset classes for smooth transition from loading-state (w-24, p-3) to message-state
-                pendingBubble.className = pendingBubble.className
-                    .replace('w-24', 'max-w-3xl') // Expand width to 3xl
-                    .replace('p-3', 'p-4'); // Expand padding
-                
-                // Add the final style classes (if they were only on the final state)
-                pendingBubble.classList.add('border', 'border-white/10', 'shadow-liquid');
-
-
-                // 4b. Update content and remove ID
-                pendingBubble.textContent = aiReply;
-                pendingBubble.id = ''; // Remove the ID once done
-                
-            } catch (error) {
-                console.error("Fetch Error:", error);
-                // If it fails, transform it to a smaller error message bubble
-                pendingBubble.textContent = `fam, connection busted. no cap. check ur console. 💀`;
-                pendingBubble.classList.remove('w-24');
-                pendingBubble.classList.add('max-w-3xl');
-            } finally {
-                // 5. Re-enable input and scroll
-                messageInput.disabled = false;
-                resizeTextarea(); // Re-evaluate button state
-                messageInput.focus();
-                scrollToBottom();
-            }
         }
 
         // Initialize on page load
@@ -388,7 +434,7 @@
             initSessionId();
             messageInput.focus();
             resizeTextarea();
-            updateUIState(false); // Start in Welcome State
+            updateUIState(false); 
         };
     </script>
 </body>
