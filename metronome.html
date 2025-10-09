@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Liquid Metronome v10 - Resumption Focus</title>
+    <style>
+        /* --- 1. Global & Utility Styles --- */
+        :root {
+            /* New Black/Purple Theme */
+            --bg-color-darkest: #0a0a0f; /* New very dark base */
+            --bg-color-blotch: #3b204e;   /* Purple color for blotches */
+            --glass-color: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --accent-weak: #a164f9; /* Soft Purple - Level 1 Accent */
+            --accent-strong: #ff9800; /* Orange - Level 2 Accent */
+            --accent-main: #c056fa; /* Bright Purple/Fuchsia - Subdivision beat */
+            --text-color: #f0f0f0;
+            
+            /* SQUISHED UI CONTROLS */
+            --control-width: 40px; 
+            --control-height: 55px; 
+            --main-btn-width: 55px;
+            --main-btn-height: 70px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            /* Blotchy Background Implementation */
+            background-color: var(--bg-color-darkest);
+            background-image: 
+                /* Top Left blotch - large, soft purple */
+                radial-gradient(circle at 10% 10%, rgba(59, 32, 78, 0.6) 0%, transparent 60%),
+                /* Bottom Right blotch - large, soft purple */
+                radial-gradient(circle at 90% 90%, rgba(70, 30, 95, 0.5) 0%, transparent 70%),
+                /* Subtle central accent glow */
+                radial-gradient(circle at center, rgba(192, 86, 250, 0.05) 0%, transparent 50%);
+
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        #app-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 95%;
+            max-width: 420px;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        /* --- 2. Compact & Separator Styles --- */
+        .setting-section-separator {
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .glass-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: var(--text-color);
+            cursor: pointer;
+            outline: none;
+            transition: all 0.1s ease;
+            font-weight: 500;
+            border-radius: 10px;
+        }
+        .glass-btn:active, .active-subdivision {
+            transform: scale(0.95);
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* --- 3. Main BPM and Control Area --- */
+        #top-area {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            padding: 5px 0px;
+            min-height: 70px;
+        }
+        #bpm-display-group {
+            text-align: left;
+            display: flex;
+            align-items: flex-end;
+            line-height: 1;
+        }
+        /* BPM FONT SIZE INCREASED */
+        #current-bpm {
+            font-size: 5em; 
+            font-weight: 900;
+            background: linear-gradient(45deg, var(--accent-main), #e91e63);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-right: 8px;
+        }
+        #bpm-label {
+            font-size: 1em; /* Smaller label */
+            font-weight: 300;
+            margin-bottom: 8px;
+            opacity: 0.8;
+        }
+        #beat-count {
+            font-size: 2.2em;
+            font-weight: bold;
+            opacity: 0.9;
+        }
+
+        /* BPM Slider and +/- Buttons (SQUISHED & Compact Row) */
+        #control-row {
+            /* Grid adjusted for squished controls and shorter slider: 
+               [-] | Slider (shorter) | [+] | Play (main width) */
+            display: grid;
+            grid-template-columns: var(--control-width) 1.5fr var(--control-width) var(--main-btn-width);
+            gap: 8px;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--glass-border);
+        }
+        .bpm-control-btn {
+            height: var(--control-height);
+            width: var(--control-width);
+            font-size: 1.6em;
+            border-radius: 12px;
+        }
+        
+        /* THICKER Slider */
+        #bpm-slider {
+            width: 100%;
+            height: 12px; /* Thicker track */
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+        }
+        #bpm-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px; /* Thicker thumb */
+            height: 24px;
+            border-radius: 50%;
+            background: var(--accent-main);
+            cursor: pointer;
+            box-shadow: 0 0 5px var(--accent-main);
+        }
+
+        /* Start/Stop Button (SQUISHED & NON-LINEAR PULSE) */
+        #start-stop-btn {
+            height: var(--main-btn-height);
+            width: var(--main-btn-width);
+            border-radius: 12px;
+            font-size: 1.5em; /* Smaller icon */
+            background: linear-gradient(45deg, rgba(192, 86, 250, 0.4), rgba(192, 86, 250, 0.2));
+            box-shadow: 0 0 10px var(--accent-main);
+            /* CUBIC BEZIER FOR SPRINGY EFFECT */
+            transition: all 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* Pulsing Animation Styles */
+        /* Level 0: Subtle Pulse (Subdivision/Regular Beat) */
+        #start-stop-btn.pulse-level-0 { 
+            transform: scale(1.05);
+            background: linear-gradient(45deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.1));
+            box-shadow: 0 0 10px var(--accent-main); /* Subtle pinkish glow */
+        }
+        /* Level 1: Weak Accent Pulse */
+        #start-stop-btn.pulse-level-1 { 
+            transform: scale(1.15);
+            box-shadow: 0 0 20px var(--accent-weak);
+            background: linear-gradient(45deg, rgba(161, 100, 249, 0.7), rgba(161, 100, 249, 0.4));
+        }
+        /* Level 2: Strong Accent Pulse */
+        #start-stop-btn.pulse-level-2 { 
+            transform: scale(1.28); 
+            background: linear-gradient(45deg, rgba(255, 152, 0, 0.9), rgba(255, 152, 0, 0.5));
+            box-shadow: 0 0 45px rgba(255, 152, 0, 0.8);
+        }
+
+        /* --- 4. Advanced Settings --- */
+        #advanced-settings {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .setting-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .setting-section label {
+            text-align: left;
+            font-size: 0.85em; 
+            opacity: 0.7;
+            padding-left: 5px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        /* Time Signature Controls */
+        #time-sig-controls {
+            /* Grid layout: [-] | Value | [+] | TAP */
+            display: grid;
+            grid-template-columns: var(--control-width) 1fr var(--control-width) 1.5fr;
+            gap: 10px;
+            align-items: center;
+        }
+        .time-sig-val {
+            font-size: 1.5em;
+            font-weight: bold;
+            text-align: center;
+            padding: 5px;
+        }
+        .time-sig-btn {
+            height: 40px;
+            width: var(--control-width);
+            font-size: 1.2em;
+        }
+        #tap-tempo-btn {
+            height: 40px;
+            font-size: 1em;
+            width: auto;
+            margin-left: 5px;
+        }
+
+        /* Subdivision Controls */
+        #subdivision-controls {
+            display: flex;
+            justify-content: space-between;
+            gap: 5px;
+        }
+        .subdivision-btn {
+            flex: 1;
+            height: 45px;
+            /* Remove explicit font styles, rely on SVG */
+            font-size: 0; /* Hide any potential default text */
+            display: flex; 
+            justify-content: center;
+            align-items: center;
+            padding: 0;
+            line-height: 1;
+        }
+        
+        /* SVG Sizing and Coloring */
+        .subdivision-btn svg {
+            /* Use currentColor to make the SVG white, and size it appropriately */
+            color: var(--text-color);
+            height: 30px; /* Standard height for all symbols */
+            overflow: visible; /* Allow the '3' on the triplet to show */
+        }
+
+        /* New Accent Pattern Controls - Multi-Level */
+        #accent-pattern-container {
+            display: flex; /* Enable flex layout for dynamic stretching */
+            gap: 5px; /* Maintain gap between buttons */
+            flex-wrap: nowrap; 
+            justify-content: flex-start;
+        }
+        /* Dynamic stretching for accent buttons */
+        .accent-beat-btn {
+            flex: 1; /* Key change: make buttons take up equal space */
+            height: 45px;
+            min-width: 1px; /* Allow very small size */
+            font-size: 0; /* No text content */
+            padding: 0;
+            /* Default small radius for middle buttons. Overridden in JS for first/last. */
+            border-radius: 2px; 
+            transition: background 0.1s ease, box-shadow 0.1s ease;
+        }
+        
+        /* Level 1 Accent - Weak */
+        .accent-level-1 {
+            background: var(--accent-weak);
+            border-color: var(--accent-weak);
+            color: var(--bg-color-darkest);
+            font-weight: 600;
+            box-shadow: 0 0 10px rgba(161, 100, 249, 0.4);
+        }
+        /* Level 2 Accent - Strong */
+        .accent-level-2 {
+            background: var(--accent-strong);
+            border-color: var(--accent-strong);
+            color: var(--bg-color-darkest);
+            font-weight: 700;
+            box-shadow: 0 0 15px rgba(255, 152, 0, 0.8);
+        }
+
+    </style>
+</head>
+<body>
+    <!-- 
+        *** FIX: Removed continuous playback hack. Relying solely on scheduling and context resumption. ***
+    -->
+
+    <div id="app-container">
+        <!-- Main BPM Display and Beat Count -->
+        <div id="top-area">
+            <div id="bpm-display-group">
+                <div id="current-bpm">120</div>
+                <div id="bpm-label">BPM</div>
+            </div>
+            <div id="beat-count">0 / 4</div>
+        </div>
+
+        <!-- BPM Slider and Play/Pause Control Row -->
+        <div id="control-row" class="setting-section-separator">
+            <button id="bpm-down-btn" class="bpm-control-btn glass-btn">-</button>
+            <input type="range" id="bpm-slider" min="20" max="400" value="120" aria-label="BPM Slider">
+            <button id="bpm-up-btn" class="bpm-control-btn glass-btn">+</button>
+            <button id="start-stop-btn" class="glass-btn" aria-label="Start or Stop Metronome">▶</button>
+        </div>
+
+        <!-- Advanced Settings (Transparent Sections) -->
+        <div id="advanced-settings">
+            <div class="setting-section setting-section-separator">
+                <label>Beats per Measure</label>
+                <div id="time-sig-controls">
+                    <!-- Numerator Controls -->
+                    <button id="ts-num-down" class="time-sig-btn glass-btn">-</button>
+                    <span id="time-sig-num-val" class="time-sig-val">4</span>
+                    <button id="ts-num-up" class="time-sig-btn glass-btn">+</button>
+                    
+                    <button id="tap-tempo-btn" class="glass-btn">TAP</button>
+                </div>
+            </div>
+
+            <div class="setting-section setting-section-separator">
+                <label>Subdivision</label>
+                <div id="subdivision-controls">
+                    
+                    <!-- 1. Quarter Note (1) SVG -->
+                    <button class="subdivision-btn glass-btn" data-value="1" aria-label="Quarter Note">
+                        <svg viewBox="0 0 40 100" fill="currentColor" width="20">
+                            <!-- Slanted Oval Head: shifted left and down -->
+                            <g transform="translate(14, 65) rotate(-15)">
+                                <ellipse cx="0" cy="0" rx="8" ry="6.5"/>
+                            </g>
+                            <!-- Stem: starts at x=18, connecting to the right side of the oval -->
+                            <rect x="18" y="20" width="4" height="40"/>
+                        </svg>
+                    </button>
+                    
+                    <!-- 2. Beamed Eighth Notes (2) SVG -->
+                    <button class="subdivision-btn glass-btn active-subdivision" data-value="2" aria-label="Eighth Notes">
+                        <svg viewBox="0 0 70 100" fill="currentColor" width="40">
+                            <!-- Note 1 Head (Slanted Oval) -->
+                            <g transform="translate(14, 65) rotate(-15)">
+                                <ellipse cx="0" cy="0" rx="8" ry="6.5"/>
+                            </g>
+                            <!-- Note 2 Head (Slanted Oval) -->
+                            <g transform="translate(44, 65) rotate(-15)">
+                                <ellipse cx="0" cy="0" rx="8" ry="6.5"/>
+                            </g>
+                            <!-- Stem 1 -->
+                            <rect x="18" y="20" width="4" height="40"/>
+                            <!-- Stem 2 -->
+                            <rect x="48" y="20" width="4" height="40"/>
+                            <!-- Beam (top) -->
+                            <rect x="18" y="20" width="34" height="8"/>
+                        </svg>
+                    </button>
+                    
+                    <!-- 3. Triplet (3) SVG - Three Beamed Eighths with '3' -->
+                    <button class="subdivision-btn glass-btn" data-value="3" aria-label="Triplets">
+                        <svg viewBox="0 0 100 100" fill="currentColor" width="55">
+                            <!-- Note 1 Head (Slanted Oval) -->
+                            <g transform="translate(14, 65) rotate(-15)">
+                                <ellipse cx="0" cy="0" rx="8" ry="6.5"/>
+                            </g>
+                            <!-- Note 2 Head (Slanted Oval) -->
+                            <g transform="translate(44, 65) rotate(-15)">
+                                <ellipse cx="0" cy="0" rx="8" ry="6.5"/>
+                            </g>
+                            <!-- Note 3 Head (Slanted Oval) -->
+                            <g transform="translate(74, 65) rotate(-15)">
+                                <ellipse cx="0" cy="0" rx="8" ry="6.5"/>
+                            </g>
+                            <!-- Stem 1 -->
+                            <rect x="18" y="20" width="4" height="40"/>
+                            <!-- Stem 2 -->
+                            <rect x="48" y="20" width="4" height="40"/>
+                            <!-- Stem 3 -->
+                            <rect x="78" y="20" width="4" height="40"/>
+                            <!-- Beam (top) -->
+                            <rect x="18" y="20" width="64" height="8"/>
+                            <!-- Triplet marker '3' (Shifted down to maintain position above beam) -->
+                            <text x="50" y="15" font-family="Inter, sans-serif" font-size="25" text-anchor="middle" font-weight="900" style="paint-order: stroke; stroke: var(--bg-color-darkest); stroke-width: 2px;">3</text>
+                        </svg>
+                    </button>
+                    
+                    <!-- 4. Sixteenth Notes (4) SVG - Four Beamed Sixteenths (Double Beam) -->
+                    <button class="subdivision-btn glass-btn" data-value="4" aria-label="Sixteenth Notes">
+                         <svg viewBox="0 0 130 100" fill="currentColor" width="70">
+                            <!-- Note 1 Head (Slanted Oval) -->
+                            <g transform="translate(14, 65) rotate(-15)">
+                                <ellipse cx="0" cy="0" rx="8" ry="6.5"/>
+                            </g>
+                            <!-- Note 2 Head (Slanted Oval) -->
+                            <g transform="translate(44, 65) rotate(-15)">
+                                <ellipse cx="0" cy="0" rx="8" ry="6.5"/>
+                            </g>
+                            <!-- Note 3 Head (Slanted Oval) -->
+                            <g transform="translate(74, 65) rotate(-15)">
+                                <ellipse cx="0" cy="0" rx="8" ry="6.5"/>
+                            </g>
+                            <!-- Note 4 Head (Slanted Oval) -->
+                            <g transform="translate(104, 65) rotate(-15)">
+                                <ellipse cx="0" cy="0" rx="8" ry="6.5"/>
+                            </g>
+                            <!-- Stem 1 -->
+                            <rect x="18" y="20" width="4" height="40"/>
+                            <!-- Stem 2 -->
+                            <rect x="48" y="20" width="4" height="40"/>
+                            <!-- Stem 3 -->
+                            <rect x="78" y="20" width="4" height="40"/>
+                            <!-- Stem 4 -->
+                            <rect x="108" y="20" width="4" height="40"/>
+                            <!-- Beam 1 (top) -->
+                            <rect x="18" y="20" width="94" height="8"/>
+                            <!-- Beam 2 (lower) - Shifted down -->
+                            <rect x="18" y="32" width="94" height="8"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="setting-section">
+                <!-- Label added back -->
+                <label>Accent Pattern</label>
+                <div id="accent-pattern-container">
+                    <!-- Buttons generated by JavaScript -->
+                </div>
+                <!-- Hidden input to store value for persistence -->
+                <input type="hidden" id="accent-levels-storage" value="2,0,1,0"> 
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Core Variables and State Management ---
+        const METRONOME_KEY = 'liquidMetronomeSettings';
+        let audioContext;
+        let metronomeState = {
+            bpm: 120,
+            timeSigNum: 4,
+            timeSigDen: 4, // Fixed denominator for calculation
+            subdivision: 2,
+            accentLevels: [2, 0, 1, 0], // 0: None, 1: Weak, 2: Strong
+            isRunning: false,
+            currentBeat: 0,
+            lastTapTime: 0,
+            tapHistory: []
+        };
+
+        // Timing constants for precise scheduling (Web Audio API)
+        const lookahead = 25.0; 
+        const scheduleAheadTime = 0.1;
+        let nextNoteTime = 0.0;
+        let timerWorker;
+        
+        // DOM Elements
+        const $bpmSlider = document.getElementById('bpm-slider');
+        const $currentBPM = document.getElementById('current-bpm');
+        const $startStopBtn = document.getElementById('start-stop-btn');
+        const $tapTempoBtn = document.getElementById('tap-tempo-btn');
+        const $beatCount = document.getElementById('beat-count');
+
+        const $bpmUpBtn = document.getElementById('bpm-up-btn');
+        const $bpmDownBtn = document.getElementById('bpm-down-btn');
+
+        const $tsNumVal = document.getElementById('time-sig-num-val');
+        const $tsNumUp = document.getElementById('ts-num-up');
+        const $tsNumDown = document.getElementById('ts-num-down');
+        
+        const $subdivisionControls = document.getElementById('subdivision-controls');
+        const $accentLevelsStorage = document.getElementById('accent-levels-storage'); // Hidden input
+        const $accentPatternContainer = document.getElementById('accent-pattern-container'); // Container for dynamic buttons
+
+
+        // --- 1. Persistence (localStorage) ---
+        function loadSettings() {
+            try {
+                const storedSettings = localStorage.getItem(METRONOME_KEY);
+                if (storedSettings) {
+                    const parsed = JSON.parse(storedSettings);
+                    metronomeState.bpm = parsed.bpm || 120;
+                    metronomeState.timeSigNum = parsed.timeSigNum || 4;
+                    metronomeState.subdivision = parsed.subdivision || 2;
+                    
+                    if (parsed.accentLevels) {
+                        // Accent levels are stored as a comma-separated string of numbers
+                        metronomeState.accentLevels = String(parsed.accentLevels)
+                            .split(',')
+                            .map(n => parseInt(n.trim(), 10))
+                            .filter(n => !isNaN(n));
+                    }
+
+                    // Apply to UI
+                    $bpmSlider.value = metronomeState.bpm;
+                    $currentBPM.textContent = metronomeState.bpm;
+                    $tsNumVal.textContent = metronomeState.timeSigNum;
+                    $accentLevelsStorage.value = metronomeState.accentLevels.join(',');
+
+                    // Set active subdivision button
+                    $subdivisionControls.querySelectorAll('.subdivision-btn').forEach(btn => {
+                        btn.classList.remove('active-subdivision');
+                        if (parseInt(btn.dataset.value) === metronomeState.subdivision) {
+                            btn.classList.add('active-subdivision');
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error("Error loading settings:", e);
+            }
+        }
+
+        function saveSettings() {
+            try {
+                const bpmVal = parseInt($bpmSlider.value);
+                const timeSigNumVal = parseInt($tsNumVal.textContent);
+                
+                // Prune or extend accentLevels array to match new timeSigNum
+                while (metronomeState.accentLevels.length < timeSigNumVal) {
+                    metronomeState.accentLevels.push(0); // Add level 0 (no accent)
+                }
+                metronomeState.accentLevels.splice(timeSigNumVal); // Trim if needed
+
+                const settingsToSave = {
+                    bpm: bpmVal,
+                    timeSigNum: timeSigNumVal,
+                    subdivision: metronomeState.subdivision,
+                    accentLevels: metronomeState.accentLevels.join(',')
+                };
+                localStorage.setItem(METRONOME_KEY, JSON.stringify(settingsToSave));
+
+                // Update internal state values
+                metronomeState.bpm = bpmVal;
+                metronomeState.timeSigNum = timeSigNumVal;
+                $accentLevelsStorage.value = metronomeState.accentLevels.join(',');
+
+                if (metronomeState.isRunning) {
+                    // Reset current beat to total sub-beats to ensure the metronome starts cleanly 
+                    // on the 1st beat after settings change.
+                    metronomeState.currentBeat = metronomeState.timeSigNum * metronomeState.subdivision;
+                }
+                updateBeatDisplay(0);
+            } catch (e) {
+                console.error("Error saving settings:", e);
+            }
+        }
+
+        // --- 2. Web Audio API & Sound Generation ---
+        function initAudio() {
+            if (!audioContext) {
+                // Initialize the AudioContext
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            // CRITICAL: Always try to resume context on interaction/start
+            if (audioContext.state === 'suspended') {
+                audioContext.resume().catch(e => console.error("AudioContext resume failed:", e));
+            }
+        }
+
+        /**
+         * Plays a click sound with distinct characteristics based on accent level.
+         * @param {number} time - Web Audio time to schedule the sound.
+         * @param {number} accentLevel - 0 (regular/sub), 1 (weak accent), 2 (strong accent).
+         */
+        function playClick(time, accentLevel) {
+            if (!audioContext) return;
+            
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+
+            // Frequencies and gains based on accent level
+            let freq, gainVal;
+            switch (accentLevel) {
+                case 2: // Strong Accent (Orange tone)
+                    freq = 880;
+                    gainVal = 1.0;
+                    break;
+                case 1: // Weak Accent (Purple tone)
+                    freq = 660;
+                    gainVal = 0.7;
+                    break;
+                case 0: // Regular/Subdivision Beat
+                default:
+                    freq = 440;
+                    gainVal = 0.4;
+                    break;
+            }
+
+            osc.frequency.setValueAtTime(freq, time);
+            osc.type = 'triangle';
+
+            gain.gain.setValueAtTime(gainVal, time);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+
+            osc.start(time);
+            osc.stop(time + 0.05);
+        }
+
+        // --- 3. Scheduling and Metronome Logic ---
+        function scheduleBeat() {
+            if (!metronomeState.isRunning || !audioContext) return;
+
+            const totalSubBeats = metronomeState.timeSigNum * metronomeState.subdivision;
+            metronomeState.currentBeat = (metronomeState.currentBeat % totalSubBeats) + 1;
+
+            const mainBeat = Math.ceil(metronomeState.currentBeat / metronomeState.subdivision);
+            
+            // Logic for determining the start of a main beat 
+            const isMainBeatPulse = (metronomeState.currentBeat - 1) % metronomeState.subdivision === 0;
+            
+            // The accent level for the main beat
+            const accentLevel = metronomeState.accentLevels[mainBeat - 1] || 0;
+
+            let clickLevel;
+            let visualPulseLevel;
+
+            if (isMainBeatPulse) {
+                clickLevel = accentLevel;
+                visualPulseLevel = accentLevel; // Pulse based on actual accent (2, 1, or 0)
+            } else {
+                clickLevel = 0; // Subdivision sound is always regular
+                visualPulseLevel = 0; // Subdivision visual pulse is subtle (Level 0)
+            }
+
+            // Play the click sound
+            playClick(nextNoteTime, clickLevel);
+
+            // Schedule the visual pulse using setTimeout to synchronize with the sound
+            const delayTime = (nextNoteTime - audioContext.currentTime) * 1000;
+            setTimeout(() => {
+                // Pass the visual pulse level (0, 1, or 2)
+                triggerVisualPulse(visualPulseLevel, mainBeat);
+            }, delayTime);
+            
+            // Advance the next note time
+            const secondsPerSubdivision = (60.0 / metronomeState.bpm) / metronomeState.subdivision;
+            nextNoteTime += secondsPerSubdivision;
+        }
+
+        function schedulerLoop() {
+            // CRITICAL: Aggressively check and resume context in case it suspended
+            if (audioContext && audioContext.state === 'suspended') {
+                 audioContext.resume().catch(e => console.error("Auto-resume failed:", e));
+            }
+            
+            while (nextNoteTime < audioContext.currentTime + scheduleAheadTime) {
+                scheduleBeat();
+            }
+        }
+
+        function startMetronome() {
+            if (metronomeState.isRunning) return;
+
+            // Initialize and forcefully resume the context on user interaction
+            initAudio(); 
+
+            metronomeState.isRunning = true;
+            $startStopBtn.textContent = '■';
+            
+            // Media Session API for OS lock screen controls
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: 'Metronome',
+                    artist: 'Liquid Glass'
+                });
+                
+                // Allow the OS media controls to pause/play the metronome
+                navigator.mediaSession.setActionHandler('play', startMetronome);
+                navigator.mediaSession.setActionHandler('pause', stopMetronome);
+                navigator.mediaSession.playbackState = 'playing';
+            }
+
+            // Reset beat counter to total sub-beats so the next schedule immediately triggers beat 1
+            metronomeState.currentBeat = metronomeState.timeSigNum * metronomeState.subdivision; 
+            nextNoteTime = audioContext.currentTime;
+
+            timerWorker = setInterval(schedulerLoop, lookahead);
+        }
+
+        function stopMetronome() {
+            if (!metronomeState.isRunning) return;
+
+            metronomeState.isRunning = false;
+            $startStopBtn.textContent = '▶';
+            $startStopBtn.classList.remove('pulse-level-0', 'pulse-level-1', 'pulse-level-2');
+            
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.playbackState = 'paused';
+            }
+
+            clearInterval(timerWorker);
+            updateBeatDisplay(0);
+        }
+
+        // --- 4. UI Update & Interaction ---
+        function triggerVisualPulse(pulseLevel, mainBeat) {
+            // Remove previous pulse classes
+            $startStopBtn.classList.remove('pulse-level-0', 'pulse-level-1', 'pulse-level-2');
+            void $startStopBtn.offsetWidth; // Force reflow
+            
+            // Add the new pulse class
+            $startStopBtn.classList.add(`pulse-level-${pulseLevel}`);
+
+            // Update main beat display only on the main beats
+            const isMainBeat = (metronomeState.currentBeat - 1) % metronomeState.subdivision === 0;
+            if (isMainBeat) {
+                updateBeatDisplay(mainBeat);
+            }
+
+            // Clear the pulse class after the transition is mostly complete
+            setTimeout(() => {
+                $startStopBtn.classList.remove('pulse-level-0', 'pulse-level-1', 'pulse-level-2');
+            }, 150); 
+        }
+
+        function updateBeatDisplay(current) {
+            const total = metronomeState.timeSigNum;
+            // When stopped (current === 0), display 0 / N
+            const beatDisplay = current === 0 ? `0 / ${total}` : `${current} / ${total}`;
+            $beatCount.textContent = beatDisplay;
+        }
+
+        function handleBPMChange(newBPM) {
+            newBPM = Math.min(Math.max(20, newBPM), 400);
+            $bpmSlider.value = newBPM;
+            $currentBPM.textContent = newBPM;
+            saveSettings();
+            
+            if (metronomeState.isRunning && audioContext) {
+                // If running, reset timing to avoid clicks bunching up
+                nextNoteTime = audioContext.currentTime;
+                metronomeState.currentBeat = metronomeState.timeSigNum * metronomeState.subdivision;
+            }
+        }
+
+        function generateAccentButtons() {
+            const numBeats = metronomeState.timeSigNum;
+            
+            $accentPatternContainer.innerHTML = '';
+            
+            for (let i = 1; i <= numBeats; i++) {
+                const level = metronomeState.accentLevels[i - 1] || 0;
+                const button = document.createElement('button');
+                button.className = 'accent-beat-btn glass-btn';
+                
+                if (level === 1) {
+                    button.classList.add('accent-level-1');
+                } else if (level === 2) {
+                    button.classList.add('accent-level-2');
+                }
+                
+                button.dataset.beat = i;
+                button.dataset.level = level;
+                
+                // Set the specific border radius based on position
+                if (numBeats === 1) {
+                    // Single button takes full radius
+                    button.style.borderRadius = '10px';
+                } else if (i === 1) {
+                    // Leftmost: full radius on left side
+                    button.style.borderRadius = '10px 2px 2px 10px';
+                } else if (i === numBeats) {
+                    // Rightmost: full radius on right side
+                    button.style.borderRadius = '2px 10px 10px 2px';
+                } else {
+                    // Middle buttons: negligible radius (2px)
+                    button.style.borderRadius = '2px';
+                }
+                
+                // No text content in the button for maximum condensation
+                button.textContent = ''; 
+                
+                $accentPatternContainer.appendChild(button);
+            }
+        }
+
+        function handleAccentToggle(event) {
+            const btn = event.target.closest('.accent-beat-btn');
+            if (!btn) return;
+            
+            const beat = parseInt(btn.dataset.beat);
+            const beatIndex = beat - 1; // 0-indexed
+            
+            // Cycle: 0 (None) -> 1 (Weak) -> 2 (Strong) -> 0
+            let currentLevel = parseInt(btn.dataset.level) || 0;
+            let nextLevel = (currentLevel + 1) % 3; 
+
+            // Update state
+            metronomeState.accentLevels[beatIndex] = nextLevel;
+            
+            // Update UI and save settings
+            generateAccentButtons(); // Regenerate all buttons to apply new class and styling
+            saveSettings(); 
+        }
+
+        function handleTimeSigNumChange(direction) {
+            let newNum = metronomeState.timeSigNum + direction;
+            
+            // Set cap to 32 beats.
+            newNum = Math.min(Math.max(1, newNum), 32); 
+            
+            $tsNumVal.textContent = newNum;
+            
+            // Update state and prune/extend accent levels
+            metronomeState.timeSigNum = newNum;
+            
+            // Ensure accentLevels size matches the new time signature
+            while (metronomeState.accentLevels.length < newNum) {
+                metronomeState.accentLevels.push(0);
+            }
+            metronomeState.accentLevels.splice(newNum); 
+            
+            generateAccentButtons();
+            saveSettings();
+        }
+        
+        function handleSubdivisionChange(event) {
+            const btn = event.target.closest('.subdivision-btn');
+            if (!btn) return;
+
+            metronomeState.subdivision = parseInt(btn.dataset.value);
+            
+            $subdivisionControls.querySelectorAll('.subdivision-btn').forEach(b => {
+                b.classList.remove('active-subdivision');
+            });
+            btn.classList.add('active-subdivision');
+            
+            saveSettings();
+        }
+
+        function handleTapTempo() {
+            const now = Date.now();
+            const timeSinceLastTap = now - metronomeState.lastTapTime;
+            metronomeState.lastTapTime = now;
+
+            if (timeSinceLastTap < 3000) {
+                metronomeState.tapHistory.push(timeSinceLastTap);
+
+                if (metronomeState.tapHistory.length > 5) {
+                    metronomeState.tapHistory.shift();
+                }
+
+                const averageInterval = metronomeState.tapHistory.reduce((a, b) => a + b, 0) / metronomeState.tapHistory.length;
+                const newBPM = Math.round(60000 / averageInterval);
+
+                if (newBPM >= 20 && newBPM <= 400) {
+                    handleBPMChange(newBPM);
+                }
+            } else {
+                metronomeState.tapHistory = [];
+            }
+        }
+
+        // --- 5. Event Listeners ---
+        function setupListeners() {
+            $startStopBtn.addEventListener('click', () => {
+                if (metronomeState.isRunning) {
+                    stopMetronome();
+                } else {
+                    startMetronome();
+                }
+            });
+
+            // BPM Slider and +/- buttons
+            $bpmSlider.addEventListener('input', (e) => handleBPMChange(parseInt(e.target.value)));
+            $bpmUpBtn.addEventListener('click', () => handleBPMChange(metronomeState.bpm + 1));
+            $bpmDownBtn.addEventListener('click', () => handleBPMChange(metronomeState.bpm - 1));
+
+            // Time Signature Numerator Buttons
+            $tsNumUp.addEventListener('click', () => handleTimeSigNumChange(1));
+            $tsNumDown.addEventListener('click', () => handleTimeSigNumChange(-1));
+            
+            // Subdivision Buttons
+            $subdivisionControls.addEventListener('click', handleSubdivisionChange);
+
+            // Tap Tempo
+            $tapTempoBtn.addEventListener('click', handleTapTempo);
+            
+            // Accent Pattern Toggle
+            $accentPatternContainer.addEventListener('click', handleAccentToggle);
+        }
+
+        // --- Initialization ---
+        window.onload = () => {
+            loadSettings();
+            setupListeners();
+            generateAccentButtons(); 
+            
+            $currentBPM.textContent = metronomeState.bpm;
+            updateBeatDisplay(0);
+        };
+    </script>
+</body>
+</html>
