@@ -1,0 +1,16 @@
+{
+  "name": "MusicApp by Tebby",
+  "short_name": "MusicApp",
+  "description": "Develop your musicality.",
+  "display": "standalone",
+  "scope": "/Explore/",
+  "start_url": "/Explore/metronome", 
+  "background_color": "#000000",
+  "icons": [
+    {
+      "src": "/icons/icon-metronome.png",
+      "type": "png",
+      "purpose": "any maskable"
+    }
+  ]
+}
