@@ -282,12 +282,19 @@
         .block-container { text-align: center; }
         .block-container math-field { padding: 15px 25px; font-size: 1.3em; background: white; box-shadow: inset 0 2px 4px rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.1); border-radius: 12px; display: inline-block; width: 100%; text-align: left; }
 
-        .visual-block-wrapper { display: block; margin: 24px auto; padding: 20px; border: 1px solid rgba(0,0,0,0.05); cursor: pointer; max-width: 600px; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.03); }
-        .visual-block-wrapper:hover { background: rgba(250, 252, 255, 1); border: 1px solid var(--primary); box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
         .visual-block-wrapper::after { content: 'Double-click to edit'; display: block; font-size: 0.75rem; color: var(--primary); font-weight: 600; margin-top: 10px; text-align: center; opacity: 0; transition: 0.2s; transform: translateY(5px); }
         .visual-block-wrapper:hover::after { opacity: 1; transform: translateY(0); }
 
-        details.markscheme { background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); overflow: hidden; margin: 20px 0; border: 1px solid rgba(0,0,0,0.08); }
+        details.markscheme {
+            background: white; 
+            border-radius: 12px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05); 
+            /* CHANGED FROM HIDDEN TO VISIBLE so buttons show */
+            overflow: visible; 
+            margin: 25px 0; 
+            border: 1px solid rgba(0,0,0,0.08);
+            position: relative;
+        }
         details.markscheme summary { background: #fafafa; padding: 12px 20px; cursor: pointer; font-weight: 600; transition: 0.2s; color: #444; user-select: none; }
         .markscheme-content { padding: 20px; border-top: 1px solid rgba(0,0,0,0.05); }
 
@@ -307,9 +314,11 @@
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.2); backdrop-filter: blur(8px); z-index: 5000;
             display: flex; justify-content: center; align-items: center;
-            opacity: 0; pointer-events: none; transition: 0.3s;
+            transition: 0.3s;
+            visibility: hidden; /* Hides it completely */
+            pointer-events: none;
         }
-        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal-overlay.active { pointer-events: auto; visibility: visible; }
         
         .modal {
             background: rgba(255, 255, 255, 0.95); padding: 30px;
@@ -369,8 +378,32 @@
         #desmosContainer { width: 100%; height: 100%; border-radius: 12px; overflow: hidden; border: 1px solid #ccc; }
         #tempCalculator { position: absolute; top: 0; left: 0; width: 600px; height: 400px; opacity: 0; pointer-events: none; z-index: -100; }
         
-        .mermaid svg, canvas, .visual-block-wrapper img { max-width: 100%; height: auto !important; display: block; }
+        .mermaid svg, canvas { max-width: 100%; height: auto !important; display: block; }
         .mermaid-wrapper .mermaid { display: flex; justify-content: center; width: 100%; }
+
+        .visual-block-wrapper img {
+            display: block;
+            margin: 0 auto;
+            max-width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            pointer-events: none; /* Prevent native drag, let wrapper handle it */
+        }
+
+        .visual-block-wrapper:hover {
+            border-color: rgba(0,0,0,0.1);
+            background: rgba(0,0,0,0.02);
+        }
+        
+        .visual-block-wrapper {
+            display: block; 
+            margin: 24px auto; 
+            padding: 10px; 
+            border: 1px solid transparent; 
+            position: relative; /* For controls */
+            border-radius: 8px;
+            transition: var(--transition);
+        }
 
         /* --- DARK MODE OVERRIDES (Softer) --- */
         body.dark-mode {
@@ -637,6 +670,74 @@
         body.dark-mode ul.task-list li::before { background: #333; border-color: #555; }
         body.dark-mode ul.task-list li.checked::before { background: var(--primary); border-color: var(--primary); }
 
+
+        /* The Drop Target Indicator (Blue Line) */
+        #drop-indicator {
+            position: absolute;
+            height: 4px;
+            background: var(--primary);
+            border-radius: 2px;
+            pointer-events: none;
+            display: none;
+            z-index: 9999;
+            box-shadow: 0 0 10px var(--primary-glow);
+            transition: top 0.1s;
+        }
+
+        /* The Drag Handle (:: marker) */
+        .drag-handle {
+            position: absolute;
+            top: -5px; /* Sit slightly above the block */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 15px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: 0.2s;
+            z-index: 100;
+        }
+
+        .drag-handle::after {
+            content: '::::';
+            font-size: 10px;
+            font-weight: 900;
+            color: #888;
+            line-height: 0;
+            letter-spacing: 1px;
+        }
+
+        .drag-handle:active { cursor: grabbing; background: var(--primary); }
+        .drag-handle:active::after { color: white; }
+
+        /* Show handle on hover */
+        .visual-block-wrapper:hover .drag-handle,
+        .code-block-wrapper:hover .drag-handle,
+        .quote-wrapper:hover .drag-handle,
+        .block-container:hover .drag-handle,
+        .table-wrapper:hover .drag-handle,
+        details.markscheme:hover .drag-handle {
+            opacity: 1;
+        }
+
+        /* Make images draggable directly, but disable browser default ghost */
+        #editor img {
+            cursor: grab;
+            -webkit-user-drag: none; /* Disable native browser drag */
+        }
+        #editor img:active { cursor: grabbing; }
+
+        /* Add Draggable State Styling */
+        .is-dragging {
+            opacity: 0.4;
+            filter: grayscale(1);
+        }
+
         /* --- PRINT FIX --- */
         @media print {
             body { background: white !important; color: black !important; padding: 0 !important; overflow: visible !important; }
@@ -652,6 +753,10 @@
                 .visual-block-wrapper, img, canvas { page-break-inside: avoid; }
         }
 
+        .visual-block-wrapper.type-image::after {
+            content: none !important;
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -779,40 +884,11 @@
         <p>Start typing here...</p>
     </div>
 
+    <!-- NEW: Drop Indicator Line -->
+    <div id="drop-indicator"></div>
+
     <!-- Hidden Temp Calculator for Screenshot Generation -->
     <div id="tempCalculator"></div>
-
-    <!-- Image Modal -->
-    <div id="imgModal" class="modal-overlay">
-        <div class="modal">
-            <h3>Add Media</h3>
-            <input type="text" class="glass-input" id="imgUrlInput" placeholder="Paste image URL here..." oninput="checkImgInput()">
-            <div style="text-align:center; color:#888; margin: 10px 0;">OR</div>
-            <div class="file-upload-wrapper">
-                <div class="btn-file-choice">
-                    <i class="ph ph-upload-simple" style="font-size:1.5rem"></i>
-                    <span id="fileNameDisplay">Click to upload from device</span>
-                </div>
-                <input type="file" id="imgFileInput" accept="image/*" onchange="handleFileSelect()">
-            </div>
-            <div class="modal-actions">
-                <button class="btn-glass btn-glass-cancel" onclick="closeImageModal()">Cancel</button>
-                <button id="btnInsertImg" class="btn-glass btn-glass-insert" onclick="confirmInsertImage()">Insert Image</button>
-            </div>
-        </div>
-    </div>
-    <!-- Link Modal -->
-    <div id="linkModal" class="modal-overlay">
-        <div class="modal">
-            <h3>Insert Link</h3>
-            <input type="text" class="glass-input" id="linkTextInput" placeholder="Text to display">
-            <input type="text" class="glass-input" id="linkUrlInput" placeholder="https://example.com" style="margin-top:10px;">
-            <div class="modal-actions">
-                <button class="btn-glass btn-glass-cancel" onclick="closeLinkModal()">Cancel</button>
-                <button class="btn-glass btn-glass-insert active" onclick="confirmInsertLink()">Insert Link</button>
-            </div>
-        </div>
-    </div>
 
     <!-- File Manager Modal -->
     <div id="fileModal" class="modal-overlay">
@@ -1020,35 +1096,19 @@
             if(force) showDialog('Saved', 'Your document has been saved successfully.', 'alert');
         }
 
-       function loadCurrentDoc() {
+        function loadCurrentDoc() {
             const allDocs = JSON.parse(localStorage.getItem('ivy_docs') || '{}');
             const meta = allDocs[currentDocId];
             if (meta) {
                 document.getElementById('docTitle').value = meta.title;
                 document.getElementById('miniTitleInput').value = meta.title;
-                editor.innerHTML = meta.content;
-
-                // --- FIX: Re-initialize Chart.js instances ---
+                
+                editor.innerHTML = meta.content; // DOM is created here
+                
+                // Re-attach all listeners immediately
                 setTimeout(() => {
-                    // 1. Fix Mermaid
-                    mermaid.run({ nodes: document.querySelectorAll('.mermaid') });
-
-                    // 2. Fix Chart.js
-                    document.querySelectorAll('.chart-wrapper').forEach(wrapper => {
-                        const canvas = wrapper.querySelector('canvas');
-                        if (canvas && wrapper.dataset.export) {
-                            try {
-                                const existingChart = Chart.getChart(canvas);
-                                if (existingChart) existingChart.destroy();
-
-                                const config = JSON.parse(wrapper.dataset.export);
-                                new Chart(canvas, config);
-                            } catch (e) {
-                                console.error("Could not render chart from storage", e);
-                            }
-                        }
-                    });
-                }, 100); 
+                    hydrateDOM(); 
+                }, 50);
             }
         }
 
@@ -1147,13 +1207,13 @@
         function insertQuote() {
             const wrapper = document.createElement('div'); wrapper.className = "quote-wrapper"; wrapper.contentEditable = "false";
             const bq = document.createElement('blockquote'); bq.contentEditable = "true"; bq.innerText = "Quote text...";
-            wrapper.appendChild(bq); attachDeleteButton(wrapper); insertNodeAtCursor(wrapper); wrapperAfter(wrapper); setTimeout(() => { bq.focus(); }, 10);
+            wrapper.appendChild(bq); attachBlockControls(wrapper); insertNodeAtCursor(wrapper); wrapperAfter(wrapper); setTimeout(() => { bq.focus(); }, 10);
         }
 
         function insertCodeBlock() {
             const wrapper = document.createElement('div'); wrapper.className = "code-block-wrapper"; wrapper.contentEditable = "false";
             const pre = document.createElement('pre'); pre.contentEditable = "true"; pre.innerText = "Code...";
-            wrapper.appendChild(pre); attachDeleteButton(wrapper); insertNodeAtCursor(wrapper); wrapperAfter(wrapper); setTimeout(() => { pre.focus(); }, 10);
+            wrapper.appendChild(pre); attachBlockControls(wrapper); insertNodeAtCursor(wrapper); wrapperAfter(wrapper); setTimeout(() => { pre.focus(); }, 10);
         }
 
         function insertInlineCode() {
@@ -1182,7 +1242,7 @@
                 setTimeout(() => mf.focus(), 50);
             } else {
                 const container = document.createElement('div'); container.className = 'block-container'; container.contentEditable = "false"; container.appendChild(mf);
-                attachDeleteButton(container); 
+                attachBlockControls(container); 
                 insertNodeAtCursor(container); const p = document.createElement('p'); p.innerHTML = "<br>"; container.after(p); setTimeout(() => mf.focus(), 50);
             }
         }
@@ -1190,12 +1250,133 @@
         function restoreSelection() { if (savedRange) { const s = window.getSelection(); s.removeAllRanges(); s.addRange(savedRange); } else editor.focus(); }
         function insertNodeAtCursor(node) { const s = window.getSelection(); if (!s.rangeCount) return; const r = s.getRangeAt(0); r.deleteContents(); r.insertNode(node); r.setStartAfter(node); r.setEndAfter(node); s.removeAllRanges(); s.addRange(r); }
         
-        function attachDeleteButton(wrapper) {
-            const btn = document.createElement('div');
-            btn.className = 'btn-block-delete';
-            btn.innerHTML = '<i class="ph ph-trash"></i>';
-            btn.contentEditable = "false";
-            wrapper.appendChild(btn);
+        // --- BLOCK CONTROLS (Delete & Drag) ---
+        function attachBlockControls(wrapper) {
+            // 1. Delete Button
+            if (!wrapper.querySelector('.btn-block-delete')) {
+                const btn = document.createElement('div');
+                btn.className = 'btn-block-delete';
+                btn.innerHTML = '<i class="ph ph-trash"></i>';
+                btn.contentEditable = "false";
+                wrapper.appendChild(btn);
+            }
+
+            // 2. Drag Handle
+            if (!wrapper.querySelector('.drag-handle')) {
+                const handle = document.createElement('div');
+                handle.className = 'drag-handle';
+                handle.draggable = true; // The handle triggers the drag
+                handle.contentEditable = "false";
+                wrapper.appendChild(handle);
+                
+                // Attach Drag Events to the wrapper via the handle
+                // Note: We attach dragstart to the handle, but move the wrapper
+                handle.addEventListener('dragstart', (e) => {
+                    e.stopPropagation();
+                    handleDragStart(e, wrapper);
+                });
+            }
+        }
+
+        // Call this helper for Images (which don't have wrappers/handles)
+        function makeDraggable(element) {
+            element.draggable = true;
+            element.addEventListener('dragstart', (e) => handleDragStart(e, element));
+        }
+
+        // --- DRAG AND DROP ENGINE ---
+        let draggedItem = null;
+        const dropIndicator = document.getElementById('drop-indicator');
+
+        // 1. Drag Start
+        function handleDragStart(e, item) {
+            draggedItem = item;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', item.outerHTML); // Fallback
+            item.classList.add('is-dragging');
+            
+            // Set custom ghost image if possible, or let browser handle it
+        }
+
+        // 2. Drag Over (Runs on the EDITOR container)
+        editor.addEventListener('dragover', (e) => {
+            e.preventDefault(); // Allow dropping
+            
+            const afterElement = getDragAfterElement(editor, e.clientY);
+            const draggable = document.querySelector('.is-dragging');
+            
+            if (!draggable) return;
+
+            // Position the Blue Indicator Line
+            if (afterElement == null) {
+                // At bottom of list
+                const lastChild = editor.lastElementChild;
+                if (lastChild) {
+                    const rect = lastChild.getBoundingClientRect();
+                    dropIndicator.style.top = `${rect.bottom + window.scrollY + 5}px`;
+                    dropIndicator.style.left = `${rect.left}px`;
+                    dropIndicator.style.width = `${rect.width}px`;
+                }
+            } else {
+                // Above a specific element
+                const rect = afterElement.getBoundingClientRect();
+                dropIndicator.style.top = `${rect.top + window.scrollY - 5}px`;
+                dropIndicator.style.left = `${rect.left}px`;
+                dropIndicator.style.width = `${rect.width}px`;
+            }
+            dropIndicator.style.display = 'block';
+        });
+
+        // 3. Drop (Runs on the EDITOR container)
+        editor.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const draggable = document.querySelector('.is-dragging');
+            if (!draggable) return;
+
+            const afterElement = getDragAfterElement(editor, e.clientY);
+            
+            if (afterElement == null) {
+                editor.appendChild(draggable);
+            } else {
+                editor.insertBefore(draggable, afterElement);
+            }
+            
+            // Cleanup
+            draggable.classList.remove('is-dragging');
+            dropIndicator.style.display = 'none';
+            saveToLocal();
+        });
+
+        editor.addEventListener('dragend', () => {
+            if(draggedItem) draggedItem.classList.remove('is-dragging');
+            dropIndicator.style.display = 'none';
+            draggedItem = null;
+        });
+
+        // 4. Math Helper: Find closest element to cursor
+        function getDragAfterElement(container, y) {
+            // Select all direct children of editor that are NOT the dragging item
+            // and NOT UI elements like tooltips/modals (though those are usually outside)
+            const draggableElements = [...container.children].filter(child => 
+                child !== draggedItem && 
+                child.id !== 'drop-indicator' &&
+                child.tagName !== 'STYLE' &&
+                child.tagName !== 'SCRIPT'
+            );
+
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                // Calculate offset: distance from cursor to middle of box
+                const offset = y - box.top - box.height / 2;
+                
+                // We want the element where the cursor is *above* its center (negative offset)
+                // but closest to 0.
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
         }
 
         // --- MODAL & BUILDER STATE ---
@@ -1283,7 +1464,7 @@
             restoreSelection(); 
             const w = document.createElement('div'); w.className = 'visual-block-wrapper mermaid-wrapper'; w.contentEditable = "false"; w.dataset.source = c; w.dataset.state = s; 
             const mermaidDiv = document.createElement('div'); mermaidDiv.className = 'mermaid'; mermaidDiv.textContent = c; w.appendChild(mermaidDiv);
-            attachDeleteButton(w); insertNodeAtCursor(w); wrapperAfter(w); await mermaid.run({nodes: [mermaidDiv]}); closeBuilderModal();
+            attachBlockControls(w); insertNodeAtCursor(w); wrapperAfter(w); await mermaid.run({nodes: [mermaidDiv]}); closeBuilderModal();
         }
 
         // --- CHART.JS ---
@@ -1350,7 +1531,7 @@
             const s=JSON.stringify(cjsData), e=JSON.stringify(cfg,null,2);
             if(editingCjsElement){ editingCjsElement.dataset.state=s; editingCjsElement.dataset.export=e; const cv=editingCjsElement.querySelector('canvas'); const ci=Chart.getChart(cv); if(ci)ci.destroy(); new Chart(cv,cfg); closeBuilderModal(); return; }
             restoreSelection(); const w=document.createElement('div'); w.className='visual-block-wrapper chart-wrapper'; w.contentEditable="false"; w.dataset.state=s; w.dataset.export=e; const cv=document.createElement('canvas'); cv.style.maxHeight="400px"; w.appendChild(cv); 
-            attachDeleteButton(w); insertNodeAtCursor(w); wrapperAfter(w); new Chart(cv,cfg); closeBuilderModal();
+            attachBlockControls(w); insertNodeAtCursor(w); wrapperAfter(w); new Chart(cv,cfg); closeBuilderModal();
         }
 
         // --- DESMOS ---
@@ -1419,7 +1600,7 @@
                 img.style.borderRadius = '8px';
                 w.appendChild(img);
                 
-                attachDeleteButton(w);
+                attachBlockControls(w);
                 insertNodeAtCursor(w);
                 wrapperAfter(w);
                 closeBuilderModal();
@@ -1428,14 +1609,62 @@
         }
 
         // --- IMAGES ---
-        function openImageModal() { saveSelection(); imgModal.classList.add('active'); imgUrlInput.focus(); checkImgInput(); }
+        function openImageModal() {
+            saveSelection();
+            const content = `
+                <input type="text" class="glass-input" id="dynImgUrl" placeholder="Paste image URL here...">
+                <div style="text-align:center; color:#888; margin: 10px 0;">OR</div>
+                <div class="file-upload-wrapper">
+                    <div class="btn-file-choice" onclick="document.getElementById('dynImgFile').click()">
+                        <i class="ph ph-upload-simple" style="font-size:1.5rem"></i>
+                        <span id="dynFileName">Click to upload from device</span>
+                    </div>
+                    <input type="file" id="dynImgFile" accept="image/*" style="display:none" onchange="document.getElementById('dynFileName').innerText = this.files[0].name">
+                </div>
+            `;
+
+            const modal = spawnModal('Add Media', content, (overlay) => {
+                const url = overlay.querySelector('#dynImgUrl').value;
+                const fileInput = overlay.querySelector('#dynImgFile');
+                
+                restoreSelection();
+                
+                if (fileInput.files.length) {
+                    const r = new FileReader();
+                    r.onload = e => insertImageTag(e.target.result);
+                    r.readAsDataURL(fileInput.files[0]);
+                    return true;
+                } else if (url.trim()) {
+                    insertImageTag(url.trim());
+                    return true;
+                }
+                return false;
+            });
+            
+            // Focus URL input
+            setTimeout(() => modal.querySelector('#dynImgUrl').focus(), 50);
+        }
         function closeImageModal() { imgModal.classList.remove('active'); imgUrlInput.value=""; imgFileInput.value=""; document.getElementById('fileNameDisplay').innerText="Click to upload"; checkImgInput(); }
         function handleFileSelect() { if(imgFileInput.files.length) document.getElementById('fileNameDisplay').innerText=imgFileInput.files[0].name; checkImgInput(); }
         function checkImgInput() { btnInsertImg.classList.toggle('active', imgUrlInput.value.trim().length>0 || imgFileInput.files.length>0); }
         function confirmInsertImage() {
             restoreSelection(); if(imgFileInput.files.length){ const r=new FileReader(); r.onload=e=>insertImageTag(e.target.result); r.readAsDataURL(imgFileInput.files[0]); } else if(imgUrlInput.value.trim()) insertImageTag(imgUrlInput.value.trim()); closeImageModal();
         }
-        function insertImageTag(src) { const img=document.createElement('img'); img.src=src; insertNodeAtCursor(img); wrapperAfter(img); }
+
+        function insertImageTag(src) { 
+            const wrapper = document.createElement('div');
+            wrapper.className = 'visual-block-wrapper type-image';
+            wrapper.contentEditable = "false";
+            
+            const img = document.createElement('img'); 
+            img.src = src; 
+            
+            wrapper.appendChild(img);
+            attachBlockControls(wrapper); 
+            
+            insertNodeAtCursor(wrapper); 
+            wrapperAfter(wrapper); 
+        }
 
         function wrapperAfter(node) { const p=document.createElement('p'); p.innerHTML="<br>"; node.after(p); }
 
@@ -1469,7 +1698,7 @@
 
         function insertMarkscheme() {
             const d = document.createElement('details'); d.className='markscheme'; d.open=true; d.contentEditable="false"; d.innerHTML=`<summary><span class="summary-title" contenteditable="true">Markscheme</span></summary><div class="markscheme-content" contenteditable="true"><p>Answer...</p></div>`; 
-            attachDeleteButton(d); insertNodeAtCursor(d); wrapperAfter(d); setTimeout(()=>d.querySelector('.summary-title').focus(),10);
+            attachBlockControls(d); insertNodeAtCursor(d); wrapperAfter(d); setTimeout(()=>d.querySelector('.summary-title').focus(),10);
         }
 
         // --- MARKDOWN IMPORT / EXPORT ---
@@ -1491,40 +1720,40 @@
         }
 
         function importMarkdown(input) {
-            if (!input.files.length) return;
+            const file = input.files[0]; // 1. Capture file immediately
+            if (!file) return;
+
             const reader = new FileReader();
             reader.onload = async (e) => {
+                // 2. Use the captured 'file' variable, not 'input.files[0]'
+                const fileName = file.name.replace(/\.md$/i, '');
+                document.getElementById('docTitle').value = fileName;
+                document.getElementById('miniTitleInput').value = fileName;
+
                 editor.innerHTML = ''; 
                 const text = e.target.result;
                 const lines = text.split('\n');
                 
+                // ... (Variables state remains the same) ...
                 let inCodeBlock = false, codeType = '', codeBuffer = [];
                 let inMarkscheme = false, markschemeBuffer = [];
                 let inMathBlock = false, mathBuffer = [];
-                let inList = false; let currentListType = null; let listContainer = null;
                 let inTable = false; let tableBuffer = [];
+                let inList = false; let currentListType = null; let listContainer = null;
 
                 for (let i=0; i<lines.length; i++) {
                     let line = lines[i];
                     
-                    if (line.trim().startsWith('|')) {
-                        inTable = true;
-                        tableBuffer.push(line);
-                        continue; 
-                    } 
-                    else if (inTable) {
-                        processTableBlock(tableBuffer);
-                        inTable = false;
-                        tableBuffer = [];
-                    }
+                    // Table Detection
+                    if (line.trim().startsWith('|')) { inTable = true; tableBuffer.push(line); continue; } 
+                    else if (inTable) { processTableBlock(tableBuffer); inTable = false; tableBuffer = []; }
 
-                    // --- NEW: Task List Detection ---
+                    // Task List Detection (- [ ] or - [x])
                     const taskMatch = line.match(/^-\s\[([ xX])\]\s+(.*)/);
                     if (taskMatch) {
                         const isChecked = (taskMatch[1].toLowerCase() === 'x');
                         const content = taskMatch[2];
                         
-                        // Create container if not exists or if previous wasn't task list
                         if (!inList || currentListType !== 'task') {
                             listContainer = document.createElement('ul');
                             listContainer.className = 'task-list';
@@ -1534,15 +1763,33 @@
                         }
                         
                         const li = document.createElement('li');
-                        if (isChecked) li.classList.add('checked');
-                        
-                        // Use processTextLine to handle bold/math/links inside the task text
+                        if(isChecked) li.classList.add('checked');
                         processTextLine(content, li);
-                        
                         listContainer.appendChild(li);
                         continue;
                     } 
 
+                    // Standard List Detection
+                    const ulMatch = line.match(/^(\*|-)\s+(.*)/);
+                    const olMatch = line.match(/^(\d+)\.\s+(.*)/);
+
+                    if (ulMatch || olMatch) {
+                        const type = ulMatch ? 'ul' : 'ol';
+                        const content = ulMatch ? ulMatch[2] : olMatch[2];
+                        
+                        if (!inList || currentListType !== type) { 
+                            listContainer = document.createElement(type); 
+                            editor.appendChild(listContainer); 
+                            currentListType = type; 
+                            inList = true; 
+                        }
+                        const li = document.createElement('li'); 
+                        processTextLine(content, li); 
+                        listContainer.appendChild(li);
+                        continue;
+                    } else { inList = false; listContainer = null; }
+
+                    // Code Blocks
                     if (line.trim().startsWith('```')) {
                         if (inCodeBlock) { await processCodeBlock(codeType, codeBuffer.join('\n')); inCodeBlock = false; codeBuffer = []; codeType = ''; } 
                         else { if(inList) { inList = false; listContainer = null; } inCodeBlock = true; codeType = line.trim().replace('```', '').trim(); }
@@ -1550,6 +1797,7 @@
                     }
                     if (inCodeBlock) { codeBuffer.push(line); continue; }
 
+                    // Math Blocks
                     if (line.trim() === '$$') {
                         if (inMathBlock) {
                             const mathContent = mathBuffer.join('\n'); const isChem = mathContent.trim().startsWith('\\ce{');
@@ -1557,13 +1805,14 @@
                             const div = document.createElement('div'); div.className='block-container'; div.contentEditable="false";
                             const mf = new MathfieldElement(); mf.value = val; mf.mathVirtualKeyboardPolicy="manual"; 
                             mf.classList.add(isChem ? 'chem-field' : 'math-field'); if(isChem) mf.setAttribute('letter-shape-style','upright');
-                            div.appendChild(mf); attachDeleteButton(div); editor.appendChild(div); editor.appendChild(document.createElement('br'));
+                            div.appendChild(mf); attachBlockControls(div); editor.appendChild(div); editor.appendChild(document.createElement('br'));
                             inMathBlock = false; mathBuffer = [];
                         } else { if(inList) { inList = false; listContainer = null; } inMathBlock = true; }
                         continue;
                     }
                     if (inMathBlock) { mathBuffer.push(line); continue; }
 
+                    // Markscheme
                     if (line.trim() === '<details>') { inMarkscheme = true; if(inList){inList=false; listContainer=null;} continue; }
                     if (line.trim() === '</details>') { processMarkscheme(markschemeBuffer); inMarkscheme = false; markschemeBuffer = []; continue; }
                     if (inMarkscheme) { markschemeBuffer.push(line); continue; }
@@ -1575,30 +1824,18 @@
                         editor.appendChild(sm);
                         continue;
                     }
-
-                    const ulMatch = line.match(/^(\*|-)\s+(.*)/);
-                    const olMatch = line.match(/^(\d+)\.\s+(.*)/);
-
-                    if (ulMatch || olMatch) {
-                        const type = ulMatch ? 'ul' : 'ol';
-                        const content = ulMatch ? ulMatch[2] : olMatch[2];
-                        if (!inList || currentListType !== type) { listContainer = document.createElement(type); editor.appendChild(listContainer); currentListType = type; inList = true; }
-                        const li = document.createElement('li'); processTextLine(content, li); listContainer.appendChild(li);
-                        continue;
-                    } else { inList = false; listContainer = null; }
                     
                     processTextLine(line);
                 }
 
-                // EOF Check for Table
-                if (inTable && tableBuffer.length > 0) {
-                    processTableBlock(tableBuffer);
-                }
+                if (inTable && tableBuffer.length > 0) { processTableBlock(tableBuffer); }
 
                 saveToLocal();
+                hydrateDOM();
             };
-            reader.readAsText(input.files[0]);
-            input.value = ''; 
+            
+            reader.readAsText(file);
+            input.value = ''; // Clear after reading starts
         }
 
         async function processCodeBlock(type, code) {
@@ -1608,7 +1845,7 @@
                 lines.forEach(l => { if(l.startsWith('%% state:')) { try { jsonState = l.replace('%% state:', '').trim(); } catch(e){} } else { mermaidCode += l + "\n"; } });
                 const w = document.createElement('div'); w.className = 'visual-block-wrapper mermaid-wrapper'; w.contentEditable = "false"; w.dataset.source = mermaidCode; w.dataset.state = jsonState;
                 const mermaidDiv = document.createElement('div'); mermaidDiv.className = 'mermaid'; mermaidDiv.textContent = mermaidCode; 
-                w.appendChild(mermaidDiv); attachDeleteButton(w); editor.appendChild(w); editor.appendChild(p); 
+                w.appendChild(mermaidDiv); attachBlockControls(w); editor.appendChild(w); editor.appendChild(p); 
                 await mermaid.run({nodes:[mermaidDiv]});
             }
             else if (type === 'chart') {
@@ -1617,7 +1854,7 @@
                 const state = { type: config.type, title: config.options.plugins.title.text, label: data.datasets[0].label, points: points };
                 const w = document.createElement('div'); w.className='visual-block-wrapper chart-wrapper'; w.contentEditable="false"; w.dataset.state=JSON.stringify(state); w.dataset.export=code;
                 const cv = document.createElement('canvas'); cv.style.maxHeight="400px"; w.appendChild(cv);
-                attachDeleteButton(w); editor.appendChild(w); editor.appendChild(p); new Chart(cv, config);
+                attachBlockControls(w); editor.appendChild(w); editor.appendChild(p); new Chart(cv, config);
             }
             else if (type === 'desmos') {
                 const lines = code.split('\n'); let config = {}, exprs = [];
@@ -1631,7 +1868,7 @@
                 img.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 400' style='background:%23eee'%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' fill='%23aaa'%3EGenerating Graph...%3C/text%3E%3C/svg%3E";
                 img.style.width='100%'; img.style.borderRadius='8px'; w.appendChild(img);
                 
-                attachDeleteButton(w); editor.appendChild(w); editor.appendChild(p);
+                attachBlockControls(w); editor.appendChild(w); editor.appendChild(p);
                 
                 // --- FIX: Robust Screenshot Generation ---
                 // We use a slight delay loop to ensure the DOM has placed the elements
@@ -1662,7 +1899,7 @@
             else {
                 const wrapper = document.createElement('div'); wrapper.className = "code-block-wrapper"; wrapper.contentEditable = "false";
                 const pre = document.createElement('pre'); pre.contentEditable = "true"; pre.innerText = code;
-                wrapper.appendChild(pre); attachDeleteButton(wrapper); editor.appendChild(wrapper); editor.appendChild(p);
+                wrapper.appendChild(pre); attachBlockControls(wrapper); editor.appendChild(wrapper); editor.appendChild(p);
             }
         }
 
@@ -1672,72 +1909,84 @@
             const d = document.createElement('details'); d.className='markscheme'; d.open=true; d.contentEditable="false";
             const sum = document.createElement('summary'); const tSpan = document.createElement('span'); tSpan.className='summary-title'; tSpan.contentEditable="true"; tSpan.innerText = title;
             sum.appendChild(tSpan); const content = document.createElement('div'); content.className='markscheme-content'; content.contentEditable="true";
-            d.appendChild(sum); d.appendChild(content); attachDeleteButton(d); editor.appendChild(d); editor.appendChild(document.createElement('br'));
+            d.appendChild(sum); d.appendChild(content); attachBlockControls(d); editor.appendChild(d); editor.appendChild(document.createElement('br'));
             contentLines.forEach(line => processTextLine(line, content));
         }
 
         function processTextLine(line, parent = editor) {
             if (!line.trim()) return;
-            line = line.replace(/\\\./g, '.');
+
+            // --- FIX: Unescape Markdown Characters ---
+            // Converts "\." back to "." and "\-" back to "-" etc.
+            line = line.replace(/\\([.\-*#_])/g, '$1');
+
+            // Headers
             if (line.startsWith('# ')) { const h=document.createElement('h1'); h.innerText=line.slice(2); parent.appendChild(h); return; }
             if (line.startsWith('## ')) { const h=document.createElement('h2'); h.innerText=line.slice(3); parent.appendChild(h); return; }
             if (line.startsWith('### ')) { const h=document.createElement('h3'); h.innerText=line.slice(4); parent.appendChild(h); return; }
             if (line.startsWith('#### ')) { const h=document.createElement('h4'); h.innerText=line.slice(4); parent.appendChild(h); return; }
             if (line.startsWith('##### ')) { const h=document.createElement('h5'); h.innerText=line.slice(4); parent.appendChild(h); return; }
 
+            // Blockquote
             if (line.startsWith('> ')) {
                 const wrapper = document.createElement('div'); wrapper.className = "quote-wrapper"; wrapper.contentEditable = "false";
                 const bq = document.createElement('blockquote'); bq.contentEditable = "true"; bq.innerText = line.slice(2);
-                wrapper.appendChild(bq); attachDeleteButton(wrapper); parent.appendChild(wrapper); return;
+                wrapper.appendChild(bq); attachBlockControls(wrapper); parent.appendChild(wrapper); return;
             }
+
+            // Images
             const imgMatch = line.match(/!\[.*\]\((.*)\)/);
-            if (imgMatch) { const img = document.createElement('img'); img.src=imgMatch[1]; parent.appendChild(img); parent.appendChild(document.createElement('br')); return; }
-            if (line.startsWith('$$') && line.endsWith('$$')) {
-                const latex = line.slice(2, -2).trim(); const isChem = latex.startsWith('\\ce{'); const val = isChem ? latex.slice(4, -1) : latex;
-                const div = document.createElement('div'); div.className='block-container'; div.contentEditable="false";
-                const mf = new MathfieldElement(); mf.value=val; mf.mathVirtualKeyboardPolicy="manual"; mf.classList.add(isChem?'chem-field':'math-field'); if(isChem) mf.setAttribute('letter-shape-style','upright');
-                div.appendChild(mf); attachDeleteButton(div); parent.appendChild(div); parent.appendChild(document.createElement('br')); return;
+            if (imgMatch) { 
+                const wrapper = document.createElement('div');
+                wrapper.className = 'visual-block-wrapper type-image'; // <--- Key Class
+                wrapper.contentEditable = "false";
+                const img = document.createElement('img'); 
+                img.src = imgMatch[1]; 
+                wrapper.appendChild(img);
+                attachBlockControls(wrapper); 
+                parent.appendChild(wrapper); 
+                parent.appendChild(document.createElement('br')); 
+                return; 
             }
+
+            // ... (Rest of the function remains the same as previous step) ...
+            // Make sure you use the version from the previous step that handles bold/italic/links correctly!
             const p = (parent.tagName === 'LI') ? parent : document.createElement('p');
+            
+            // Escape placeholders
             let temp = line.replace(/\\\\/g, "___BS___").replace(/\\\*/g, "___AST___").replace(/\\_/g, "___US___");
-            const parts = temp.split(/(`[^`]+`|\$[^$]+\$|\[.*?\]\(.*?\)|~~.*?~~)/g);
-    
+
+            const parts = temp.split(/(`[^`]+`|\$[^$]+\$|\[.*?\]\(.*?\))/g);
+            
             parts.forEach(part => {
-                // Math
                 if (part.startsWith('$') && part.endsWith('$')) {
-                    // ... existing math logic ...
+                    const latex = part.slice(1, -1).replace(/___BS___/g, "\\").replace(/___AST___/g, "*").replace(/___US___/g, "_");
+                    const isChem = latex.startsWith('\\ce{'); const val = isChem ? latex.slice(4, -1) : latex;
+                    const sp = document.createElement('span'); sp.className='math-wrapper'; sp.contentEditable="false";
+                    const mf = new MathfieldElement(); mf.value=val; mf.mathVirtualKeyboardPolicy="manual"; mf.classList.add(isChem?'chem-field':'math-field'); if(isChem) mf.setAttribute('letter-shape-style','upright');
+                    sp.appendChild(mf); p.appendChild(document.createTextNode('\u200B')); p.appendChild(sp); p.appendChild(document.createTextNode('\u200B'));
                 } 
-                // Inline Code
                 else if (part.startsWith('`') && part.endsWith('`')) {
-                    // ... existing code logic ...
+                    const codeText = part.slice(1, -1).replace(/___BS___/g, "\\").replace(/___AST___/g, "*").replace(/___US___/g, "_");
+                    const wrapper = document.createElement('span'); wrapper.className = 'code-wrapper'; wrapper.contentEditable = "false";
+                    const codeSpan = document.createElement('span'); codeSpan.className = 'inline-code'; codeSpan.contentEditable = "true"; codeSpan.innerText = codeText;
+                    wrapper.appendChild(codeSpan); p.appendChild(document.createTextNode('\u200B')); p.appendChild(wrapper); p.appendChild(document.createTextNode('\u200B'));
                 }
-                // NEW: Links [text](url)
                 else if (part.startsWith('[') && part.includes('](') && part.endsWith(')')) {
                     const match = part.match(/\[(.*?)\]\((.*?)\)/);
                     if (match) {
                         const a = document.createElement('a');
                         a.innerText = match[1];
                         a.href = match[2];
-                        a.target = "_blank";
-                        a.contentEditable = "false"; // Makes clicking easier
+                        a.target = "_blank"; a.contentEditable = "false";
                         p.appendChild(a);
                     }
                 }
-                // NEW: Strikethrough ~~text~~
-                else if (part.startsWith('~~') && part.endsWith('~~')) {
-                    const content = part.slice(2, -2);
-                    const s = document.createElement('s');
-                    s.innerText = content;
-                    p.appendChild(s);
-                }
-                // Regular Text
                 else {
                     let html = part;
                     html = html.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
                     html = html.replace(/\*(.*?)\*/g, "<i>$1</i>");
-                    // Add Strikethrough fallback if user used HTML <s>
                     html = html.replace(/~~(.*?)~~/g, "<s>$1</s>"); 
-                    
                     html = html.replace(/___BS___/g, "\\").replace(/___AST___/g, "*").replace(/___US___/g, "_");
                     const span = document.createElement('span'); 
                     span.innerHTML = html; 
@@ -1758,7 +2007,8 @@
                     if (node.classList.contains('btn-block-delete') || 
                         node.classList.contains('table-controls-x') || 
                         node.classList.contains('table-controls-y') ||
-                        node.classList.contains('table-actions-bar')) {
+                        node.classList.contains('table-actions-bar') || 
+                        node.classList.contains('drag-handle')) {
                         return;
                     }
                     
@@ -1772,20 +2022,18 @@
                     if (tag === 'u' || style.textDecorationLine.includes('underline')) { prefix += "<u>"; suffix = "</u>" + suffix; }
                     if (tag === 's' || tag === 'strike' || tag === 'del' || style.textDecorationLine.includes('line-through')) { prefix += "~~"; suffix = "~~" + suffix; }
 
-                    // --- FIXED: Links ---
+                    // Links
                     if (tag === 'a') {
-                        // Recursively parse content so bold/italic inside links works
                         md += `[${parseToMarkdown(node)}](${node.getAttribute('href')})`;
                         return; 
                     }
 
-                    // --- FIXED: Task Lists ---
+                    // Task Lists
                     if (tag === 'ul' && node.classList.contains('task-list')) {
                         md += "\n";
                         node.childNodes.forEach(li => {
                             if (li.tagName === 'LI') {
                                 const mark = li.classList.contains('checked') ? 'x' : ' ';
-                                // Clean text content recursively
                                 md += `- [${mark}] ${parseToMarkdown(li).trim()}\n`;
                             }
                         });
@@ -1805,13 +2053,23 @@
                     else if (tag === 'h5') md += `\n##### ${node.textContent}\n`;
                     else if (tag === 'small') md += `\n<small>${node.innerText}</small>\n`;
 
-                    // Blocks
+                    // Standard Blocks
                     else if (node.classList.contains('quote-wrapper')) { const bq = node.querySelector('blockquote'); if (bq) md += `\n> ${bq.innerText.trim()}\n`; }
                     else if (node.classList.contains('code-block-wrapper')) { const pre = node.querySelector('pre'); if (pre) md += `\n\`\`\`\n${pre.innerText}\n\`\`\`\n`; }
                     else if (node.classList.contains('code-wrapper')) md += " `" + node.innerText + "` ";
-                    else if (tag === 'img' && !node.closest('.visual-block-wrapper')) md += `\n![Image](${node.src})\n`;
                     
-                    // Visual Blocks (Mermaid/Chart/Desmos) - Keep existing logic
+                    // --- FIX: Image Export ---
+                    // Explicitly handle the visual wrapper if it contains an image
+                    else if (node.classList.contains('visual-block-wrapper') && node.classList.contains('type-image')) {
+                        const img = node.querySelector('img');
+                        if (img) md += `\n![Image](${img.src})\n`;
+                    }
+                    // Fallback for orphan images (not wrapped)
+                    else if (tag === 'img' && !node.closest('.visual-block-wrapper')) {
+                        md += `\n![Image](${node.src})\n`;
+                    }
+
+                    // Visual Blocks (Mermaid/Chart/Desmos)
                     else if (node.classList.contains('mermaid-wrapper')) { md += `\n\`\`\`mermaid\n${node.dataset.source}\n%% state: ${node.dataset.state}\n\`\`\`\n`; }
                     else if (node.classList.contains('chart-wrapper')) { md += `\n\`\`\`chart\n${node.dataset.export}\n\`\`\`\n`; }
                     else if (node.classList.contains('desmos-wrapper')) { 
@@ -1840,7 +2098,7 @@
                             }); md += "\n";
                         }
                     }
-                    // Standard Text Blocks
+                    // Standard Text Blocks (Recursive)
                     else if (tag === 'p' || tag === 'div') { 
                         if (node.classList.contains('block-container')) md += parseToMarkdown(node); 
                         else md += `\n${parseToMarkdown(node)}\n`; 
@@ -1853,7 +2111,8 @@
             });
             return md;
         }
-        // --- NEW: Create New File Logic ---
+
+
         function createNewDoc() {
             // 1. Save current work first
             saveToLocal();
@@ -2125,7 +2384,7 @@
             wrapper.contentEditable = "false"; 
 
             // Delete Table Button (Top Right)
-            attachDeleteButton(wrapper);
+            attachBlockControls(wrapper);
 
             // Row Controls (Y-axis - Right Side)
             const controlsY = document.createElement('div');
@@ -2287,7 +2546,7 @@
             wrapper.contentEditable = "false";
 
             // 1. Add Delete Table Button
-            attachDeleteButton(wrapper);
+            attachBlockControls(wrapper);
 
             // 2. Add Row Controls (Y-axis)
             const controlsY = document.createElement('div');
@@ -2348,17 +2607,30 @@
         }
 
         function openLinkModal() {
-            saveSelection(); // Save where the cursor is
+            saveSelection();
             const s = window.getSelection();
-            // Pre-fill text input if user highlighted something
-            if (s.rangeCount > 0 && !s.isCollapsed) {
-                document.getElementById('linkTextInput').value = s.toString();
-            } else {
-                document.getElementById('linkTextInput').value = "";
-            }
-            document.getElementById('linkUrlInput').value = "";
-            document.getElementById('linkModal').classList.add('active');
-            setTimeout(() => document.getElementById('linkUrlInput').focus(), 50);
+            const selectedText = (!s.isCollapsed) ? s.toString() : "";
+
+            const content = `
+                <input type="text" class="glass-input" id="dynLinkText" placeholder="Text to display" value="${selectedText}">
+                <input type="text" class="glass-input" id="dynLinkUrl" placeholder="https://example.com" style="margin-top:10px;">
+            `;
+
+            const modal = spawnModal('Insert Link', content, (overlay) => {
+                const text = overlay.querySelector('#dynLinkText').value || "link";
+                const url = overlay.querySelector('#dynLinkUrl').value;
+
+                if (url) {
+                    restoreSelection();
+                    const html = `<a href="${url}" target="_blank" contenteditable="false">${text}</a>`;
+                    document.execCommand('insertHTML', false, html);
+                    window.getSelection().collapseToEnd();
+                    return true;
+                }
+                return false;
+            });
+
+            setTimeout(() => modal.querySelector('#dynLinkUrl').focus(), 50);
         }
 
         function closeLinkModal() {
@@ -2381,20 +2653,6 @@
                 s.collapseToEnd(); 
             }
             closeLinkModal();
-        }
-
-        // --- NEW: Task List Logic ---
-        function insertTaskList() {
-            // Create the UL wrapper
-            const ul = document.createElement('ul');
-            ul.className = 'task-list';
-            
-            // Create first item
-            const li = createTaskItem("Task item");
-            ul.appendChild(li);
-            
-            insertNodeAtCursor(ul);
-            wrapperAfter(ul);
         }
 
         function createTaskItem(text, isChecked = false) {
@@ -2426,28 +2684,21 @@
 
         // --- NEW: Native Task List Logic ---
         function insertTaskList() {
-            // 1. Use native command to create a standard UL
             document.execCommand('insertUnorderedList');
-            
-            // 2. Find the list we just created/modified
             const selection = window.getSelection();
             if (!selection.rangeCount) return;
             
             let node = selection.anchorNode;
-            // Bubble up to find the LI and then the UL
             while (node && node.tagName !== 'UL' && node !== editor) {
                 node = node.parentElement;
             }
             
-            // 3. Convert it to a Task List
             if (node && node.tagName === 'UL') {
                 node.classList.add('task-list');
-                // Optional: If switching from normal list to task list, ensure bullets are reset
                 node.querySelectorAll('li').forEach(li => li.removeAttribute('style'));
             }
             editor.focus();
         }
-
         // --- Handle Checkbox Clicks ---
         // We detect if the user clicked the "::before" pseudo-element by checking coordinates
         editor.addEventListener('mousedown', function(e) {
@@ -2486,6 +2737,95 @@
                 }
             }
         });
+
+        function hydrateDOM() {
+            // 1. Re-attach Drag Events to existing Block Handles
+            document.querySelectorAll('.drag-handle').forEach(handle => {
+                const wrapper = handle.parentElement;
+                // Clone node to strip old (broken) listeners if any, implies fresh start
+                // Actually, since innerHTML was just set, there are NO listeners. Just add them.
+                handle.draggable = true;
+                handle.addEventListener('dragstart', (e) => {
+                    e.stopPropagation();
+                    handleDragStart(e, wrapper);
+                });
+            });
+
+            // 2. Re-attach Drag to Images (Directly draggable ones)
+            document.querySelectorAll('img').forEach(img => {
+                // Only if not inside a wrapper (Legacy check)
+                if(!img.parentElement.classList.contains('visual-block-wrapper')) {
+                    makeDraggable(img);
+                }
+            });
+
+            // 3. Re-initialize Mermaid
+            try { mermaid.run({ nodes: document.querySelectorAll('.mermaid') }); } catch(e){}
+
+            // 4. Re-initialize Charts
+            document.querySelectorAll('.chart-wrapper').forEach(wrapper => {
+                const canvas = wrapper.querySelector('canvas');
+                if (canvas && wrapper.dataset.export) {
+                    try {
+                        const existingChart = Chart.getChart(canvas);
+                        if (existingChart) existingChart.destroy();
+                        const config = JSON.parse(wrapper.dataset.export);
+                        new Chart(canvas, config);
+                    } catch (e) {}
+                }
+            });
+        }
+
+        function spawnModal(title, contentHTML, onConfirm) {
+            // Remove existing if any (cleanup)
+            const existing = document.getElementById('dynamicModal');
+            if(existing) existing.remove();
+
+            const overlay = document.createElement('div');
+            overlay.id = 'dynamicModal';
+            overlay.className = 'modal-overlay';
+            
+            overlay.innerHTML = `
+                <div class="modal">
+                    <h3>${title}</h3>
+                    ${contentHTML}
+                    <div class="modal-actions">
+                        <button class="btn-glass btn-glass-cancel" id="dynCancel">Cancel</button>
+                        <button class="btn-glass btn-glass-insert active" id="dynConfirm">Insert</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(overlay);
+
+            // Event Listeners
+            const btnCancel = overlay.querySelector('#dynCancel');
+            const btnConfirm = overlay.querySelector('#dynConfirm');
+
+            const close = () => {
+                overlay.classList.remove('active');
+                setTimeout(() => overlay.remove(), 300);
+            };
+
+            btnCancel.onclick = close;
+            
+            btnConfirm.onclick = () => {
+                if(onConfirm(overlay)) close();
+            };
+
+            // Inputs Enter Key support
+            const inputs = overlay.querySelectorAll('input');
+            inputs.forEach(input => {
+                input.addEventListener('keyup', (e) => {
+                    if(e.key === 'Enter') btnConfirm.click();
+                    if(e.key === 'Escape') close();
+                });
+            });
+
+            // Trigger Reflow and Show
+            setTimeout(() => overlay.classList.add('active'), 10);
+            return overlay; // Return in case specific focus is needed
+        }
         </script>
 </body>
 </html>
