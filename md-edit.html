@@ -739,6 +739,8 @@
         .is-dragging {
             opacity: 0.4;
             filter: grayscale(1);
+            /* CRITICAL: Allows mouse to interact with elements UNDER the dragged item */
+            pointer-events: none !important; 
         }
 
         /* --- PRINT FIX --- */
@@ -1287,7 +1289,7 @@
             element.addEventListener('dragstart', (e) => handleDragStart(e, element));
         }
 
-        // --- DRAG AND DROP ENGINE ---
+        // --- DRAG AND DROP ENGINE (IMPROVED) ---
         let draggedItem = null;
         const dropIndicator = document.getElementById('drop-indicator');
 
@@ -1295,91 +1297,113 @@
         function handleDragStart(e, item) {
             draggedItem = item;
             e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/html', item.outerHTML); // Fallback
-            item.classList.add('is-dragging');
+            e.dataTransfer.setData('text/html', item.outerHTML);
             
-            // Set custom ghost image if possible, or let browser handle it
+            // Defer adding the class so the browser grabs the full-opacity snapshot first
+            requestAnimationFrame(() => item.classList.add('is-dragging'));
         }
 
-        // 2. Drag Over (Runs on the EDITOR container)
+        // 2. Drag Over
         editor.addEventListener('dragover', (e) => {
-            e.preventDefault(); // Allow dropping
-            
-            const afterElement = getDragAfterElement(editor, e.clientY);
-            const draggable = document.querySelector('.is-dragging');
-            
-            if (!draggable) return;
+            e.preventDefault();
+            if (!draggedItem) return;
 
-            // Position the Blue Indicator Line
-            if (afterElement == null) {
-                // At bottom of list
-                const lastChild = editor.lastElementChild;
-                if (lastChild) {
-                    const rect = lastChild.getBoundingClientRect();
-                    dropIndicator.style.top = `${rect.bottom + window.scrollY + 5}px`;
-                    dropIndicator.style.left = `${rect.left}px`;
-                    dropIndicator.style.width = `${rect.width}px`;
-                }
-            } else {
-                // Above a specific element
-                const rect = afterElement.getBoundingClientRect();
-                dropIndicator.style.top = `${rect.top + window.scrollY - 5}px`;
+            const result = getDropLocation(editor, e.clientX, e.clientY);
+            
+            if (result.element) {
+                const rect = result.element.getBoundingClientRect();
+                
+                // Position the blue line
                 dropIndicator.style.left = `${rect.left}px`;
                 dropIndicator.style.width = `${rect.width}px`;
+                dropIndicator.style.display = 'block';
+
+                if (result.position === 'before') {
+                    dropIndicator.style.top = `${rect.top + window.scrollY - 4}px`;
+                } else {
+                    dropIndicator.style.top = `${rect.bottom + window.scrollY + 4}px`;
+                }
+            } else {
+                dropIndicator.style.display = 'none';
             }
-            dropIndicator.style.display = 'block';
         });
 
-        // 3. Drop (Runs on the EDITOR container)
+        // 3. Drop
         editor.addEventListener('drop', (e) => {
             e.preventDefault();
-            const draggable = document.querySelector('.is-dragging');
-            if (!draggable) return;
+            if (!draggedItem) return;
 
-            const afterElement = getDragAfterElement(editor, e.clientY);
+            const result = getDropLocation(editor, e.clientX, e.clientY);
             
-            if (afterElement == null) {
-                editor.appendChild(draggable);
+            if (result.element) {
+                if (result.position === 'before') {
+                    editor.insertBefore(draggedItem, result.element);
+                } else {
+                    // Insert after
+                    if (result.element.nextSibling) {
+                        editor.insertBefore(draggedItem, result.element.nextSibling);
+                    } else {
+                        editor.appendChild(draggedItem);
+                    }
+                }
             } else {
-                editor.insertBefore(draggable, afterElement);
+                editor.appendChild(draggedItem);
             }
             
             // Cleanup
-            draggable.classList.remove('is-dragging');
+            draggedItem.classList.remove('is-dragging');
             dropIndicator.style.display = 'none';
+            draggedItem = null;
             saveToLocal();
         });
 
         editor.addEventListener('dragend', () => {
-            if(draggedItem) draggedItem.classList.remove('is-dragging');
+            if (draggedItem) draggedItem.classList.remove('is-dragging');
             dropIndicator.style.display = 'none';
             draggedItem = null;
         });
 
-        // 4. Math Helper: Find closest element to cursor
-        function getDragAfterElement(container, y) {
-            // Select all direct children of editor that are NOT the dragging item
-            // and NOT UI elements like tooltips/modals (though those are usually outside)
-            const draggableElements = [...container.children].filter(child => 
+        // 4. Helper: Intelligent Drop Location Finder
+        function getDropLocation(container, x, y) {
+            // Strategy 1: Check exactly what element is under the mouse
+            let target = document.elementFromPoint(x, y);
+            
+            // Climb up until we find a direct child of the editor
+            // (e.g., if hovering <b> inside <p>, we want the <p>)
+            while (target && target.parentElement !== container && target !== container) {
+                target = target.parentElement;
+            }
+
+            // If we found a valid direct child that isn't the dragged item
+            if (target && target.parentElement === container && target !== draggedItem && target.id !== 'drop-indicator') {
+                const box = target.getBoundingClientRect();
+                const offset = y - (box.top + box.height / 2);
+                return {
+                    element: target,
+                    position: offset < 0 ? 'before' : 'after'
+                };
+            }
+
+            // Strategy 2: Fallback (e.g., hovering in margins/gap)
+            // Find closest element by pure math
+            const elements = [...container.children].filter(child => 
                 child !== draggedItem && 
                 child.id !== 'drop-indicator' &&
                 child.tagName !== 'STYLE' &&
-                child.tagName !== 'SCRIPT'
+                child.tagName !== 'SCRIPT' &&
+                child.style.display !== 'none'
             );
 
-            return draggableElements.reduce((closest, child) => {
+            return elements.reduce((closest, child) => {
                 const box = child.getBoundingClientRect();
-                // Calculate offset: distance from cursor to middle of box
-                const offset = y - box.top - box.height / 2;
+                const offset = y - (box.top + box.height / 2);
                 
-                // We want the element where the cursor is *above* its center (negative offset)
-                // but closest to 0.
-                if (offset < 0 && offset > closest.offset) {
-                    return { offset: offset, element: child };
+                if (Math.abs(offset) < Math.abs(closest.offset)) {
+                    return { offset: offset, element: child, position: offset < 0 ? 'before' : 'after' };
                 } else {
                     return closest;
                 }
-            }, { offset: Number.NEGATIVE_INFINITY }).element;
+            }, { offset: Number.POSITIVE_INFINITY, element: null, position: 'end' });
         }
 
         // --- MODAL & BUILDER STATE ---
