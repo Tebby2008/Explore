@@ -826,19 +826,7 @@
                         <button class="dropdown-item" onclick="createNewDoc()"><i class="ph ph-file-plus"></i> New File</button>
                         <button class="dropdown-item" onclick="openFileManager()"><i class="ph ph-folder-open"></i> View Files</button>
                         <button class="dropdown-item" onclick="saveToLocal(true)"><i class="ph ph-floppy-disk"></i> Save Now</button>
-                        <button class="dropdown-item" onclick="saveAsFile()"><i class="ph ph-download-simple"></i> Save As...</button>
-                        <div style="height:1px; background:#eee; margin:4px 0;"></div>
-                        
-                        <!-- Dark Mode Toggle -->
-                        <div class="dropdown-item" style="cursor:default; justify-content: space-between;" onclick="toggleDarkModeWrapper(event)">
-                            <span><i class="ph ph-moon"></i> Dark</span>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="darkModeToggle">
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-
-                        <button class="dropdown-item" onclick="openHelp()"><i class="ph ph-question"></i> Help</button>
+                        <button class="dropdown-item" onclick="saveAsFile()"><i class="ph ph-download-simple"></i> Save As...</button>                                                
 
                         <div style="height:1px; background:#eee; margin:4px 0;"></div>
                         <button class="dropdown-item" onclick="downloadMarkdown()"><i class="ph ph-export"></i> Export .md</button>
@@ -871,6 +859,21 @@
                     </div>
                 </div>
 
+                <div class="dropdown-wrapper">
+                    <button class="tool-btn btn-text">Config</button>
+                    <div class="dropdown-content">
+                        <div class="dropdown-item" style="cursor:default; justify-content: space-between;" onclick="toggleDarkModeWrapper(event)">
+                            <span><i class="ph ph-moon" style="display: inline-flex; align-items:center"></i> Dark</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="darkModeToggle">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <button class="dropdown-item" onclick="openHelp()"><i class="ph ph-question"></i> Help</button>
+                    </div>
+                </div>
+
                 <div class="divider"></div>
 
                 <!-- Utilities -->
@@ -898,7 +901,7 @@
     <!-- File Manager Modal -->
     <div id="fileModal" class="modal-overlay">
         <div class="modal">
-            <h3>Saved Files (Local Storage)</h3>
+            <h3>Saved Files</h3>
             <div id="fileList"></div>
             
             <div style="display: flex; justify-content: flex-end; gap: 10px; width: 100%; margin-top: 10px;">
@@ -1020,13 +1023,13 @@
         let savedRange = null;
 
         // --- 2. Title Sync & Local Storage ---
-        let currentDocId = localStorage.getItem('ivy_current_id') || 'doc_' + Date.now();
+        let currentDocId = localStorage.getItem('current_id') || 'doc_' + Date.now();
 
         window.addEventListener('DOMContentLoaded', () => {
             initTooltips();
             loadCurrentDoc();
 
-            if (localStorage.getItem('ivy_dark_mode') === 'true') {
+            if (localStorage.getItem('dark_mode') === 'true') {
                 document.body.classList.add('dark-mode');
                 document.getElementById('darkModeToggle').checked = true;
             }
@@ -1092,17 +1095,17 @@
                 date: new Date().toLocaleString(),
                 size: (content.length / 1024).toFixed(2) + ' KB'
             };
-            let allDocs = JSON.parse(localStorage.getItem('ivy_docs') || '{}');
+            let allDocs = JSON.parse(localStorage.getItem('docs') || '{}');
             allDocs[currentDocId] = meta;
-            localStorage.setItem('ivy_docs', JSON.stringify(allDocs));
-            localStorage.setItem('ivy_current_id', currentDocId);
+            localStorage.setItem('docs', JSON.stringify(allDocs));
+            localStorage.setItem('current_id', currentDocId);
             
             // --- UPDATED: Use Custom Dialog ---
             if(force) showDialog('Saved', 'Your document has been saved successfully.', 'alert');
         }
 
         function loadCurrentDoc() {
-            const allDocs = JSON.parse(localStorage.getItem('ivy_docs') || '{}');
+            const allDocs = JSON.parse(localStorage.getItem('docs') || '{}');
             const meta = allDocs[currentDocId];
             if (meta) {
                 document.getElementById('docTitle').value = meta.title;
@@ -1119,7 +1122,7 @@
 
         // --- 3. File Manager Logic ---
         function openFileManager() {
-            const allDocs = JSON.parse(localStorage.getItem('ivy_docs') || '{}');
+            const allDocs = JSON.parse(localStorage.getItem('docs') || '{}');
             const list = document.getElementById('fileList');
             list.innerHTML = '';
             
@@ -1145,13 +1148,13 @@
             document.getElementById('fileModal').classList.add('active');
         }
 
-        function loadDoc(id) { currentDocId = id; localStorage.setItem('ivy_current_id', id); loadCurrentDoc(); document.getElementById('fileModal').classList.remove('active'); }
+        function loadDoc(id) { currentDocId = id; localStorage.setItem('current_id', id); loadCurrentDoc(); document.getElementById('fileModal').classList.remove('active'); }
         function deleteDoc(id) { 
             // --- UPDATED: Use Custom Dialog ---
             showDialog("Delete File?", "Are you sure you want to delete this file? This cannot be undone.", "warning", () => {
-                let allDocs = JSON.parse(localStorage.getItem('ivy_docs') || '{}'); 
+                let allDocs = JSON.parse(localStorage.getItem('docs') || '{}'); 
                 delete allDocs[id]; 
-                localStorage.setItem('ivy_docs', JSON.stringify(allDocs)); 
+                localStorage.setItem('docs', JSON.stringify(allDocs)); 
                 openFileManager(); 
             });
         }
@@ -2146,7 +2149,7 @@
             
             // 2. Reset ID and UI
             currentDocId = 'doc_' + Date.now();
-            localStorage.setItem('ivy_current_id', currentDocId);
+            localStorage.setItem('current_id', currentDocId);
             
             document.getElementById('docTitle').value = "";
             document.getElementById('miniTitleInput').value = "";
@@ -2167,10 +2170,10 @@
             const isDark = document.getElementById('darkModeToggle').checked;
             if (isDark) {
                 document.body.classList.add('dark-mode');
-                localStorage.setItem('ivy_dark_mode', 'true');
+                localStorage.setItem('dark_mode', 'true');
             } else {
                 document.body.classList.remove('dark-mode');
-                localStorage.setItem('ivy_dark_mode', 'false');
+                localStorage.setItem('dark_mode', 'false');
             }
         }
 
