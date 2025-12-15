@@ -224,17 +224,17 @@ export const generateLevel = (floor: number, difficultySettings: any, isSafeFloo
           // Container spawn logic is implicitly reduced by reducing numStorage.
           // Item probability within a container:
           const rand = Math.random();
-          // Probabilities: Battery 15%, Fuel 3%, Swift 5%, Flash 5%, Invis 2%, Medkit 2%, Repellent 0.5%
-          // Cumulative: 0.15, 0.18, 0.23, 0.28, 0.30, 0.32, 0.325
+          // Probabilities: Battery 20%, Fuel 3%, Swift 5%, Flash 5%, Invis 2%, Medkit 2%, Repellent 0.5%
+          // Cumulative: 0.20, 0.23, 0.28, 0.33, 0.35, 0.37, 0.375
           
           if (Math.random() < 0.5) { // Chance that container has an item at all
-              if (rand < 0.15) content = { id: `bat-${r.id}-${i}`, type: EntityType.ITEM, itemType: ItemType.BATTERY, value: 7, name: 'Battery', pos: {x:0,y:0}, size:0, color:''}; // 15%
-              else if (rand < 0.18) content = { id: `fuel-${r.id}-${i}`, type: EntityType.ITEM, itemType: ItemType.FUEL, value: 40, name: 'Fuel Can', pos: {x:0,y:0}, size:0, color:''}; // 3%
-              else if (rand < 0.23) content = { id: `spd-${r.id}-${i}`, type: EntityType.ITEM, itemType: ItemType.SPEED_POTION, name: 'Swift Potion', pos: {x:0,y:0}, size:0, color:''}; // 5%
-              else if (rand < 0.28) content = { id: `fb-${r.id}-${i}`, type: EntityType.ITEM, itemType: ItemType.FLASHBANG, name: 'Flashbang', pos: {x:0,y:0}, size:0, color:''}; // 5%
-              else if (rand < 0.30) content = { id: `inv-${r.id}-${i}`, type: EntityType.ITEM, itemType: ItemType.INVISIBILITY_POTION, name: 'Invis Potion', pos: {x:0,y:0}, size:0, color:''}; // 2%
-              else if (rand < 0.32) content = { id: `med-${r.id}-${i}`, type: EntityType.ITEM, itemType: ItemType.MEDKIT, name: 'Medkit', pos: {x:0,y:0}, size:0, color:''}; // 2%
-              else if (rand < 0.325) content = { id: `rep-${r.id}-${i}`, type: EntityType.ITEM, itemType: ItemType.REPELLENT_POTION, name: 'Repellent', pos: {x:0,y:0}, size:0, color:''}; // 0.5%
+              if (rand < 0.20) content = { id: `bat-${r.id}-${i}`, type: EntityType.ITEM, itemType: ItemType.BATTERY, value: 7, name: 'Battery', pos: {x:0,y:0}, size:0, color:''}; // 15%
+              else if (rand < 0.23) content = { id: `fuel-${r.id}-${i}`, type: EntityType.ITEM, itemType: ItemType.FUEL, value: 40, name: 'Fuel Can', pos: {x:0,y:0}, size:0, color:''}; // 3%
+              else if (rand < 0.28) content = { id: `spd-${r.id}-${i}`, type: EntityType.ITEM, itemType: ItemType.SPEED_POTION, name: 'Swift Potion', pos: {x:0,y:0}, size:0, color:''}; // 5%
+              else if (rand < 0.33) content = { id: `fb-${r.id}-${i}`, type: EntityType.ITEM, itemType: ItemType.FLASHBANG, name: 'Flashbang', pos: {x:0,y:0}, size:0, color:''}; // 5%
+              else if (rand < 0.35) content = { id: `inv-${r.id}-${i}`, type: EntityType.ITEM, itemType: ItemType.INVISIBILITY_POTION, name: 'Invis Potion', pos: {x:0,y:0}, size:0, color:''}; // 2%
+              else if (rand < 0.37) content = { id: `med-${r.id}-${i}`, type: EntityType.ITEM, itemType: ItemType.MEDKIT, name: 'Medkit', pos: {x:0,y:0}, size:0, color:''}; // 2%
+              else if (rand < 0.375) content = { id: `rep-${r.id}-${i}`, type: EntityType.ITEM, itemType: ItemType.REPELLENT_POTION, name: 'Repellent', pos: {x:0,y:0}, size:0, color:''}; // 0.5%
           }
           
           placeInteractableSafely(r, Math.random()>0.5?'CHEST':'DRAWER', content);
