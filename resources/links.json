@@ -1,0 +1,51 @@
+{
+    "Graphing Calculator": [
+        {
+            "link": "https://raw.githack.com/Tebby2008/Explore/GraphingCalculator/index.html",
+            "thumb": "resources/thumbnails/graphCalc.png"
+        }
+    ],
+    "Tower Defenders": [
+        {
+            "link": "https://tebby2008.github.io/TowerDefenders",
+            "thumb": "resources/thumbnails/tdr.png"
+        }
+    ],
+    "Same length lines but on a rectangle (EXPLORE1)": [
+        {
+            "link": "https://raw.githack.com/Tebby2008/Explore/Explore1/index.html",
+            "thumb": null
+        }
+    ],
+    "LingoBot": [
+        {
+            "link": "https://tebby2008.github.io/Explore/chat",
+            "thumb": "resources/thumbnails/lingoBot.jpg"
+        }
+    ],
+    "MD-Edit": [
+        {
+            "link": "https://tebby2008.github.io/Explore/md-edit",
+            "thumb": "resources/thumbnails/mdEdit.jpg"
+        }
+    ],
+    "WebMetronome": [
+        {
+            "link": "https://tebby2008.github.io/Explore/metronome",
+            "thumb": "resources/thumbnails/metronome.jpg"
+        }
+    ],
+    "Frontier Defense": [
+        {
+            "link": "https://tebby2008.github.io/Explore/FrontierDefense",
+            "thumb": "resources/thumbnails/frontDef.png"
+        }
+    ],
+    
+    "Elevator Dread": [
+        {
+            "link": "https://tebby2008.github.io/Explore/ElevatorDread",
+            "thumb": "resources/thumbnails/elevDread.png"
+        }
+    ]
+}
