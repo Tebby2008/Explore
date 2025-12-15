@@ -47,5 +47,12 @@
             "link": "https://tebby2008.github.io/Explore/ElevatorDread",
             "thumb": "resources/thumbnails/elevDread.png"
         }
+    ],
+
+    "OpenNotes": [
+        {
+            "link": "https://opennotes.pages.dev",
+            "thumb": "resources/thumbnails/openNotes.jpg"
+        }
     ]
 }
