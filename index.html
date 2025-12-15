@@ -3,438 +3,526 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Explore by Tebby</title>
+    <title>Explore // Tebby</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;700&display=swap');
+        /* --- CUSTOM FONTS IMPORT --- */
+        /* Using Orbitron (Headers) and Rajdhani (Body) for that Tech/Sci-Fi look */
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap');
 
         :root {
-            --bg: #030304;
-            --card-bg: rgba(255, 255, 255, 0.02);
-            --card-border: rgba(255, 255, 255, 0.05);
-            --primary: #8A2BE2; 
-            --secondary: #00E5FF; 
-            --accent: #FF0055; 
+            --bg-color: #050505;
+            --card-glass: rgba(20, 20, 25, 0.6);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --primary: #00f2ff; /* Cyan Neon */
+            --secondary: #bd00ff; /* Purple Neon */
             --text-main: #ffffff;
-            --text-dim: #888888;
+            --text-muted: #8b9bb4;
+            --font-display: 'Orbitron', sans-serif;
+            --font-body: 'Rajdhani', sans-serif;
         }
 
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            cursor: none; 
+            cursor: none; /* Hide default cursor */
             user-select: none;
         }
 
         body {
-            background-color: var(--bg);
+            background-color: var(--bg-color);
             color: var(--text-main);
-            font-family: 'Space Grotesk', sans-serif;
-            min-height: 100vh;
+            font-family: var(--font-body);
             overflow-x: hidden;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            min-height: 100vh;
         }
 
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: var(--bg); }
-        ::-webkit-scrollbar-thumb { 
-            background: linear-gradient(to bottom, var(--primary), var(--secondary)); 
-            border-radius: 10px; 
-        }
-
-        .universe {
+        /* --- BACKGROUND SYSTEMS --- */
+        #canvas-container {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
             z-index: -2;
-            overflow: hidden;
-            pointer-events: none;
-            background: radial-gradient(circle at 50% 50%, #0a0a0a 0%, #000000 100%);
+            background: radial-gradient(circle at center, #1a1a2e 0%, #000000 100%);
         }
 
-        .nebula {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(100px);
-            opacity: 0.4;
-            animation: drift 20s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .n1 { top: -10%; left: -10%; width: 60vw; height: 60vw; background: var(--primary); animation-delay: 0s; }
-        .n2 { bottom: -20%; right: -10%; width: 50vw; height: 50vw; background: var(--secondary); animation-delay: -5s; }
-        .n3 { top: 40%; left: 40%; width: 40vw; height: 40vw; background: var(--accent); opacity: 0.2; animation-duration: 30s; }
-
-        .noise-layer {
+        .vignette {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            z-index: -1;
-            opacity: 0.07;
             pointer-events: none;
-            background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            z-index: -1;
+            background: radial-gradient(circle, transparent 40%, rgba(0,0,0,0.8) 100%);
         }
 
-        @keyframes drift {
-            0% { transform: translate(0, 0) scale(1); }
-            100% { transform: translate(40px, -40px) scale(1.1); }
+        .scanline {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 999;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+            background-size: 100% 4px;
+            pointer-events: none;
+            opacity: 0.15;
         }
 
-        #cursor-dot {
-            width: 8px; height: 8px; background: white;
+        /* --- CUSTOM CURSOR --- */
+        .cursor-dot {
+            width: 6px; height: 6px; background: var(--primary);
+            position: fixed; top: 0; left: 0; border-radius: 50%;
+            z-index: 10000; pointer-events: none;
+            box-shadow: 0 0 10px var(--primary);
+        }
+
+        .cursor-circle {
+            width: 40px; height: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
             position: fixed; top: 0; left: 0; border-radius: 50%;
             z-index: 9999; pointer-events: none;
-            mix-blend-mode: difference;
-            transition: transform 0.1s;
-        }
-        #cursor-ring {
-            width: 40px; height: 40px; border: 1px solid rgba(255,255,255,0.5);
-            position: fixed; top: 0; left: 0; border-radius: 50%;
-            z-index: 9998; pointer-events: none;
-            transition: width 0.3s, height 0.3s, background-color 0.3s, border-color 0.3s;
+            transition: width 0.3s, height 0.3s, border-color 0.3s, background 0.3s;
             transform: translate(-50%, -50%);
         }
-        body.hovering #cursor-ring {
-            width: 70px; height: 70px;
-            background: rgba(255,255,255,0.1);
-            border-color: transparent;
+
+        body.hovering .cursor-circle {
+            width: 60px; height: 60px;
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--secondary);
             backdrop-filter: blur(2px);
         }
 
+        /* --- HEADER --- */
         header {
-            margin: 8vh 0 6vh 0;
+            padding: 100px 20px 60px;
             text-align: center;
             position: relative;
-            z-index: 10;
+            z-index: 2;
         }
 
         h1 {
+            font-family: var(--font-display);
             font-size: 5rem;
-            font-weight: 700;
-            letter-spacing: -2px;
-            background: linear-gradient(135deg, #fff 30%, #aaa);
+            text-transform: uppercase;
+            letter-spacing: 10px;
+            background: linear-gradient(to right, #fff, #888);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            animation: textReveal 1.5s cubic-bezier(0.19, 1, 0.22, 1) forwards;
-            opacity: 0;
-            transform: translateY(20px);
+            margin-bottom: 10px;
+            animation: glitchText 3s infinite alternate;
+            text-shadow: 0 0 20px rgba(0, 242, 255, 0.2);
         }
 
         .subtitle {
-            font-size: 1.2rem;
-            color: var(--secondary);
-            font-weight: 300;
-            letter-spacing: 4px;
+            font-size: 1.5rem;
+            color: var(--primary);
+            letter-spacing: 6px;
+            font-weight: 500;
             text-transform: uppercase;
-            margin-top: 10px;
-            opacity: 0;
-            animation: textReveal 1.5s cubic-bezier(0.19, 1, 0.22, 1) 0.3s forwards;
-            transform: translateY(20px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
+            display: inline-block;
+            position: relative;
         }
 
         .subtitle::before, .subtitle::after {
-            content: '';
-            width: 30px;
-            height: 1px;
-            background: var(--secondary);
-            opacity: 0.5;
+            content: '//';
+            color: var(--secondary);
+            margin: 0 15px;
+            font-weight: 700;
         }
 
-        .container {
-            width: 90%;
+        /* --- GRID LAYOUT --- */
+        .grid-wrapper {
             max-width: 1600px;
-            padding-bottom: 100px;
-        }
-
-        .grid {
+            margin: 0 auto;
+            padding: 0 40px 100px;
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
             gap: 40px;
             perspective: 2000px;
         }
 
+        /* --- CARD DESIGN --- */
         .card {
             position: relative;
-            height: 380px;
-            background: var(--card-bg);
+            height: 320px;
+            background: var(--card-glass);
             border: 1px solid var(--card-border);
-            border-radius: 24px;
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            text-decoration: none;
+            border-radius: 4px; /* Techy sharp corners */
             overflow: hidden;
+            text-decoration: none;
             display: flex;
             flex-direction: column;
-            transition: all 0.6s cubic-bezier(0.19, 1, 0.22, 1);
-            opacity: 0;
+            transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
             transform-style: preserve-3d;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            
+            /* Initial State for Animation */
+            opacity: 0;
+            animation: popIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        /* Corner accents for "Tech" look */
+        .card::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 20px; height: 20px;
+            border-top: 2px solid var(--primary); border-left: 2px solid var(--primary);
+            z-index: 10; opacity: 0.5; transition: 0.3s;
+        }
+        .card::after {
+            content: ''; position: absolute; bottom: 0; right: 0; width: 20px; height: 20px;
+            border-bottom: 2px solid var(--secondary); border-right: 2px solid var(--secondary);
+            z-index: 10; opacity: 0.5; transition: 0.3s;
         }
 
         .card:hover {
-            border-color: rgba(255, 255, 255, 0.2);
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(138, 43, 226, 0.1);
-            z-index: 5;
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 0 30px rgba(0, 242, 255, 0.15);
+            border-color: rgba(255,255,255,0.2);
+        }
+        .card:hover::before, .card:hover::after {
+            width: 100%; height: 100%; opacity: 1;
         }
 
+        /* Visual/Image Area */
         .card-visual {
-            height: 65%;
-            width: 100%;
+            height: 60%;
             position: relative;
             overflow: hidden;
-            border-bottom: 1px solid var(--card-border);
+            background: #000;
         }
 
         .card-img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.8s cubic-bezier(0.19, 1, 0.22, 1);
-            filter: grayscale(40%);
-        }
-
-        .card:hover .card-img {
-            transform: scale(1.1);
-            filter: grayscale(0%);
+            width: 100%; height: 100%; object-fit: cover;
+            opacity: 0.7;
+            transition: 0.7s ease;
+            filter: grayscale(80%) contrast(1.2);
         }
 
         .card-placeholder {
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(45deg, #1a1a1a, #0d0d0d);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 3rem;
-            color: rgba(255,255,255,0.05);
-            font-weight: 700;
+            width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            font-family: var(--font-display);
+            font-size: 4rem; color: #222;
+            background: repeating-linear-gradient(45deg, #111, #111 10px, #151515 10px, #151515 20px);
         }
 
-        .card-content {
-            height: 35%;
-            padding: 25px;
+        .card:hover .card-img {
+            opacity: 1;
+            filter: grayscale(0%) contrast(1);
+            transform: scale(1.1);
+        }
+
+        /* Content Area */
+        .card-info {
+            height: 40%;
+            padding: 20px;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
-            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
-            transform: translateZ(20px);
+            justify-content: center;
+            background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.8) 100%);
+            border-top: 1px solid rgba(255,255,255,0.05);
+            position: relative;
+            z-index: 5;
         }
 
         .card-title {
-            color: #fff;
-            font-size: 1.6rem;
-            font-weight: 700;
-            line-height: 1.1;
+            font-family: var(--font-display);
+            font-size: 1.4rem;
+            color: var(--text-main);
             margin-bottom: 5px;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
-        }
-
-        .card-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .tag {
-            font-size: 0.8rem;
-            color: var(--text-dim);
-            padding: 5px 10px;
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 20px;
+            transform: translateY(5px);
             transition: 0.3s;
         }
 
-        .arrow {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            transition: 0.3s;
-            transform: translateX(-10px);
-            opacity: 0;
-        }
-
-        .card:hover .arrow {
-            transform: translateX(0);
-            opacity: 1;
-            background: var(--primary);
-        }
-
-        .card:hover .tag {
-            border-color: var(--secondary);
-            color: var(--secondary);
-        }
-
-        .card::after {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; width: 200%; height: 100%;
-            background: linear-gradient(115deg, transparent 40%, rgba(255,255,255,0.05) 45%, transparent 50%);
-            transform: translateX(-100%);
-            transition: 0.5s;
-            pointer-events: none;
-        }
-        .card:hover::after {
-            transform: translateX(0%);
-        }
-
-        #loader {
-            grid-column: 1 / -1;
-            text-align: center;
-            padding: 50px;
-            color: var(--text-dim);
+        .card-status {
+            font-size: 0.9rem;
+            color: var(--primary);
+            text-transform: uppercase;
             letter-spacing: 2px;
-            animation: pulse 1.5s infinite;
+            font-weight: 700;
+            opacity: 0.7;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
-        @keyframes textReveal {
-            to { opacity: 1; transform: translateY(0); }
+        .status-dot {
+            width: 6px; height: 6px; background: var(--primary);
+            border-radius: 50%; box-shadow: 0 0 5px var(--primary);
+            animation: pulse 2s infinite;
+        }
+
+        .card:hover .card-title {
+            color: var(--primary);
+            text-shadow: 0 0 8px rgba(0, 242, 255, 0.6);
+            transform: translateY(0);
+        }
+
+        /* --- ANIMATIONS --- */
+        @keyframes popIn {
+            0% { opacity: 0; transform: translateY(50px) scale(0.9); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
         }
         @keyframes pulse {
-            0%, 100% { opacity: 0.5; }
-            50% { opacity: 1; }
+            0% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.5); }
+            100% { opacity: 0.5; transform: scale(1); }
         }
-        @keyframes cardEnter {
-            from { opacity: 0; transform: translateY(50px) scale(0.95); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
+        @keyframes glitchText {
+            0% { transform: skew(0deg); }
+            2% { transform: skew(2deg); }
+            4% { transform: skew(-2deg); }
+            6% { transform: skew(0deg); }
+            100% { transform: skew(0deg); }
         }
 
+        /* --- LOADER --- */
+        #loader {
+            color: var(--text-muted);
+            font-family: var(--font-display);
+            letter-spacing: 4px;
+            grid-column: 1 / -1;
+            text-align: center;
+            padding-top: 50px;
+        }
     </style>
 </head>
 <body>
 
-    <div class="universe">
-        <div class="nebula n1"></div>
-        <div class="nebula n2"></div>
-        <div class="nebula n3"></div>
+    <!-- Alive Background System -->
+    <div id="canvas-container">
+        <canvas id="bg-canvas"></canvas>
     </div>
-    <div class="noise-layer"></div>
+    <div class="vignette"></div>
+    <div class="scanline"></div>
 
-    <div id="cursor-dot"></div>
-    <div id="cursor-ring"></div>
+    <!-- Custom Cursor -->
+    <div class="cursor-dot" id="c-dot"></div>
+    <div class="cursor-circle" id="c-circle"></div>
 
     <header>
-        <h1>EXPLORE</h1>
+        <h1>Explore</h1>
         <div class="subtitle">by Tebby</div>
     </header>
 
-    <div class="container">
-        <div class="grid" id="link-grid">
-            <div id="loader">INITIALIZING LINK DATABASE...</div>
-        </div>
+    <div class="grid-wrapper" id="link-grid">
+        <div id="loader">ESTABLISHING CONNECTION...</div>
     </div>
 
     <script>
-        const dot = document.getElementById('cursor-dot');
-        const ring = document.getElementById('cursor-ring');
+        // ==========================================
+        // 1. ALIVE BACKGROUND (PARTICLE SYSTEM)
+        // ==========================================
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let particlesArray;
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let mouse = { x: null, y: null, radius: (canvas.height/80) * (canvas.width/80) };
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            mouse.radius = (canvas.height/80) * (canvas.width/80);
+            init();
+        });
+
+        window.addEventListener('mousemove', (event) => {
+            mouse.x = event.x;
+            mouse.y = event.y;
+        });
+
+        class Particle {
+            constructor(x, y, directionX, directionY, size, color) {
+                this.x = x;
+                this.y = y;
+                this.directionX = directionX;
+                this.directionY = directionY;
+                this.size = size;
+                this.color = color;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false);
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+            }
+
+            update() {
+                // Check if particle is still within canvas
+                if (this.x > canvas.width || this.x < 0) this.directionX = -this.directionX;
+                if (this.y > canvas.height || this.y < 0) this.directionY = -this.directionY;
+
+                // Collision detection with mouse
+                let dx = mouse.x - this.x;
+                let dy = mouse.y - this.y;
+                let distance = Math.sqrt(dx*dx + dy*dy);
+                
+                if (distance < mouse.radius + this.size) {
+                    if (mouse.x < this.x && this.x < canvas.width - this.size * 10) this.x += 2;
+                    if (mouse.x > this.x && this.x > this.size * 10) this.x -= 2;
+                    if (mouse.y < this.y && this.y < canvas.height - this.size * 10) this.y += 2;
+                    if (mouse.y > this.y && this.y > this.size * 10) this.y -= 2;
+                }
+
+                this.x += this.directionX;
+                this.y += this.directionY;
+                this.draw();
+            }
+        }
+
+        function init() {
+            particlesArray = [];
+            // Create particles based on screen size
+            let numberOfParticles = (canvas.height * canvas.width) / 9000;
+            for (let i = 0; i < numberOfParticles; i++) {
+                let size = (Math.random() * 2) + 1;
+                let x = (Math.random() * ((innerWidth - size * 2) - (size * 2)) + size * 2);
+                let y = (Math.random() * ((innerHeight - size * 2) - (size * 2)) + size * 2);
+                let directionX = (Math.random() * 0.4) - 0.2;
+                let directionY = (Math.random() * 0.4) - 0.2;
+                let color = '#ffffff';
+
+                particlesArray.push(new Particle(x, y, directionX, directionY, size, color));
+            }
+        }
+
+        function connect() {
+            let opacityValue = 1;
+            for (let a = 0; a < particlesArray.length; a++) {
+                for (let b = a; b < particlesArray.length; b++) {
+                    let distance = ((particlesArray[a].x - particlesArray[b].x) * (particlesArray[a].x - particlesArray[b].x)) + 
+                                   ((particlesArray[a].y - particlesArray[b].y) * (particlesArray[a].y - particlesArray[b].y));
+                    
+                    if (distance < (canvas.width/7) * (canvas.height/7)) {
+                        opacityValue = 1 - (distance/20000);
+                        // Dynamic Line Color
+                        ctx.strokeStyle = 'rgba(140, 100, 255,' + opacityValue + ')';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
+                        ctx.lineTo(particlesArray[b].x, particlesArray[b].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            ctx.clearRect(0,0,innerWidth, innerHeight);
+            
+            for (let i = 0; i < particlesArray.length; i++) {
+                particlesArray[i].update();
+            }
+            connect();
+        }
+
+        init();
+        animate();
+
+
+        // ==========================================
+        // 2. CURSOR LOGIC
+        // ==========================================
+        const cDot = document.getElementById('c-dot');
+        const cCircle = document.getElementById('c-circle');
         
         let mouseX = 0, mouseY = 0;
-        let ringX = 0, ringY = 0;
+        let circleX = 0, circleY = 0;
 
-        document.addEventListener('mousemove', (e) => {
+        document.addEventListener('mousemove', e => {
             mouseX = e.clientX;
             mouseY = e.clientY;
             
-            dot.style.transform = `translate(${mouseX - 4}px, ${mouseY - 4}px)`;
+            // Dot follows instantly
+            cDot.style.top = mouseY + "px";
+            cDot.style.left = mouseX + "px";
         });
 
-        const animateCursor = () => {
-            ringX += (mouseX - ringX) * 0.15;
-            ringY += (mouseY - ringY) * 0.15;
+        function animateCursor() {
+            circleX += (mouseX - circleX) * 0.15;
+            circleY += (mouseY - circleY) * 0.15;
             
-            ring.style.left = `${ringX}px`;
-            ring.style.top = `${ringY}px`;
+            cCircle.style.left = circleX + "px";
+            cCircle.style.top = circleY + "px";
             
             requestAnimationFrame(animateCursor);
-        };
+        }
         animateCursor();
 
-        const handleTilt = (e, card) => {
-            const rect = card.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            
-            const centerX = rect.width / 2;
-            const centerY = rect.height / 2;
-            
-            const rotateX = ((y - centerY) / centerY) * -8;
-            const rotateY = ((x - centerX) / centerX) * 8; 
-
-            card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
-        };
-
-        const resetTilt = (card) => {
-            card.style.transform = `perspective(1000px) rotateX(0) rotateY(0) scale(1)`;
-        };
-
-        async function loadLinks() {
+        // ==========================================
+        // 3. LOAD CONTENT
+        // ==========================================
+        async function loadContent() {
             const grid = document.getElementById('link-grid');
             
             try {
-                const response = await fetch('resources/links.json');
-                if (!response.ok) throw new Error('Network response was not ok');
-                const data = await response.json();
-                
-                grid.innerHTML = '';
+                const req = await fetch('resources/links.json');
+                const data = await req.json();
+
+                grid.innerHTML = ''; // Clear loader
 
                 const entries = Object.entries(data);
 
-                entries.forEach(([title, detailsArray], index) => {
-                    const details = detailsArray[0];
-                    if (!details) return;
-
+                entries.forEach(([title, items], idx) => {
+                    const item = items[0]; // Get first item in array
                     const card = document.createElement('a');
-                    card.href = details.link;
+                    card.href = item.link;
                     card.className = 'card';
                     card.target = "_blank";
-                    
-                    card.style.animation = `cardEnter 0.8s cubic-bezier(0.19, 1, 0.22, 1) forwards`;
-                    card.style.animationDelay = `${index * 0.1}s`;
+                    card.style.animationDelay = `${idx * 0.1}s`; // Stagger load
 
-                    let imageHtml;
-                    if (details.thumb) {
-                        imageHtml = `<img src="${details.thumb}" alt="${title}" class="card-img" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'card-placeholder\\'>?</div>'">`;
+                    // Image handling
+                    let imgHTML = '';
+                    if(item.thumb) {
+                        imgHTML = `<img src="${item.thumb}" class="card-img" alt="${title}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+                                   <div class="card-placeholder" style="display:none">${title.charAt(0)}</div>`;
                     } else {
-                        imageHtml = `<div class="card-placeholder">${title.charAt(0)}</div>`;
+                        imgHTML = `<div class="card-placeholder">${title.charAt(0)}</div>`;
                     }
 
                     card.innerHTML = `
                         <div class="card-visual">
-                            ${imageHtml}
+                            ${imgHTML}
                         </div>
-                        <div class="card-content">
-                            <div class="card-title">${title}</div>
-                            <div class="card-meta">
-                                <span class="tag">Project</span>
-                                <div class="arrow">➔</div>
+                        <div class="card-info">
+                            <h2 class="card-title">${title}</h2>
+                            <div class="card-status">
+                                <div class="status-dot"></div>
+                                <span>Active</span>
                             </div>
                         </div>
                     `;
 
+                    // Hover effects for cursor
                     card.addEventListener('mouseenter', () => document.body.classList.add('hovering'));
-                    card.addEventListener('mouseleave', () => {
-                        document.body.classList.remove('hovering');
-                        resetTilt(card);
+                    card.addEventListener('mouseleave', () => document.body.classList.remove('hovering'));
+                    
+                    // 3D Tilt Logic
+                    card.addEventListener('mousemove', (e) => {
+                        const rect = card.getBoundingClientRect();
+                        const x = e.clientX - rect.left; 
+                        const y = e.clientY - rect.top;
+                        const w = rect.width; 
+                        const h = rect.height;
+                        
+                        const rX = ((y / h) - 0.5) * -10; // Rotation X
+                        const rY = ((x / w) - 0.5) * 10;  // Rotation Y
+
+                        card.style.transform = `perspective(1000px) rotateX(${rX}deg) rotateY(${rY}deg) scale(1.02)`;
                     });
-                    card.addEventListener('mousemove', (e) => handleTilt(e, card));
+
+                    card.addEventListener('mouseout', () => {
+                        card.style.transform = `perspective(1000px) rotateX(0) rotateY(0) scale(1)`;
+                    });
 
                     grid.appendChild(card);
                 });
 
-            } catch (error) {
-                console.error(error);
-                grid.innerHTML = `<div style="color:red; grid-column:1/-1; text-align:center;">Error loading links.json<br><small>${error.message}</small></div>`;
+            } catch(e) {
+                console.error(e);
+                grid.innerHTML = `<div style="text-align:center; color:red; grid-column:1/-1">SYSTEM ERROR: ${e.message}<br>Check JSON path.</div>`;
             }
         }
 
-        document.addEventListener('DOMContentLoaded', loadLinks);
+        document.addEventListener('DOMContentLoaded', loadContent);
 
     </script>
 </body>
