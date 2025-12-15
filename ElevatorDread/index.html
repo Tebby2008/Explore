@@ -1,0 +1,57 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Elevator Dread</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        margin: 0;
+        background-color: #0f172a;
+        overflow: hidden;
+      }
+      .fade-in {
+          animation: fadeIn 0.5s ease-out forwards;
+      }
+      .slide-out {
+          animation: slideOut 0.5s ease-in forwards;
+      }
+      .drop-in {
+          animation: dropIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+      }
+      
+      @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes slideOut {
+          0% { opacity: 1; transform: translateX(0); max-height: 40px; margin-bottom: 0.5rem; }
+          50% { opacity: 0; transform: translateX(20px); }
+          100% { opacity: 0; transform: translateX(50px); max-height: 0; margin-bottom: 0; padding: 0; border: none; }
+      }
+      @keyframes dropIn {
+          from { opacity: 0; transform: translateY(-100vh) scale(0.5); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+    </style>
+
+<link rel="stylesheet" href="/index.css">
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "vite": "https://esm.sh/vite@^7.2.7",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
+  }
+}
+</script>
+  <script type="module" crossorigin src="./assets/index-CWEXw8ow.js"></script>
+</head>
+  <body>
+    <div id="root"></div>
+</body>
+</html>
