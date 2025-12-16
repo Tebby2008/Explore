@@ -65,24 +65,24 @@ export const NOISE_LEVELS = {
 
 export const VISIBILITY_RADIUS = 600; 
 export const FLASHLIGHT_ANGLE = Math.PI / 5; // ~36 degrees
-export const FLASHLIGHT_DISTANCE = 550;
+export const FLASHLIGHT_DISTANCE = 300; // Slightly reduced for fade effect
 
 export const COLORS = {
-  WALL: '#1c1917', 
+  WALL: '#0a0a0a', // Darker
   WALL_TOP: '#000000', 
-  FLOOR: '#44403c', 
-  FLOOR_VISITED: '#57534e', 
-  ELEVATOR_CARPET: '#450a0a', 
+  FLOOR: '#451a03', // Warm Dark Brown (Hotel-like)
+  FLOOR_VISITED: '#292524', 
+  ELEVATOR_CARPET: '#7f1d1d', // Brighter Red Carpet
   PLAYER: '#fdba74', 
-  ENEMY_CHASER: '#7f1d1d', 
-  ENEMY_LURKER: '#581c87', 
+  ENEMY_CHASER: '#450a0a', // Dark Blood Red
+  ENEMY_LURKER: '#1e1b4b', // Very Dark Indigo
   ENEMY_SHADE: '#000000', 
-  ENEMY_PHANTOM: '#06b6d4', 
-  ENEMY_SWARM: '#a16207', 
-  ITEM: '#16a34a', 
-  DRAWER: '#78350f', 
-  DOOR_FRAME: '#262626', 
-  INTERACTABLE: '#c2410c', 
+  ENEMY_PHANTOM: '#0e7490', // Darker Cyan
+  ENEMY_SWARM: '#3f2e0e', // Dark Brown
+  ITEM: '#15803d', 
+  DRAWER: '#451a03', 
+  DOOR_FRAME: '#171717', 
+  INTERACTABLE: '#9a3412', 
   ELEVATOR_FLOOR: '#292524', 
 };
 

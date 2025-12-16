@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback, useImperativeHandle, f
 import { Entity, PlayerState, GameLevel, Enemy, Position, EntityType, ItemType, Interactable, Difficulty, CustomDifficultyConfig, GameState, Room } from '../types';
 import { TILE_SIZE, PLAYER_SIZE, COLORS, CANVAS_WIDTH, CANVAS_HEIGHT, NOISE_LEVELS, FLASHLIGHT_ANGLE, FLASHLIGHT_DISTANCE, DIFFICULTY_CONFIG, INTERACTION_RANGE } from '../constants';
 import { generateLevel } from '../services/levelGenerator';
+import { soundManager } from '../services/SoundManager';
 
 interface GameCanvasProps {
   difficulty: Difficulty;
@@ -30,8 +31,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
   difficulty, gameState, setGameState, playerState, setPlayerState, currentLevel, setCurrentLevel, addLog, onElevatorStatusChange, customConfig, setDeathReason, onLorePickup, onPause, triggerDialogue, initialLevelState, initialPlayerPos
 }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null); // Use a ref to prevent recreation
-  const requestRef = useRef<number>(0);
+  const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null); 
   const lastTimeRef = useRef<number>(0);
   const walkingTimerRef = useRef<number>(0);
   const shakeIntensity = useRef<number>(0);
@@ -41,7 +41,10 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
   const chargingTimerRef = useRef<number>(0);
   const pulseEffectRef = useRef<number>(0); 
   const currentFovRef = useRef<number>(1.0); 
+  const heartbeatTimerRef = useRef<number>(0);
   
+  const [pinInput, setPinInput] = useState("");
+
   const jumpRef = useRef<{active: boolean, timer: number, cooldown: number}>({ active: false, timer: 0, cooldown: 0 });
 
   const playerStateRef = useRef<PlayerState>(playerState);
@@ -58,16 +61,16 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
   const inElevatorRef = useRef<boolean>(false);
   const exitAnimRef = useRef<{active: boolean, progress: number, startPos: Position, targetPos: Position} | null>(null);
   
-  // Dread Ref: Changed snakePath to list of Room objects for room-based consumption
   const dreadRef = useRef<{
       state: 'IDLE'|'WARNING'|'KILL', 
       timer: number, 
-      affectedRooms: Room[], // Rooms currently consumed
+      affectedRooms: Room[], 
       nextRoomIndex: number,
       consuming: boolean,
-      consumeTimer: number
+      consumeTimer: number,
+      spawnsThisFloor: number
   }>({ 
-      state: 'IDLE', timer: 0, affectedRooms: [], nextRoomIndex: 0, consuming: false, consumeTimer: 0 
+      state: 'IDLE', timer: 0, affectedRooms: [], nextRoomIndex: 0, consuming: false, consumeTimer: 0, spawnsThisFloor: 0 
   });
 
   useImperativeHandle(ref, () => ({
@@ -80,8 +83,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
   // --- Helper Functions ---
   const checkCollision = (newX: number, newY: number, size: number): boolean => {
     if (!levelRef.current) return false;
-    
-    // Treat position as center
     const half = size / 2;
     const l = newX - half;
     const r = newX + half;
@@ -96,13 +97,11 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
         const elRoom = levelRef.current.rooms.find(room => room.type === 'ELEVATOR');
         if (elRoom) {
             const doorY = elRoom.y + elRoom.h - 10;
-            // Check door collision
             if (b > doorY && t < doorY + 10 && r > elRoom.x && l < elRoom.x + elRoom.w) return true;
         }
     }
     
     const isJumping = jumpRef.current.active;
-
     for (const i of levelRef.current.interactables) {
         if (i.interactType === 'DOOR') {
             if (i.locked) {
@@ -110,9 +109,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
                 if (l < i.pos.x + iHalf && r > i.pos.x - iHalf && t < i.pos.y + iHalf && b > i.pos.y - iHalf) return true;
             }
         } else if (i.interactType === 'CLOSET' || i.interactType === 'CHEST' || i.interactType === 'DRAWER' || i.interactType === 'GENERATOR') {
-            // Can jump over furniture
             if (isJumping && i.interactType !== 'GENERATOR') continue;
-
             const iHalf = i.size / 2;
             if (l < i.pos.x + iHalf && r > i.pos.x - iHalf && t < i.pos.y + iHalf && b > i.pos.y - iHalf) return true;
         }
@@ -135,6 +132,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
           if (ps.abilityCooldown > 0) return;
           pulseEffectRef.current = 1.0; 
           addLog("Pulse!");
+          soundManager.playInteract();
           if (levelRef.current) {
             const p = playerPosRef.current;
             levelRef.current.enemies.forEach(e => {
@@ -147,7 +145,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
                     } else if (e.subType === EntityType.ENEMY_SHADE) {
                         e.state = 'STUNNED'; e.stunTimer = 3000;
                     } else if (e.subType === EntityType.ENEMY_CHASER) {
-                        e.state = 'STUNNED'; e.stunTimer = 5000; // Chaser stunned longer by pulse
+                        e.state = 'STUNNED'; e.stunTimer = 5000;
                     }
                 }
             });
@@ -184,10 +182,11 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
             const newInv = [...prev.inventory];
             newInv.splice(prev.equippedItemIndex, 1);
             globalWhiteout.current = 1.0; 
+            soundManager.playInteract();
             if (levelRef.current) levelRef.current.enemies.forEach(e => { 
                 if(Math.hypot(e.pos.x-playerPosRef.current.x, e.pos.y-playerPosRef.current.y) < 600) { 
                     if (e.subType === EntityType.ENEMY_CHASER) {
-                        e.state = 'FLEEING'; // Chaser flees on flashbang
+                        e.state = 'FLEEING'; 
                     } else {
                         e.state='STUNNED'; e.stunTimer=7000; 
                     }
@@ -200,15 +199,16 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
              const newInv = [...prev.inventory];
              newInv.splice(prev.equippedItemIndex, 1);
              addLog("Healed.");
+             soundManager.playInteract();
              return { ...prev, inventory: newInv, equippedItemIndex: Math.max(0, prev.equippedItemIndex-1), health: Math.min(prev.maxHealth, prev.health + 1) };
           }
           if (item.itemType === ItemType.FUEL || item.itemType === ItemType.BATTERY) {
             if (inElevatorRef.current) {
                 const newInv = [...prev.inventory];
                 newInv.splice(prev.equippedItemIndex, 1);
-                // Battery now restores 7%
                 const val = item.itemType === ItemType.FUEL ? 35 : (item.value || 7);
                 addLog(`Elevator Charged (+${val}%)`);
+                soundManager.playInteract();
                 return { ...prev, inventory: newInv, equippedItemIndex: Math.max(0, prev.equippedItemIndex-1), battery: Math.min(100, prev.battery + val) };
             } else {
                 addLog("Use in Elevator.");
@@ -236,6 +236,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
   const pickupItem = (index: number) => {
       const config = difficulty === Difficulty.CUSTOM && customConfig ? customConfig : DIFFICULTY_CONFIG[difficulty];
       const item = levelRef.current!.items[index];
+      soundManager.playInteract();
       if (item.itemType === ItemType.LORE_NOTE) {
           levelRef.current!.items.splice(index, 1);
           if (item.loreId !== undefined) onLorePickup(item.loreId);
@@ -258,12 +259,14 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
               exitAnimRef.current = { active: true, progress: 0, startPos: {...playerPosRef.current}, targetPos: i.pos };
               addLog("EXITING FACILITY...");
               triggerDialogue("EXIT_NEAR");
+              soundManager.playInteract();
           }
       } else if (i.interactType === 'CLOSET') {
           if (chargingTimerRef.current > 0) {
               addLog("CANNOT HIDE - POWER SURGE");
               return;
           }
+          soundManager.playInteract();
           const isEntering = !ps.isHiding;
           setPlayerState(prev => ({ ...prev, isHiding: isEntering, hidingTimer: 0 }));
           
@@ -271,12 +274,14 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
               // Teleport to center
               playerPosRef.current = { x: i.pos.x, y: i.pos.y };
           } else {
-              // Attempt to eject to a valid position
+              // Attempt to eject to a valid position using checkCollision
               const candidates = [
                   { x: i.pos.x, y: i.pos.y + 35 }, // Down
                   { x: i.pos.x, y: i.pos.y - 35 }, // Up
                   { x: i.pos.x + 35, y: i.pos.y }, // Right
-                  { x: i.pos.x - 35, y: i.pos.y }  // Left
+                  { x: i.pos.x - 35, y: i.pos.y }, // Left
+                  { x: i.pos.x + 35, y: i.pos.y + 35 },
+                  { x: i.pos.x - 35, y: i.pos.y - 35 }
               ];
               let found = false;
               for(const c of candidates) {
@@ -287,13 +292,13 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
                   }
               }
               if (!found) {
-                  // Fallback if surrounded
                   playerPosRef.current = { x: i.pos.x, y: i.pos.y + 35 };
               }
           }
           addLog(isEntering ? "Hiding..." : "Exited Closet");
       } else if (i.interactType === 'DRAWER' || i.interactType === 'CHEST') {
           i.isActive = true; 
+          soundManager.playInteract();
           if (i.contents) {
               if (i.contents.itemType === ItemType.LORE_NOTE) {
                   if (i.contents.loreId !== undefined) onLorePickup(i.contents.loreId);
@@ -308,12 +313,17 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
           if (i.locked) {
               if (i.lockType === 'PIN') {
                   setPlayerState(prev => ({ ...prev, interactingWithPinPad: i }));
+                  setPinInput(""); // Reset input when opening
               } else {
                   const hasKey = ps.inventory.find(item => item.itemType === ItemType.KEY && item.value === i.lockValue);
                   if (hasKey) {
                       i.locked = false; i.isActive = true;
                       addLog("Door Unlocked.");
-                  } else addLog("Locked. Need Key.");
+                      soundManager.playUnlock(true);
+                  } else {
+                      addLog("Locked. Need Key.");
+                      soundManager.playUnlock(false);
+                  }
               }
           }
       } else if (i.interactType === 'GENERATOR') {
@@ -326,6 +336,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
                    isCarryingCable: true
                }));
                addLog("Cable Connected! RETURN TO ELEVATOR!");
+               soundManager.playInteract();
                levelRef.current!.enemies.forEach(e => {e.state='CHASING'; e.lastKnownPlayerPos=playerPosRef.current;});
           } else addLog(i.locked ? "Needs Cable" : "Already Active");
       } 
@@ -345,7 +356,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
      if (hoverItemIdx >= 0 && Math.hypot(levelRef.current.items[hoverItemIdx].pos.x - p.x, levelRef.current.items[hoverItemIdx].pos.y - p.y) < INTERACTION_RANGE) {
          pickupItem(hoverItemIdx); return;
      }
-     // Increased detect radius for interactables (40 for mouse)
      const hoverInteract = levelRef.current.interactables.find(i => Math.hypot(i.pos.x - worldMouseX, i.pos.y - worldMouseY) < 40);
      if (hoverInteract && Math.hypot(hoverInteract.pos.x - p.x, hoverInteract.pos.y - p.y) < INTERACTION_RANGE) {
          triggerInteractable(hoverInteract); return;
@@ -353,28 +363,63 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
      const itemIndex = levelRef.current.items.findIndex(i => Math.hypot(i.pos.x - p.x, i.pos.y - p.y) < INTERACTION_RANGE);
      if (itemIndex >= 0) { pickupItem(itemIndex); return; }
      
-     // Proximity Interaction
      const interactable = levelRef.current.interactables.find(i => Math.hypot(i.pos.x - p.x, i.pos.y - p.y) < INTERACTION_RANGE);
      if (interactable) triggerInteractable(interactable);
+  };
+
+  const handlePinSubmit = () => {
+      const val = parseInt(pinInput, 10);
+      if (val === playerState.interactingWithPinPad?.lockValue) {
+          playerState.interactingWithPinPad.locked = false;
+          setPlayerState(p => ({...p, interactingWithPinPad: null}));
+          addLog("Access Granted.");
+          soundManager.playUnlock(true);
+      } else {
+          addLog("Access Denied.");
+          setPlayerState(p => ({...p, interactingWithPinPad: null}));
+          soundManager.playUnlock(false);
+      }
+  };
+
+  const handlePinInput = (char: string) => {
+      if (char === 'CLR') {
+          setPinInput("");
+          soundManager.playKeypadPress();
+      } else if (char === 'ENT') {
+          handlePinSubmit();
+      } else if (pinInput.length < 4) {
+          setPinInput(prev => prev + char);
+          soundManager.playKeypadPress();
+      }
   };
 
   // --- Input ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (exitAnimRef.current?.active) return;
+      
+      const ps = playerStateRef.current;
+      if (ps.interactingWithPinPad) {
+          if (e.key === 'Escape') {
+              setPlayerState(prev => ({...prev, interactingWithPinPad: null}));
+          }
+          // Block all other game controls when PIN pad is active
+          return;
+      }
+
       keysPressed.current.add(e.code);
       if (e.code === 'KeyQ') dropItem();
       if (e.code === 'KeyE') interact();
       if (e.code === 'Space') {
           if (jumpRef.current.cooldown <= 0 && !playerStateRef.current.isHiding && !playerStateRef.current.isCarryingCable) {
               jumpRef.current.active = true;
-              jumpRef.current.timer = 450; // Decreased jump time from 600
+              jumpRef.current.timer = 450; 
               jumpRef.current.cooldown = 1500;
           }
       }
       if (e.code === 'Escape') {
-          if (playerStateRef.current.activeNote || playerStateRef.current.interactingWithPinPad) {
-             setPlayerState(prev => ({...prev, activeNote: null, interactingWithPinPad: null}));
+          if (playerStateRef.current.activeNote) {
+             setPlayerState(prev => ({...prev, activeNote: null}));
           } else {
              onPause(); 
           }
@@ -395,6 +440,8 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
         }
     };
     const handleMouseDown = (e: MouseEvent) => {
+        // Prevent clicking through UI
+        if (e.target !== canvasRef.current) return;
         if (e.button === 0) useEquippedItem();
     };
 
@@ -423,6 +470,26 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     };
   }, []); 
 
+  // PIN Keyboard Input
+  useEffect(() => {
+      if (!playerState.interactingWithPinPad) return;
+
+      const handlePinKeys = (e: KeyboardEvent) => {
+          e.stopPropagation();
+          if (e.key >= '0' && e.key <= '9') {
+              handlePinInput(e.key);
+          } else if (e.key === 'Backspace') {
+              setPinInput(prev => prev.slice(0, -1));
+              soundManager.playKeypadPress();
+          } else if (e.key === 'Enter') {
+              handlePinSubmit();
+          }
+      };
+      
+      window.addEventListener('keydown', handlePinKeys);
+      return () => window.removeEventListener('keydown', handlePinKeys);
+  }, [playerState.interactingWithPinPad, pinInput]);
+
   // --- Assets ---
   useEffect(() => {
       const pCanvas = document.createElement('canvas');
@@ -439,7 +506,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
       cCtx.fillStyle = 'rgba(0,0,0,0.2)'; cCtx.fillRect(0,0,20,20); cCtx.fillRect(20,20,20,20);
       carpetPatternRef.current = cCanvas;
       
-      // Init overlay canvas
       if (!overlayCanvasRef.current) {
           overlayCanvasRef.current = document.createElement('canvas');
           overlayCanvasRef.current.width = CANVAS_WIDTH;
@@ -455,12 +521,15 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
             playerPosRef.current = initialPlayerPos;
         } else if (!levelRef.current || levelRef.current.floorNumber !== currentLevel) {
             const config = difficulty === Difficulty.CUSTOM && customConfig ? customConfig : DIFFICULTY_CONFIG[difficulty];
-            const isSafe = (100 - currentLevel) < config.safeFloors;
-            const lvl = generateLevel(currentLevel, config, isSafe, playerStateRef.current.loreCollected, difficulty);
+            // Determine max floors based on difficulty for scaling
+            const maxFloor = difficulty === Difficulty.TUTORIAL ? 5 : 100;
+            const isSafe = (maxFloor - currentLevel) < config.safeFloors;
+            const lvl = generateLevel(currentLevel, maxFloor, config, isSafe, playerStateRef.current.loreCollected, difficulty);
             levelRef.current = lvl;
             const el = lvl.rooms.find(r => r.type === 'ELEVATOR');
             if (el) playerPosRef.current = { x: el.x + el.w/2, y: el.y + el.h/2 };
-            dreadRef.current = { state: 'IDLE', timer: Math.random() * 60000 + 30000, affectedRooms: [], nextRoomIndex: 0, consuming: false, consumeTimer: 0 }; 
+            // Reset Dread state and spawn counter for new floor
+            dreadRef.current = { state: 'IDLE', timer: Math.random() * 60000 + 30000, affectedRooms: [], nextRoomIndex: 0, consuming: false, consumeTimer: 0, spawnsThisFloor: 0 }; 
             globalRedIntensity.current = 0; globalWhiteout.current = 0; shakeIntensity.current = 0; jumpScareRef.current = 0; chargingTimerRef.current = 0; exitAnimRef.current = null;
             setPlayerState(prev => ({...prev, isCarryingCable: false}));
         }
@@ -489,16 +558,40 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     const ps = playerStateRef.current;
     if (ps.activeNote || ps.interactingWithPinPad) return; 
 
-    // Dread Consuming Logic (Propagates through rooms)
+    // --- DREAD LOGIC ---
     if (!inElevatorRef.current && currentLevel < 95) { 
         dreadRef.current.timer -= dt;
         
+        // FOV Narrowing and Shake during WARNING
+        if (dreadRef.current.state === 'WARNING') {
+            const progress = 1 - (dreadRef.current.timer / 5000); 
+            // Narrow FOV
+            const target = 0.5 + (0.5 * (1 - progress)); // narrows to 0.5
+            currentFovRef.current += (target - currentFovRef.current) * dt * 0.01;
+            shakeIntensity.current = 2 + (progress * 20); // Ramp up shake
+            soundManager.playDreadRumble(progress);
+        } else if (dreadRef.current.state === 'KILL') {
+            currentFovRef.current += (0.4 - currentFovRef.current) * dt * 0.01;
+            shakeIntensity.current = 15;
+            soundManager.playDreadRumble(1.0);
+        } else {
+            // Restore FOV
+            const target = ps.movementMode === 'RUN' ? 0.75 : ps.movementMode === 'CROUCH' ? 1.35 : 1.0;
+            currentFovRef.current += (target - currentFovRef.current) * dt * 0.005;
+        }
+
         if (dreadRef.current.state === 'IDLE' && dreadRef.current.timer <= 0) {
-            dreadRef.current.state = 'WARNING'; dreadRef.current.timer = 5000;
-            addLog("!!! SOMETHING IS COMING !!!"); triggerDialogue("DREAD_START");
+            if (dreadRef.current.spawnsThisFloor < 2) {
+                dreadRef.current.state = 'WARNING'; 
+                dreadRef.current.timer = 5000;
+                dreadRef.current.spawnsThisFloor++;
+                addLog("!!! SOMETHING IS COMING !!!"); 
+                triggerDialogue("DREAD_START");
+            } else {
+                dreadRef.current.timer = 60000; // Cooldown until logic resets? Or just wait indefinitely on this floor.
+            }
         } 
         else if (dreadRef.current.state === 'WARNING') {
-             const progress = 1 - (dreadRef.current.timer / 5000); shakeIntensity.current = 5 + (progress * 25);
              if (dreadRef.current.timer <= 0) {
                 dreadRef.current.state = 'KILL';
                 const rooms = [...levelRef.current.rooms].filter(r => r.type !== 'ELEVATOR');
@@ -512,17 +605,15 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
             }
         } 
         else if (dreadRef.current.state === 'KILL') {
-            shakeIntensity.current = 8;
             dreadRef.current.consumeTimer += dt;
             
-            if (dreadRef.current.consumeTimer > 1500) {
+            if (dreadRef.current.consumeTimer > 400) {
                 dreadRef.current.consumeTimer = 0;
                 dreadRef.current.nextRoomIndex++;
             }
 
             const activeRoomCount = dreadRef.current.nextRoomIndex + 1;
             
-            // Check if player is in a consumed room
             const p = playerPosRef.current;
             for(let i=0; i<activeRoomCount && i<dreadRef.current.affectedRooms.length; i++) {
                 const r = dreadRef.current.affectedRooms[i];
@@ -530,6 +621,8 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
                     if (!ps.isHiding) {
                         setDeathReason("CONSUMED BY THE DREAD");
                         setGameState('GAME_OVER');
+                        jumpScareRef.current = 2000; 
+                        soundManager.playScream();
                         return;
                     }
                 }
@@ -538,26 +631,31 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
             if (dreadRef.current.nextRoomIndex >= dreadRef.current.affectedRooms.length + 5) {
                 dreadRef.current.state = 'IDLE'; 
                 dreadRef.current.timer = Math.random() * 60000 + 40000; 
+                dreadRef.current.affectedRooms = [];
                 shakeIntensity.current = 0; 
                 addLog("The presence fades...");
             }
         }
     } else {
-        dreadRef.current.state = 'IDLE'; shakeIntensity.current = 0;
+        dreadRef.current.state = 'IDLE'; 
+        dreadRef.current.affectedRooms = [];
+        // Restore FOV logic if in elevator
+        const target = ps.movementMode === 'RUN' ? 0.75 : ps.movementMode === 'CROUCH' ? 1.35 : 1.0;
+        currentFovRef.current += (target - currentFovRef.current) * dt * 0.005;
+        if (shakeIntensity.current > 0 && !chargingTimerRef.current) shakeIntensity.current *= 0.9;
     }
 
-    if (ps.health <= 0) { setDeathReason("VITAL SIGNS LOST"); setGameState('GAME_OVER'); return; }
+    if (ps.health <= 0) { 
+        setDeathReason("VITAL SIGNS LOST"); setGameState('GAME_OVER'); 
+        jumpScareRef.current = 2000; soundManager.playScream(); 
+        return; 
+    }
     if (ps.battery <= 0) { setDeathReason("POWER FAILURE"); setGameState('GAME_OVER'); return; }
 
     if (globalRedIntensity.current > 0) globalRedIntensity.current = Math.max(0, globalRedIntensity.current - dt * 0.002);
     if (globalWhiteout.current > 0) globalWhiteout.current = Math.max(0, globalWhiteout.current - dt * 0.003); 
 
     const p = playerPosRef.current;
-    
-    // FOV Animation
-    const targetFov = ps.movementMode === 'RUN' ? 0.75 : ps.movementMode === 'CROUCH' ? 1.35 : 1.0;
-    const fovSpeed = 0.005;
-    currentFovRef.current += (targetFov - currentFovRef.current) * dt * fovSpeed;
 
     // Automatic exit disabled, use 'E' interaction
     if (currentLevel === 1) {
@@ -604,22 +702,55 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     }
 
     if (ps.isHiding) {
-        setPlayerState(prev => {
-            const t = prev.hidingTimer + dt;
-            if (t > 15000) { 
-                addLog("FOUND YOU!");
-                jumpScareRef.current = 1000; // Trigger Jumpscare
-                return { ...prev, isHiding: false, health: prev.health - 1, hidingTimer: 0 };
+        // HIDING LOGIC
+        const isDreadActive = dreadRef.current.state === 'KILL';
+        const timerIncrement = isDreadActive ? 0 : dt;
+        const newTimer = ps.hidingTimer + timerIncrement;
+
+        if (newTimer > 7000) { 
+            // CLOSET EJECTION LOGIC
+            addLog("FOUND YOU! (-1 HEART)");
+            jumpScareRef.current = 500; 
+            soundManager.playScream();
+            
+            // Eject Player to safe spot
+            const px = playerPosRef.current.x;
+            const py = playerPosRef.current.y;
+            const candidates = [
+                  { x: px, y: py + 35 },
+                  { x: px, y: py - 35 },
+                  { x: px + 35, y: py },
+                  { x: px - 35, y: py },
+            ];
+            let found = false;
+            for(const c of candidates) {
+                  if (!checkCollision(c.x, c.y, PLAYER_SIZE)) {
+                      playerPosRef.current = c;
+                      found = true;
+                      break;
+                  }
             }
-            return { ...prev, hidingTimer: t };
-        });
-        if (ps.hidingTimer > 10000 && Math.random() < 0.1) shakeIntensity.current = 5; 
+            if (!found) { playerPosRef.current = { x: px, y: py + 35 }; }
+
+            setPlayerState(prev => {
+                const newHealth = prev.health - 1;
+                if (newHealth <= 0) {
+                    setDeathReason("FOUND IN CLOSET");
+                    setGameState('GAME_OVER');
+                    return { ...prev, isHiding: false, health: 0, hidingTimer: 0 };
+                }
+                return { ...prev, isHiding: false, health: newHealth, hidingTimer: 0 };
+            });
+        } else {
+            setPlayerState(prev => ({ ...prev, hidingTimer: newTimer }));
+        }
+        
+        if (ps.hidingTimer > 5000 && dreadRef.current.state !== 'KILL' && Math.random() < 0.1) shakeIntensity.current = 3; 
     }
     
     if (jumpScareRef.current > 0) jumpScareRef.current -= dt;
 
     if (!ps.isHiding) {
-        // Reduced base speed from 2 to 1.6
         let speed = 0.9 * (ps.speedMultiplier || 1);
         const hasCable = ps.inventory.some(i => i.itemType === ItemType.CABLE);
         if (ps.isCarryingCable) { speed *= 0.5; setPlayerState(s => s.movementMode !== 'WALK' ? {...s, movementMode: 'WALK', noiseLevel: 100} : {...s, noiseLevel: 100}); } 
@@ -639,7 +770,10 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
             const len = Math.hypot(dx, dy); dx = (dx / len) * speed; dy = (dy / len) * speed;
             if (!checkCollision(p.x + dx, p.y, PLAYER_SIZE)) p.x += dx;
             if (!checkCollision(p.x, p.y + dy, PLAYER_SIZE)) p.y += dy;
-            walkingTimerRef.current += dt; 
+            walkingTimerRef.current += dt;
+            
+            // Step sound
+            if (walkingTimerRef.current % 400 < dt) soundManager.playStep();
         }
         
         setPlayerState(prev => {
@@ -654,7 +788,9 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
         });
 
         if (pulseEffectRef.current > 0) pulseEffectRef.current = Math.max(0, pulseEffectRef.current - dt * 0.002);
-        if (shakeIntensity.current > 0) shakeIntensity.current = Math.max(0, shakeIntensity.current - dt * 0.05);
+        
+        // Dynamic Shake Decay
+        if (shakeIntensity.current > 0 && dreadRef.current.state === 'IDLE') shakeIntensity.current = Math.max(0, shakeIntensity.current - dt * 0.05);
 
         const targetCamX = p.x - CANVAS_WIDTH / 2;
         const targetCamY = p.y - CANVAS_HEIGHT / 2;
@@ -663,15 +799,26 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
 
         const wMouseX = mousePos.current.x + cameraOffset.current.x;
         const wMouseY = mousePos.current.y + cameraOffset.current.y;
+        
+        // Correct Player Rotation logic
         const lookAngle = Math.atan2(wMouseY - p.y, wMouseX - p.x);
         
         const flashlightActive = ps.isCarryingCable ? true : (ps.flashlightOn && !ps.isHiding && ps.equippedItemIndex !== -1 && ps.inventory[ps.equippedItemIndex]?.itemType === ItemType.FLASHLIGHT);
         const flashlightDist = ps.isCarryingCable ? FLASHLIGHT_DISTANCE * 0.6 : FLASHLIGHT_DISTANCE;
+        
+        // Low Health Heartbeat and Shake
+        if (ps.health <= 2) {
+            heartbeatTimerRef.current += dt;
+            if (heartbeatTimerRef.current > 1000) {
+                heartbeatTimerRef.current = 0;
+                shakeIntensity.current += 2;
+                soundManager.playHeartbeat();
+            }
+        }
 
         levelRef.current.enemies.forEach(enemy => {
              if (enemy.state === 'DYING') return;
              
-             // Fleeing Logic
              if (enemy.state === 'FLEEING') {
                  const angle = Math.atan2(enemy.pos.y - p.y, enemy.pos.x - p.x); 
                  enemy.pos.x += Math.cos(angle) * enemy.speed * 2; 
@@ -687,10 +834,14 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
 
              const dist = Math.hypot(p.x - enemy.pos.x, p.y - enemy.pos.y);
              
-             // Repellent Logic
+             // Dynamic Threat Shake
+             if (enemy.state === 'CHASING' && dist < 200 && shakeIntensity.current < 5) {
+                 shakeIntensity.current = Math.min(5, 5 - (dist / 40));
+             }
+
              if (ps.isRepelling && dist < 300) {
                  enemy.state = 'FLEEING';
-                 enemy.stunTimer = 1000; // Brief flee state re-evaluated constantly
+                 enemy.stunTimer = 1000; 
                  return;
              }
 
@@ -707,18 +858,14 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
              let currentSpeed = enemy.speed;
              let detectionRange = enemy.detectionRadius || 300;
              
-             // Invisibility Logic
              if (ps.isInvisible) {
                  if (enemy.subType === EntityType.ENEMY_LURKER) {
-                     // Lurker is Sound Sensitive, reduced detection but not zero
                      detectionRange *= 0.5;
                  } else {
-                     // Visual enemies (Chaser, Shade, Phantom, Swarm) ignore unless extremely close
                      detectionRange = 20; 
                  }
              }
 
-             // Enemy Specific Logic
              if (enemy.subType === EntityType.ENEMY_SWARM) {
                  if (flashlightActive && Math.hypot(enemy.pos.x - wMouseX, enemy.pos.y - wMouseY) < 50) {
                      enemy.exposureTime = (enemy.exposureTime || 0) + dt; currentSpeed *= 0.2; 
@@ -726,11 +873,9 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
                  } else enemy.exposureTime = Math.max(0, (enemy.exposureTime || 0) - dt);
                  if (enemy.roomId === playerRoomId && ps.noiseLevel > 20) enemy.state = 'CHASING';
              } else if (enemy.subType === EntityType.ENEMY_SHADE) {
-                 // Shade is room limited
                  if (isLit) return; 
                  if (enemy.roomId === playerRoomId && !isInElevator) enemy.state = 'CHASING'; else enemy.state = 'IDLE';
              } else if (enemy.subType === EntityType.ENEMY_LURKER) {
-                 // Lurker is room limited
                  if (enemy.roomId === playerRoomId && !isInElevator && (dist < detectionRange || ps.noiseLevel > 20)) enemy.state = 'CHASING'; else enemy.state = 'IDLE';
              } else if (enemy.subType === EntityType.ENEMY_PHANTOM || enemy.subType === EntityType.ENEMY_CHASER) {
                  if (dist < detectionRange) enemy.state = 'CHASING'; else enemy.state = 'IDLE';
@@ -752,8 +897,9 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
                  if (dist < 25) {
                      setPlayerState(prev => ({...prev, health: prev.health - 1})); 
                      enemy.state = 'FLEEING'; addLog("IT HURTS!");
-                     shakeIntensity.current = 5;
+                     shakeIntensity.current = 15;
                      globalRedIntensity.current = 1.0;
+                     soundManager.playScream();
                  }
              }
         });
@@ -795,11 +941,70 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
       ctx.restore();
   };
 
+  const drawJumpscare = (ctx: CanvasRenderingContext2D) => {
+      // Scary face background
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0,0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      
+      const time = Date.now();
+      const shake = (Math.random()-0.5) * 20;
+      
+      ctx.save();
+      ctx.translate(CANVAS_WIDTH/2 + shake, CANVAS_HEIGHT/2 + shake);
+      
+      // Face shape (Ghostly white/grey)
+      ctx.fillStyle = '#d1d5db';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 150, 200, 0, 0, Math.PI*2);
+      ctx.fill();
+      
+      // Hollow Eyes
+      ctx.fillStyle = '#000';
+      const eyeTwitch = Math.random() * 5;
+      ctx.beginPath();
+      ctx.ellipse(-60, -50 + eyeTwitch, 30, 50, 0.2, 0, Math.PI*2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(60, -50 - eyeTwitch, 30, 50, -0.2, 0, Math.PI*2);
+      ctx.fill();
+      
+      // Red pupils (pinpoint)
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath(); ctx.arc(-60 + Math.random()*10, -50, 3, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(60 + Math.random()*10, -50, 3, 0, Math.PI*2); ctx.fill();
+
+      // Screaming Mouth
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      ctx.ellipse(0, 80, 50 + Math.random()*10, 80, 0, 0, Math.PI*2);
+      ctx.fill();
+      
+      // Teeth
+      ctx.fillStyle = '#fef3c7';
+      for(let i=0; i<10; i++) {
+          const x = -40 + i*10;
+          ctx.beginPath(); ctx.moveTo(x, 20); ctx.lineTo(x+5, 40 + Math.random()*10); ctx.lineTo(x+10, 20); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(x, 140); ctx.lineTo(x+5, 120 - Math.random()*10); ctx.lineTo(x+10, 140); ctx.fill();
+      }
+
+      ctx.restore();
+
+      // Text Overlay
+      ctx.fillStyle = '#ef4444'; 
+      ctx.font = '80px Impact'; ctx.textAlign = 'center'; ctx.textBaseline='middle';
+      ctx.fillText("IT FOUND YOU", CANVAS_WIDTH/2, CANVAS_HEIGHT/2);
+  };
+
   const render = () => {
       const canvas = canvasRef.current;
       if (!canvas || !levelRef.current) return;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
+
+      if (jumpScareRef.current > 0) {
+          drawJumpscare(ctx);
+          return;
+      }
 
       const ps = playerStateRef.current;
       const p = playerPosRef.current;
@@ -846,7 +1051,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
                   
                   // Active leading edge pulsates
                   if (idx === activeIndex) {
-                      ctx.fillStyle = `rgba(255, 0, 0, ${0.1 + Math.sin(Date.now() / 100) * 0.1})`;
+                      ctx.fillStyle = `rgba(127, 29, 29, ${0.1 + Math.sin(Date.now() / 100) * 0.1})`;
                       ctx.fillRect(room.x, room.y, room.w, room.h);
                       ctx.fillStyle = '#1a0505'; // Reset for next loop
                   }
@@ -865,19 +1070,76 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
             ctx.fillStyle = '#000'; ctx.fillRect(i.pos.x - 1, i.pos.y - 10, 2, 30); 
             ctx.fillStyle = '#52525b'; ctx.fillRect(i.pos.x - 15, i.pos.y, 4, 8); ctx.fillRect(i.pos.x + 11, i.pos.y, 4, 8); 
           } else if (i.interactType === 'DRAWER') {
-            ctx.fillStyle = i.color; ctx.fillRect(i.pos.x-15, i.pos.y-10, 30, 20);
-            ctx.fillStyle = '#451a03'; ctx.fillRect(i.pos.x-10, i.pos.y-8, 20, 16); 
-            ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.arc(i.pos.x, i.pos.y, 2, 0, Math.PI*2); ctx.fill(); 
-            if(i.isActive) { ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(i.pos.x-15, i.pos.y-10, 30, 20); }
+            // DETAILED DRAWER VECTOR
+            ctx.save(); ctx.translate(i.pos.x, i.pos.y);
+            const w = 30, h = 20;
+            const x = -w/2, y = -h/2;
+            
+            // Main body wood
+            ctx.fillStyle = '#3f1d0b'; ctx.fillRect(x, y, w, h);
+            
+            // Drawer fronts
+            ctx.fillStyle = '#552811'; 
+            ctx.fillRect(x+2, y+2, w-4, 6); // Top drawer
+            ctx.fillRect(x+2, y+10, w-4, 6); // Bottom drawer
+            
+            // Handles
+            ctx.fillStyle = '#f59e0b';
+            ctx.beginPath(); ctx.arc(0, y+5, 1.5, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(0, y+13, 1.5, 0, Math.PI*2); ctx.fill();
+            
+            // Shadow / Depth
+            ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth=1;
+            ctx.strokeRect(x+2, y+2, w-4, 6);
+            ctx.strokeRect(x+2, y+10, w-4, 6);
+
+            // Papers on top
+            ctx.fillStyle = '#fff'; ctx.fillRect(x+5, y-5, 8, 5);
+            ctx.fillStyle = '#ccc'; ctx.fillRect(x+7, y-6, 4, 2);
+
+            if(i.isActive) { ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(x, y, w, h); }
+            ctx.restore();
+
           } else if (i.interactType === 'CHEST') {
-            ctx.fillStyle = i.color; ctx.fillRect(i.pos.x-15, i.pos.y-15, 30, 30);
-            ctx.strokeStyle = '#fcd34d'; ctx.lineWidth = 3; ctx.strokeRect(i.pos.x-15, i.pos.y-15, 30, 30); 
-            if(i.isActive) { ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(i.pos.x-15, i.pos.y-15, 30, 30); }
+            // DETAILED CHEST VECTOR
+            ctx.save(); ctx.translate(i.pos.x, i.pos.y);
+            const w = 30, h = 30;
+            const x = -w/2, y = -h/2;
+
+            // Main Box
+            ctx.fillStyle = '#78350f'; 
+            ctx.fillRect(x, y, w, h);
+            
+            // Metal Bands (Vertical)
+            ctx.fillStyle = '#3f3f46';
+            ctx.fillRect(x+4, y, 4, h);
+            ctx.fillRect(x+w-8, y, 4, h);
+
+            // Wood Grain (Simple lines)
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.fillRect(x, y+5, w, 2);
+            ctx.fillRect(x, y+15, w, 2);
+            ctx.fillRect(x, y+25, w, 2);
+
+            // Border/Trim
+            ctx.strokeStyle = '#3f3f46'; ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, w, h);
+
+            // Latch / Lock
+            ctx.fillStyle = '#fcd34d';
+            ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(0, 0, 1.5, 0, Math.PI*2); ctx.fill();
+            
+            if(i.isActive) { ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(x, y, w, h); }
+            ctx.restore();
+
           } else if (i.interactType === 'DOOR') {
             if (i.locked) {
                 ctx.fillStyle = '#7f1d1d'; ctx.fillRect(i.pos.x-i.size/2, i.pos.y-5, i.size, 10);
-                ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(i.pos.x, i.pos.y, 6, 0, Math.PI*2); ctx.fill();
-                ctx.strokeStyle = '#ef4444'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(i.pos.x, i.pos.y-2, 3, Math.PI, 0); ctx.stroke();
+                // Draw Lock Icon
+                ctx.fillStyle = '#fbbf24'; 
+                ctx.fillRect(i.pos.x - 4, i.pos.y - 2, 8, 6);
+                ctx.beginPath(); ctx.arc(i.pos.x, i.pos.y - 2, 3, Math.PI, 0); ctx.lineWidth = 2; ctx.strokeStyle='#fbbf24'; ctx.stroke();
             }
           } else if (i.interactType === 'EXIT') {
               ctx.shadowColor = '#fff'; ctx.shadowBlur = 20;
@@ -897,58 +1159,113 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
           ctx.restore();
       });
 
-      // Updated Enemy Rendering with more detail/animation
+      // Updated Enemy Rendering with SCARIER VISUALS
       levelRef.current.enemies.forEach(e => {
         ctx.save(); ctx.translate(e.pos.x, e.pos.y);
         const time = Date.now();
+        
         if (e.subType === EntityType.ENEMY_LURKER) {
-            // Twitchy movement
+            // LURKER: Dark, spindly
             const twitchX = Math.random() * 2 - 1;
             const twitchY = Math.random() * 2 - 1;
             ctx.translate(twitchX, twitchY);
-            ctx.fillStyle = '#2e1065'; ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI*2); ctx.fill();
-            ctx.strokeStyle = '#4c1d95'; ctx.lineWidth = 2; 
-            for(let i=0; i<8; i++) { 
-                const angle = (i/8)*Math.PI*2 + (time/500); 
-                const len = 15+Math.sin(time/100+i*2)*8; 
-                ctx.beginPath(); ctx.moveTo(Math.cos(angle)*5, Math.sin(angle)*5); ctx.lineTo(Math.cos(angle)*len, Math.sin(angle)*len); ctx.stroke(); 
+            
+            // Legs
+            ctx.strokeStyle = '#1e1b4b'; 
+            ctx.lineWidth = 2;
+            for(let i=0; i<6; i++) { 
+                const angle = (i/6)*Math.PI*2 + (time/500); 
+                const len = 18 + Math.sin(time/100+i*2)*10; 
+                ctx.beginPath(); 
+                ctx.moveTo(0,0);
+                const jointX = Math.cos(angle) * (len * 0.6);
+                const jointY = Math.sin(angle) * (len * 0.6);
+                const endX = Math.cos(angle + 0.3) * len;
+                const endY = Math.sin(angle + 0.3) * len;
+                ctx.lineTo(jointX, jointY);
+                ctx.lineTo(endX, endY);
+                ctx.stroke(); 
             }
-            // Eyes
-            ctx.fillStyle = '#fff'; ctx.fillRect(-4, -4, 2, 2); ctx.fillRect(2, -4, 2, 2);
+            // Body
+            ctx.fillStyle = '#020617'; 
+            ctx.beginPath(); ctx.ellipse(0, 0, 8, 12, Math.sin(time/200)*0.2, 0, Math.PI*2); ctx.fill();
+            // Uneven Eyes
+            ctx.fillStyle = '#a855f7'; 
+            ctx.beginPath(); ctx.arc(-3, -4, 1.5, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(4, -2, 2.5, 0, Math.PI*2); ctx.fill();
+
         } else if (e.subType === EntityType.ENEMY_SHADE) {
-            // Smoky
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'; 
-            for(let i=0; i<6; i++) {
-                const angle = (i/6)*Math.PI*2 + time/2000;
-                const r = 10 + Math.sin(time/500 + i)*5;
-                ctx.beginPath(); ctx.arc(Math.cos(angle)*r*0.5, Math.sin(angle)*r*0.5, r, 0, Math.PI*2); ctx.fill();
+            // SHADE: Pure Black
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.95)'; 
+            ctx.beginPath(); ctx.arc(0,0,10,0,Math.PI*2); ctx.fill();
+            for(let i=0; i<8; i++) {
+                const angle = (i/8)*Math.PI*2;
+                const r = 12 + Math.sin(time/1000 + i)*6;
+                ctx.beginPath(); ctx.arc(Math.cos(angle)*r*0.6, Math.sin(angle)*r*0.6, 6, 0, Math.PI*2); ctx.fill();
             }
-            ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(0,0,10,0,Math.PI*2); ctx.fill();
+
         } else if (e.subType === EntityType.ENEMY_PHANTOM) {
-            ctx.globalAlpha = 0.5 + Math.sin(time/500)*0.2;
-            ctx.fillStyle = '#06b6d4'; ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI*2); ctx.fill(); 
-            ctx.strokeStyle = '#fff'; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(0,0,10,0,Math.PI*2); ctx.stroke();
-            ctx.globalAlpha = 1;
+            const wobble = Math.sin(time/300) * 3;
+            ctx.rotate(Math.PI/2 + wobble * 0.1); 
+            // Darker Cyan Gradient
+            const grd = ctx.createLinearGradient(0, -15, 0, 25);
+            grd.addColorStop(0, "rgba(8, 145, 178, 0.9)");
+            grd.addColorStop(1, "rgba(8, 145, 178, 0)");
+            ctx.fillStyle = grd;
+            ctx.beginPath();
+            ctx.moveTo(0, -15);
+            ctx.bezierCurveTo(15, -5, 10, 15, 0, 25 + wobble);
+            ctx.bezierCurveTo(-10, 15, -15, -5, 0, -15);
+            ctx.fill();
+            // Hollow Face
+            ctx.fillStyle = '#000';
+            ctx.beginPath(); ctx.ellipse(-4, -5, 2, 4, 0, 0, Math.PI*2); ctx.fill(); 
+            ctx.beginPath(); ctx.ellipse(4, -5, 2, 4, 0, 0, Math.PI*2); ctx.fill(); 
+            ctx.beginPath(); ctx.ellipse(0, 5, 3, 6, 0, 0, Math.PI*2); ctx.fill(); 
+
         } else if (e.subType === EntityType.ENEMY_SWARM) {
-             ctx.fillStyle = '#a16207'; 
-             for(let i=0; i<7; i++) { 
-                 const bx = Math.sin(time/150 + i)*8; 
-                 const by = Math.cos(time/150 + i*2)*8; 
-                 ctx.beginPath(); ctx.arc(bx, by, 3, 0, Math.PI*2); ctx.fill(); 
+             ctx.fillStyle = '#3f2e0e'; 
+             for(let i=0; i<5; i++) { 
+                 const bx = Math.sin(time/150 + i)*12; 
+                 const by = Math.cos(time/150 + i*2)*12; 
+                 const angle = Math.atan2(by, bx);
+                 ctx.save(); ctx.translate(bx, by); ctx.rotate(angle);
+                 ctx.beginPath(); ctx.ellipse(0,0, 4, 2, 0, 0, Math.PI*2); ctx.fill();
+                 ctx.strokeStyle = '#78350f'; ctx.lineWidth = 1;
+                 ctx.beginPath(); ctx.moveTo(0,2); ctx.lineTo(-2,4); ctx.moveTo(0,2); ctx.lineTo(2,4); ctx.stroke();
+                 ctx.beginPath(); ctx.moveTo(0,-2); ctx.lineTo(-2,-4); ctx.moveTo(0,-2); ctx.lineTo(2,-4); ctx.stroke();
+                 ctx.restore();
              }
+
         } else {
-            // Chaser - Pulsing aggressive red
-            const pulse = 1 + Math.sin(time/100)*0.1;
+            // CHASER: Dark Blood Red
+            const pulse = 1 + Math.sin(time/80)*0.1;
             ctx.scale(pulse, pulse);
-            ctx.fillStyle = '#7f1d1d'; ctx.beginPath(); 
-            const spikes = 12; 
+            ctx.fillStyle = '#450a0a'; 
+            ctx.beginPath(); 
+            const spikes = 8; 
             for(let i=0; i<spikes*2; i++) { 
-                const r = i%2===0 ? 12 : 20; 
-                const angle = (i/(spikes*2)) * Math.PI*2 + (time/300); 
+                const r = i%2===0 ? 12 : 24; 
+                const angle = (i/(spikes*2)) * Math.PI*2 + (time/200); 
                 ctx.lineTo(Math.cos(angle)*r, Math.sin(angle)*r); 
             } 
             ctx.closePath(); ctx.fill();
-            ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(0,0,6,0,Math.PI*2); ctx.fill();
+            // Blood Particles
+            ctx.fillStyle = '#991b1b';
+            for(let i=0; i<5; i++) {
+                const rx = (Math.random()-0.5)*40;
+                const ry = (Math.random()-0.5)*40;
+                ctx.fillRect(rx, ry, 2, 2);
+            }
+            
+            ctx.fillStyle = '#220000'; ctx.beginPath(); ctx.arc(0,0,10,0,Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#f87171';
+            for(let i=0; i<6; i++) {
+                const angle = (i/6)*Math.PI*2 + (time/500);
+                const tx = Math.cos(angle) * 6;
+                const ty = Math.sin(angle) * 6;
+                ctx.beginPath(); ctx.arc(tx, ty, 2, 0, Math.PI*2); ctx.fill();
+            }
         }
         ctx.restore();
       });
@@ -957,11 +1274,16 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
       if (!ps.isHiding) {
            ctx.save();
            ctx.translate(playerPosRef.current.x, playerPosRef.current.y);
-           const angle = Math.atan2(mousePos.current.y + cameraOffset.current.x - playerPosRef.current.x, mousePos.current.x + cameraOffset.current.x - playerPosRef.current.x);
+           
+           // FIX ROTATION HERE
+           // Convert screen mouse pos to world pos
+           const wx = mousePos.current.x + cameraOffset.current.x;
+           const wy = mousePos.current.y + cameraOffset.current.y;
+           const angle = Math.atan2(wy - playerPosRef.current.y, wx - playerPosRef.current.x);
+           
            ctx.rotate(angle);
            if (exitAnimRef.current?.active) { const s = 1 - exitAnimRef.current.progress; ctx.scale(s, s); }
            
-           // Jump Effect
            if (jumpRef.current.active) {
                 ctx.scale(1.2, 1.2);
                 ctx.shadowColor = 'rgba(0,0,0,0.5)';
@@ -996,8 +1318,8 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
       const oCtx = overlayCanvasRef.current?.getContext('2d');
       if (oCtx && overlayCanvasRef.current) {
           oCtx.globalCompositeOperation = 'source-over';
-          // Clear overlay
-          const darknessAlpha = currentLevel === 1 ? 0.6 : 0.95;
+          // Clear overlay - REDUCED DARKNESS to allow floor to be seen
+          const darknessAlpha = currentLevel === 1 ? 0.6 : 0.94; // Reduced from 0.98 to 0.94
           oCtx.fillStyle = `rgba(0,0,0,${darknessAlpha})`;
           oCtx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
           
@@ -1026,39 +1348,32 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
               const combinedPoints: Position[] = [];
               const startA = lookAngle - FLASHLIGHT_ANGLE;
               const endA = lookAngle + FLASHLIGHT_ANGLE;
-              const step = 0.01; // Higher resolution for smoother raycasting
-              const epsilon = 0.5; // Tolerance for wall collision to avoid light leaking through seams
+              const step = 0.01; 
+              const epsilon = 0.5;
 
               for (let a = startA; a <= endA; a += step) {
                  let dx = Math.cos(a), dy = Math.sin(a);
                  let closest = FLASHLIGHT_DISTANCE;
                  
                  for(const w of blockers) {
-                     // Check Vertical Intersections (x = w.x and x = w.x + w.w)
                      if (dx !== 0) {
-                         // Left Wall Edge
                          let t = (w.x - p.x) / dx;
                          if (t > 0 && t < closest) {
                              const hitY = p.y + t * dy;
                              if (hitY >= w.y - epsilon && hitY <= w.y + w.h + epsilon) closest = t;
                          }
-                         // Right Wall Edge
                          t = (w.x + w.w - p.x) / dx;
                          if (t > 0 && t < closest) {
                              const hitY = p.y + t * dy;
                              if (hitY >= w.y - epsilon && hitY <= w.y + w.h + epsilon) closest = t;
                          }
                      }
-                     
-                     // Check Horizontal Intersections (y = w.y and y = w.y + w.h)
                      if (dy !== 0) {
-                         // Top Wall Edge
                          let t = (w.y - p.y) / dy;
                          if (t > 0 && t < closest) {
                              const hitX = p.x + t * dx;
                              if (hitX >= w.x - epsilon && hitX <= w.x + w.w + epsilon) closest = t;
                          }
-                         // Bottom Wall Edge
                          t = (w.y + w.h - p.y) / dy;
                          if (t > 0 && t < closest) {
                              const hitX = p.x + t * dx;
@@ -1070,6 +1385,12 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
               }
               
               if (combinedPoints.length > 0) {
+                  // Create Radial Gradient for Fade off - INCREASED INNER RADIUS
+                  const grd = oCtx.createRadialGradient(p.x, p.y, 100, p.x, p.y, FLASHLIGHT_DISTANCE);
+                  grd.addColorStop(0, "rgba(255,255,255,1)");
+                  grd.addColorStop(1, "rgba(255,255,255,0)");
+
+                  oCtx.fillStyle = grd;
                   oCtx.beginPath(); oCtx.moveTo(p.x, p.y); 
                   combinedPoints.forEach(pt => oCtx.lineTo(pt.x, pt.y)); 
                   oCtx.lineTo(p.x, p.y);
@@ -1113,14 +1434,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
           ctx.fillRect(0,0,CANVAS_WIDTH, CANVAS_HEIGHT);
       }
 
-      if (jumpScareRef.current > 0) {
-          ctx.fillStyle = '#000'; ctx.fillRect(0,0,CANVAS_WIDTH, CANVAS_HEIGHT);
-          ctx.fillStyle = '#fff'; 
-          ctx.font = '100px Impact'; ctx.textAlign = 'center'; ctx.textBaseline='middle';
-          const shake = (Math.random()-0.5)*50;
-          ctx.fillText("RUN", CANVAS_WIDTH/2 + shake, CANVAS_HEIGHT/2 + shake);
-      }
-
       if (!ps.isHiding && !exitAnimRef.current?.active && !dreadRef.current.consuming) {
         // Use raw mouse pos for HUD hit testing logic
         const mx = mousePos.current.x;
@@ -1149,13 +1462,8 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
             }
             if (label) ctx.fillText(label, mx, my + 25);
             
-            // Draw Icon Overlay for found contents
             if ((hoverInt.interactType === 'DRAWER' || hoverInt.interactType === 'CHEST') && hoverInt.isActive && hoverInt.contents) {
                 ctx.save(); ctx.translate(hoverInt.pos.x - cameraOffset.current.x + shakeX + (CANVAS_WIDTH/2)*(1-fov) + centerX*(fov-1), hoverInt.pos.y - cameraOffset.current.y + shakeY + (CANVAS_HEIGHT/2)*(1-fov) + centerY*(fov-1)); 
-                // Note: The translation above is rough approximation for world-to-screen if using FOV scaling. 
-                // Actually easier to just draw world space before overlay?
-                // Let's draw this in world space pass actually. 
-                // Since this block is HUD, let's keep text here.
                 ctx.restore();
             }
         }
@@ -1168,23 +1476,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     }
   };
 
-  useEffect(() => {
-    let animationFrameId: number;
-    const loop = (time: number) => {
-        if (lastTimeRef.current === 0) lastTimeRef.current = time;
-        const dt = time - lastTimeRef.current;
-        lastTimeRef.current = time;
-        
-        updateEngine(dt);
-        render(); // Explicit call to render
-        
-        animationFrameId = requestAnimationFrame(loop);
-    };
-    animationFrameId = requestAnimationFrame(loop);
-    
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [updateEngine]);
-
   return (
     <div className="relative">
         <canvas ref={canvasRef} width={CANVAS_WIDTH} height={CANVAS_HEIGHT} className="border-4 border-[#3f2e2a] bg-black cursor-crosshair rounded shadow-2xl" />
@@ -1196,24 +1487,42 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
             </div>
         )}
         {playerState.interactingWithPinPad && (
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-stone-800 p-6 rounded border-2 border-stone-500 shadow-2xl flex flex-col items-center gap-2">
-                <div className="text-xl text-red-500 font-mono mb-2">SECURE DOOR</div>
-                <input type="text" maxLength={4} className="bg-black text-green-500 font-mono text-2xl p-2 w-32 text-center tracking-widest" placeholder="----" 
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                            const val = parseInt((e.target as HTMLInputElement).value, 10);
-                            if (val === playerState.interactingWithPinPad?.lockValue) {
-                                playerState.interactingWithPinPad.locked = false;
-                                setPlayerState(p => ({...p, interactingWithPinPad: null}));
-                                addLog("Access Granted.");
-                            } else {
-                                addLog("Access Denied.");
-                                setPlayerState(p => ({...p, interactingWithPinPad: null}));
-                            }
-                        }
-                    }}
-                    autoFocus
-                />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-stone-800 p-6 rounded border-4 border-stone-600 shadow-2xl flex flex-col items-center gap-2 w-64 select-none">
+                <div className="text-lg text-red-500 font-mono font-bold tracking-wider mb-2 border-b border-stone-600 w-full text-center pb-1">SECURE DOOR</div>
+                
+                <div className="bg-black text-green-500 font-mono text-3xl p-3 w-full text-center tracking-[0.5em] mb-4 border border-stone-500 rounded h-16 flex items-center justify-center shadow-inner">
+                    {pinInput.padEnd(4, '-')}
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 w-full">
+                    {[1,2,3,4,5,6,7,8,9].map(num => (
+                        <button 
+                            key={num} 
+                            onMouseDown={(e) => { e.stopPropagation(); handlePinInput(num.toString()); }}
+                            className="bg-stone-700 hover:bg-stone-600 active:bg-stone-500 text-white font-mono text-xl py-3 rounded shadow-md border border-stone-900 transition-colors"
+                        >
+                            {num}
+                        </button>
+                    ))}
+                    <button 
+                        onMouseDown={(e) => { e.stopPropagation(); handlePinInput('CLR'); }}
+                        className="bg-red-900/80 hover:bg-red-800 active:bg-red-700 text-red-100 font-bold font-mono text-sm py-3 rounded shadow-md border border-stone-900"
+                    >
+                        CLR
+                    </button>
+                    <button 
+                        onMouseDown={(e) => { e.stopPropagation(); handlePinInput('0'); }}
+                        className="bg-stone-700 hover:bg-stone-600 active:bg-stone-500 text-white font-mono text-xl py-3 rounded shadow-md border border-stone-900"
+                    >
+                        0
+                    </button>
+                    <button 
+                        onMouseDown={(e) => { e.stopPropagation(); handlePinInput('ENT'); }}
+                        className="bg-green-900/80 hover:bg-green-800 active:bg-green-700 text-green-100 font-bold font-mono text-sm py-3 rounded shadow-md border border-stone-900"
+                    >
+                        ENT
+                    </button>
+                </div>
             </div>
         )}
     </div>
