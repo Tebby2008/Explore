@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>67 - Six Sevenfy</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
+        :root {
+            --bg: #080a0c;
+            --glass: rgba(20, 30, 40, 0.7);
+            --border: rgba(100, 200, 255, 0.15);
+            --cyan: #00f3ff;
+            --text: #e0f0ff;
+            --text-dim: #5a7b9c;
+        }
+
+        body {
+            margin: 0;
+            height: 100vh;
+            background: radial-gradient(circle at 50% 10%, #1a202c, var(--bg));
+            font-family: 'Rajdhani', sans-serif;
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* --- CONTAINER --- */
+        .hud {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 25px;
+            width: 100%;
+            max-width: 750px;
+            position: relative;
+        }
+
+        /* --- HEADER --- */
+        .header {
+            text-align: center;
+            margin-bottom: 5px;
+            z-index: 20;
+        }
+        .title {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin: 0;
+            letter-spacing: 6px;
+            background: linear-gradient(to bottom, #fff, #a0c0ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(0, 243, 255, 0.3);
+        }
+        .subtitle {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--cyan);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-top: 5px;
+            opacity: 0.8;
+        }
+
+        /* --- 1. CLOCK --- */
+        .clock-panel {
+            display: flex;
+            gap: 20px;
+            padding: 40px 60px;
+            background: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: 0 0 40px rgba(0, 243, 255, 0.05);
+            backdrop-filter: blur(12px);
+            position: relative;
+            z-index: 10;
+        }
+
+        .clock-panel::before, .clock-panel::after {
+            content: ''; position: absolute; width: 12px; height: 12px;
+            border: 2px solid var(--cyan); transition: 0.3s;
+        }
+        .clock-panel::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+        .clock-panel::after { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
+
+        .digit-group { display: flex; gap: 10px; }
+
+        .digit-box {
+            width: 80px; height: 120px;
+            overflow: hidden;
+            position: relative;
+            background: rgba(0,0,0,0.3);
+            border-radius: 6px;
+        }
+
+        .digit-track {
+            display: flex;
+            flex-direction: column;
+            position: absolute;
+            top: 0; left: 0; width: 100%;
+            transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .num {
+            height: 120px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 5.5rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .colon {
+            font-size: 4rem;
+            color: var(--text-dim);
+            align-self: center;
+            margin-top: -15px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 50% { opacity: 0.4; } }
+
+
+        /* --- 2. EQUATION DISPLAY --- */
+        .formula-box {
+            width: 100%;
+            min-height: 140px;
+            background: rgba(10, 12, 16, 0.6);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            z-index: 5;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .equation {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            column-gap: 6px;
+            row-gap: 15px; /* Space between wrapped lines */
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.7rem; /* Slightly larger */
+            width: 100%;
+        }
+
+        /* The Nodes */
+        .node {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+            position: relative;
+            white-space: nowrap;
+        }
+        
+        .node[data-type="binary"], .node[data-type="unary"] { cursor: help; }
+        .node[data-type="binary"]:hover, .node[data-type="unary"]:hover {
+            background: rgba(0, 243, 255, 0.1);
+            border-color: rgba(0, 243, 255, 0.3);
+            z-index: 20;
+        }
+
+        /* --- MATH TYPOGRAPHY --- */
+        .op { color: var(--text-dim); margin: 0 4px; font-size: 0.9em; }
+        .val { color: var(--cyan); font-weight: bold; }
+        .bracket { color: var(--text-dim); font-weight: bold; font-size: 1.1em; }
+
+        /* IMPROVED EXPONENTS */
+        sup {
+            font-size: 0.6em;
+            vertical-align: top;
+            position: relative;
+            top: -0.5em;
+            color: var(--text);
+            margin-left: 1px;
+            /* Allow nested superscripts to shrink */
+        }
+        sup sup {
+            font-size: 0.8em; /* Relative to parent sup */
+            top: -0.3em;
+        }
+
+        /* IMPROVED SQUARE ROOT */
+        .sqrt-group { 
+            display: inline-flex; 
+            align-items: stretch; /* Stretch to height of content */
+        }
+        
+        .sqrt-sym { 
+            font-size: 1.2em; 
+            color: var(--text-dim); 
+            line-height: 1;
+            transform: scaleY(1.1); /* Stretch symbol slightly */
+            margin-right: -2px; /* Pull closer to bar */
+        }
+        
+        .sqrt-content {
+            border-top: 2px solid var(--text-dim);
+            padding-top: 2px;
+            padding-left: 2px;
+            margin-top: 0.3em; /* Align with top of radical */
+            display: inline-block;
+        }
+        
+        .no-sol { color: #ff4444; letter-spacing: 2px; text-transform: uppercase; font-size: 1rem;}
+
+
+        /* --- 3. TOOLTIP --- */
+        #tooltip {
+            position: fixed;
+            top: 0; left: 0;
+            background: rgba(10, 10, 15, 0.95);
+            border: 1px solid var(--cyan);
+            border-radius: 4px;
+            padding: 8px 12px;
+            pointer-events: none;
+            opacity: 0;
+            transform: translate(-50%, -100%) translateY(-15px);
+            transition: opacity 0.2s, transform 0.2s;
+            z-index: 1000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+            min-width: 160px;
+            text-align: center;
+            backdrop-filter: blur(4px);
+        }
+        #tooltip.visible {
+            opacity: 1;
+            transform: translate(-50%, -100%) translateY(-25px);
+        }
+        #tooltip::after {
+            content: ''; position: absolute; top: 100%; left: 50%;
+            margin-left: -6px; border-width: 6px; border-style: solid;
+            border-color: var(--cyan) transparent transparent transparent;
+        }
+        .tt-header { font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; color: #fff; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 4px; display: block; }
+        .tt-body { font-size: 0.75rem; color: var(--cyan); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; display: block; }
+        .tt-desc { display: block; margin-top: 2px; font-size: 0.7rem; color: #aaa; line-height: 1.2; }
+
+
+        /* --- 4. CONTROLS --- */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            z-index: 50;
+        }
+
+        .btn {
+            background: transparent;
+            color: var(--text-dim);
+            border: 1px solid var(--text-dim);
+            padding: 10px 28px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: 0.3s;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+        }
+        .btn:hover, .btn.active {
+            color: var(--cyan);
+            border-color: var(--cyan);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+            background: rgba(0, 243, 255, 0.05);
+        }
+
+        .input-row {
+            display: flex;
+            gap: 12px;
+            height: 0; opacity: 0;
+            overflow: hidden;
+            transition: all 0.4s ease;
+            margin-top: 0;
+            padding: 4px;
+        }
+        .input-row.visible { 
+            height: 60px; 
+            opacity: 1; 
+            margin-top: 20px;
+            overflow: visible;
+        }
+
+        .digit-input {
+            width: 40px; height: 50px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: #fff;
+            font-family: 'JetBrains Mono';
+            font-size: 1.5rem;
+            text-align: center;
+            outline: none;
+            transition: 0.2s;
+        }
+        .digit-input:focus { border-color: var(--cyan); background: rgba(0,243,255,0.1); box-shadow: 0 0 10px rgba(0,243,255,0.2); }
+        .digit-input::placeholder { color: #333; }
+
+    </style>
+</head>
+<body>
+
+    <div class="hud">
+        
+        <!-- HEADER -->
+        <div class="header">
+            <h1 class="title">SIX-SEVENFY</h1>
+            <div class="subtitle">by Tebby</div>
+        </div>
+
+        <!-- CLOCK -->
+        <div class="clock-panel">
+            <div class="digit-group">
+                <div class="digit-box"><div class="digit-track" id="h0-t"><div class="num">0</div></div></div>
+                <div class="digit-box"><div class="digit-track" id="h1-t"><div class="num">0</div></div></div>
+            </div>
+            <div class="colon">:</div>
+            <div class="digit-group">
+                <div class="digit-box"><div class="digit-track" id="m0-t"><div class="num">0</div></div></div>
+                <div class="digit-box"><div class="digit-track" id="m1-t"><div class="num">0</div></div></div>
+            </div>
+        </div>
+
+        <!-- FORMULA -->
+        <div class="formula-box">
+            <div class="equation" id="eq-display">Scanning...</div>
+        </div>
+
+        <!-- CONTROLS -->
+        <div class="controls">
+            <button class="btn" id="mode-btn" onclick="toggleMode()">Custom Time</button>
+            <div class="input-row" id="inputs">
+                <input class="digit-input" type="text" inputmode="numeric" maxlength="1" placeholder="0">
+                <input class="digit-input" type="text" inputmode="numeric" maxlength="1" placeholder="0">
+                <span style="align-self:center; font-size:1.5rem; color:#444">:</span>
+                <input class="digit-input" type="text" inputmode="numeric" maxlength="1" placeholder="0">
+                <input class="digit-input" type="text" inputmode="numeric" maxlength="1" placeholder="0">
+            </div>
+        </div>
+    </div>
+
+    <!-- TOOLTIP ELEMENT -->
+    <div id="tooltip">
+        <span class="tt-header"></span>
+        <span class="tt-body"></span>
+        <span class="tt-desc"></span>
+    </div>
+
+    <script>
+        // --- 1. MATH ENGINE ---
+        const TARGET = 67;
+        const factMap = {0:1,1:1,2:2,3:6,4:24,5:120,6:720}; 
+
+        const explanations = {
+            '+': { name: "Addition", text: "Combines values together" },
+            '-': { name: "Subtraction", text: "Calculates the difference" },
+            '*': { name: "Multiplication", text: "Scales number repeatedly" },
+            '/': { name: "Division", text: "Splits into equal parts" },
+            '^': { name: "Exponent", text: "Multiplies number by itself" },
+            '!': { name: "Factorial", text: "Product of descending integers" },
+            '√': { name: "Square Root", text: "Value that squares to this" },
+            'log': { name: "Log (Base 10)", text: "Orders of magnitude" },
+            'floor': { name: "Floor", text: "Rounds down to integer" },
+            'ceil': { name: "Ceiling", text: "Rounds up to integer" }
+        };
+
+        function solve(digits) {
+            const perms = getPermutations(digits);
+            for(let p of perms) {
+                const parts = getPartitions(p);
+                for(let part of parts) {
+                    const res = solveDeep(part, 0);
+                    if(res) return res;
+                }
+            }
+            return null;
+        }
+
+        function solveDeep(nodes, depth) {
+            if(depth > 4) return null;
+            if(nodes.length === 1) {
+                if(Math.abs(nodes[0].val - TARGET) < 1e-5) return nodes[0];
+                return null;
+            }
+
+            for(let i=0; i<nodes.length; i++) {
+                for(let j=0; j<nodes.length; j++) {
+                    if(i===j) continue;
+                    const a = nodes[i];
+                    const b = nodes[j];
+                    const rest = nodes.filter((_,x) => x!==i && x!==j);
+
+                    // Standard Ops
+                    const ops = [
+                        { v:a.val+b.val, s:'+' }, { v:a.val-b.val, s:'-' }, { v:a.val*b.val, s:'*' }
+                    ];
+                    if(Math.abs(b.val)>1e-4) ops.push({ v:a.val/b.val, s:'/' });
+                    if(Math.abs(a.val)<12 && Math.abs(b.val)<6) ops.push({ v:Math.pow(a.val,b.val), s:'^' });
+
+                    for(let op of ops) {
+                        const bin = { val:op.v, type:'binary', op:op.s, left:a, right:b };
+                        if(rest.length===0 && Math.abs(op.v-TARGET)<1e-5) return bin;
+                        
+                        let res = solveDeep([bin, ...rest], depth+1);
+                        if(res) return res;
+
+                        // Unary Logic
+                        if(Number.isInteger(op.v) && op.v >= 3 && op.v <= 5) {
+                            let f = { val:factMap[op.v], type:'unary', op:'!', side:'right', child:bin };
+                            if(rest.length===0 && Math.abs(f.val-TARGET)<1e-5) return f;
+                            let subRes = solveDeep([f, ...rest], depth+1);
+                            if(subRes) return subRes;
+                        }
+                        if(op.v > 0) {
+                            let root = Math.sqrt(op.v);
+                            if(Number.isInteger(root)) {
+                                let s = { val:root, type:'unary', op:'√', side:'left', child:bin };
+                                if(rest.length===0 && Math.abs(s.val-TARGET)<1e-5) return s;
+                                let subRes = solveDeep([s, ...rest], depth+1);
+                                if(subRes) return subRes;
+                            }
+                        }
+                        if(op.v >= 10) {
+                            let l = Math.log10(op.v);
+                            if(Number.isInteger(l)) {
+                                let ln = { val:l, type:'unary', op:'log', side:'left', child:bin };
+                                let subRes = solveDeep([ln, ...rest], depth+1);
+                                if(subRes) return subRes;
+                            }
+                        }
+                        if(!Number.isInteger(op.v)) {
+                            let fl = Math.floor(op.v);
+                            let fln = { val:fl, type:'unary', op:'floor', side:'wrap', child:bin };
+                            if(rest.length===0 && Math.abs(fl-TARGET)<1e-5) return fln;
+                            let subResFl = solveDeep([fln, ...rest], depth+1);
+                            if(subResFl) return subResFl;
+
+                            let ce = Math.ceil(op.v);
+                            let cen = { val:ce, type:'unary', op:'ceil', side:'wrap', child:bin };
+                            if(rest.length===0 && Math.abs(ce-TARGET)<1e-5) return cen;
+                            let subResCe = solveDeep([cen, ...rest], depth+1);
+                            if(subResCe) return subResCe;
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        function getPermutations(arr) {
+            if(arr.length<=1) return [arr];
+            let r=[];
+            for(let i=0; i<arr.length; i++){
+                let rem = arr.slice(0,i).concat(arr.slice(i+1));
+                for(let p of getPermutations(rem)) r.push([arr[i]].concat(p));
+            }
+            return r;
+        }
+        function getPartitions(arr) {
+            let n = arr.map(String);
+            const mk = (v) => ({ val:parseInt(v), type:'leaf' });
+            let l=[];
+            l.push([mk(n[0]), mk(n[1]), mk(n[2]), mk(n[3])]);
+            l.push([mk(n[0]+n[1]), mk(n[2]), mk(n[3])]);
+            l.push([mk(n[0]), mk(n[1]+n[2]), mk(n[3])]);
+            l.push([mk(n[0]), mk(n[1]), mk(n[2]+n[3])]);
+            l.push([mk(n[0]+n[1]), mk(n[2]+n[3])]);
+            return l;
+        }
+
+        // --- 2. RENDERER ---
+        
+        function getExprStr(node) {
+            if(node.type === 'leaf') return node.val.toString();
+            if(node.type === 'binary') return `(${getExprStr(node.left)} ${node.op} ${getExprStr(node.right)})`;
+            if(node.type === 'unary') {
+                const c = getExprStr(node.child);
+                if(node.side === 'right') return `${c}!`;
+                if(node.side === 'left') return `${node.op}(${c})`;
+                if(node.op === 'floor') return `floor(${c})`;
+                if(node.op === 'ceil') return `ceil(${c})`;
+                if(node.op === '√') return `√(${c})`;
+            }
+            return "";
+        }
+
+        function getOpInfo(node) {
+            return explanations[node.op] || {name:"Operator", text:""};
+        }
+
+        let nodeRegistry = {};
+        let uid = 0;
+
+        function renderHTML(node) {
+            if(!node) return '';
+            const id = `n-${uid++}`;
+            nodeRegistry[id] = node;
+
+            let inner = '';
+            
+            if(node.type === 'leaf') {
+                inner = `<span class="val">${node.val}</span>`;
+            } else if(node.type === 'binary') {
+                let left = renderHTML(node.left);
+                let right = renderHTML(node.right);
+                
+                if(node.op === '^') {
+                    // Fix: If base is complex, wrap in parens
+                    if(node.left.type === 'binary') {
+                        left = `(${left})`;
+                    }
+                    inner = `${left}<sup>${right}</sup>`;
+                } else if (node.op === '*') {
+                    inner = `(${left} <span class="op">&times;</span> ${right})`;
+                } else if (node.op === '/') {
+                    inner = `(${left} <span class="op">&divide;</span> ${right})`;
+                } else {
+                    inner = `(${left} <span class="op">${node.op}</span> ${right})`;
+                }
+            } else if(node.type === 'unary') {
+                const c = renderHTML(node.child);
+                if(node.op === 'floor') {
+                    inner = `<span class="bracket">&lfloor;</span>${c}<span class="bracket">&rfloor;</span>`;
+                } else if(node.op === 'ceil') {
+                    inner = `<span class="bracket">&lceil;</span>${c}<span class="bracket">&rceil;</span>`;
+                } else if(node.side === 'right') { // factorial
+                    inner = `${c}<span class="op">!</span>`;
+                } else if(node.op === 'log') {
+                    inner = `<span class="op">log</span>(${c})`;
+                } else if(node.op === '√') {
+                    // Improved Connected Sqrt
+                    inner = `<span class="sqrt-group"><span class="sqrt-sym">√</span><span class="sqrt-content">${c}</span></span>`;
+                } else {
+                    inner = `<span class="op">${node.op}</span>${c}`;
+                }
+            }
+            // Add data-type attribute for CSS filtering
+            return `<div class="node" id="${id}" data-type="${node.type}">${inner}</div>`;
+        }
+
+
+        // --- 3. UI LOGIC ---
+
+        const display = document.getElementById('eq-display');
+        const tooltip = document.getElementById('tooltip');
+        const ttHead = tooltip.querySelector('.tt-header');
+        const ttBody = tooltip.querySelector('.tt-body');
+        const ttDesc = tooltip.querySelector('.tt-desc');
+
+        display.addEventListener('mouseover', (e) => {
+            const target = e.target.closest('.node');
+            if(!target) return;
+            e.stopPropagation();
+
+            const data = nodeRegistry[target.id];
+            
+            // STRICT RULE: If it's a leaf (digit), do NOT show tooltip
+            if(!data || data.type === 'leaf') return;
+
+            const eq = getExprStr(data);
+            let val = Number.isInteger(data.val) ? data.val : data.val.toFixed(2);
+            ttHead.innerText = `${eq} = ${val}`;
+
+            const info = getOpInfo(data);
+            ttBody.innerText = info.name;
+            ttDesc.innerText = info.text;
+
+            const rect = target.getBoundingClientRect();
+            tooltip.style.left = (rect.left + rect.width/2) + 'px';
+            tooltip.style.top = (rect.top) + 'px'; 
+            tooltip.classList.add('visible');
+        });
+
+        display.addEventListener('mouseout', () => {
+            tooltip.classList.remove('visible');
+        });
+
+        // Clock State
+        const clockState = { h:0, m:0, h0:null, h1:null, m0:null, m1:null, lastMath:null };
+
+        function updateClock(h, m) {
+            clockState.h = h; clockState.m = m;
+            const hStr = h.toString().padStart(2,'0');
+            const mStr = m.toString().padStart(2,'0');
+            
+            slide('h0-t', hStr[0]);
+            slide('h1-t', hStr[1]);
+            slide('m0-t', mStr[0]);
+            slide('m1-t', mStr[1]);
+
+            const key = `${h}:${m}`;
+            if(clockState.lastMath !== key) {
+                clockState.lastMath = key;
+                const d = [parseInt(hStr[0]), parseInt(hStr[1]), parseInt(mStr[0]), parseInt(mStr[1])];
+                runMath(d);
+            }
+        }
+
+        function slide(id, val) {
+            const track = document.getElementById(id);
+            const current = track.lastElementChild ? track.lastElementChild.innerText : null;
+            if(current === val) return;
+            const div = document.createElement('div');
+            div.className = 'num';
+            div.innerText = val;
+            track.appendChild(div);
+            const count = track.children.length;
+            if(count > 1) {
+                track.style.transform = `translateY(-${(count-1)*120}px)`;
+            }
+        }
+
+        function runMath(digits) {
+            const el = document.getElementById('eq-display');
+            el.style.opacity = 0.5;
+            setTimeout(() => {
+                nodeRegistry = {}; uid = 0;
+                const res = solve(digits);
+                el.style.opacity = 1;
+                if(res) {
+                    el.innerHTML = `${renderHTML(res)} <span class="op">=</span> <span class="val">67</span>`;
+                } else {
+                    el.innerHTML = `<span class="no-sol">No Solution</span>`;
+                }
+            }, 50);
+        }
+
+        // --- 4. CUSTOM TIME LOGIC ---
+        let manual = false;
+        const inputs = document.querySelectorAll('.digit-input');
+
+        function toggleMode() {
+            manual = !manual;
+            const btn = document.getElementById('mode-btn');
+            const row = document.getElementById('inputs');
+            
+            if(manual) {
+                btn.classList.add('active');
+                row.classList.add('visible');
+                
+                // Pre-fill
+                const hStr = clockState.h.toString().padStart(2,'0');
+                const mStr = clockState.m.toString().padStart(2,'0');
+                inputs[0].value = hStr[0];
+                inputs[1].value = hStr[1];
+                inputs[2].value = mStr[0];
+                inputs[3].value = mStr[1];
+                
+                inputs[0].focus();
+            } else {
+                btn.classList.remove('active');
+                row.classList.remove('visible');
+                clockState.lastMath = null;
+                tick();
+            }
+        }
+
+        inputs.forEach((inp, i) => {
+            // STRICT TIME VALIDATION
+            inp.addEventListener('beforeinput', (e) => {
+                if(!e.data || isNaN(e.data)) return;
+                const val = parseInt(e.data);
+                
+                if(i === 0 && val > 2) { e.preventDefault(); return; }
+                if(i === 1) {
+                    const h1 = parseInt(inputs[0].value || '0');
+                    if(h1 === 2 && val > 3) { e.preventDefault(); return; }
+                }
+                if(i === 2 && val > 5) { e.preventDefault(); return; }
+            });
+
+            inp.addEventListener('input', () => {
+                if(inp.value.length >= 1) {
+                    inp.value = inp.value.slice(-1);
+                    if(i < 3) inputs[i+1].focus();
+                }
+                updateMan();
+            });
+            
+            inp.addEventListener('keydown', (e) => {
+                if(e.key === 'Backspace') {
+                    if(inp.value==='') { if(i>0) inputs[i-1].focus(); }
+                    else inp.value = '';
+                    updateMan();
+                } else if(e.key==='ArrowRight' && i<3) inputs[i+1].focus();
+                else if(e.key==='ArrowLeft' && i>0) inputs[i-1].focus();
+            });
+            inp.addEventListener('focus', () => inp.select());
+        });
+
+        function updateMan() {
+            const v = Array.from(inputs).map(x => x.value || '0');
+            updateClock(parseInt(v[0]+v[1]), parseInt(v[2]+v[3]));
+        }
+
+        function tick() {
+            if(manual) return;
+            const now = new Date();
+            updateClock(now.getHours(), now.getMinutes());
+            requestAnimationFrame(() => setTimeout(tick, 1000));
+        }
+
+        tick();
+
+    </script>
+</body>
+</html>
