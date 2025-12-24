@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>67 - Six Sevenfy</title>
+    <title>67 - Six Sevenfy (Calculus+)</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=JetBrains+Mono:wght@400;700&display=swap');
 
@@ -37,7 +37,7 @@
             align-items: center;
             gap: 25px;
             width: 100%;
-            max-width: 750px;
+            max-width: 800px;
             position: relative;
         }
 
@@ -129,7 +129,7 @@
         /* --- 2. EQUATION DISPLAY --- */
         .formula-box {
             width: 100%;
-            min-height: 140px;
+            min-height: 150px;
             background: rgba(10, 12, 16, 0.6);
             border-top: 1px solid var(--border);
             border-bottom: 1px solid var(--border);
@@ -148,9 +148,9 @@
             align-items: center;
             justify-content: center;
             column-gap: 6px;
-            row-gap: 15px; /* Space between wrapped lines */
+            row-gap: 15px;
             font-family: 'JetBrains Mono', monospace;
-            font-size: 1.7rem; /* Slightly larger */
+            font-size: 1.7rem;
             width: 100%;
         }
 
@@ -164,6 +164,7 @@
             border: 1px solid transparent;
             position: relative;
             white-space: nowrap;
+            vertical-align: middle;
         }
         
         .node[data-type="binary"], .node[data-type="unary"] { cursor: help; }
@@ -178,7 +179,6 @@
         .val { color: var(--cyan); font-weight: bold; }
         .bracket { color: var(--text-dim); font-weight: bold; font-size: 1.1em; }
 
-        /* IMPROVED EXPONENTS */
         sup {
             font-size: 0.6em;
             vertical-align: top;
@@ -186,34 +186,84 @@
             top: -0.5em;
             color: var(--text);
             margin-left: 1px;
-            /* Allow nested superscripts to shrink */
-        }
-        sup sup {
-            font-size: 0.8em; /* Relative to parent sup */
-            top: -0.3em;
         }
 
-        /* IMPROVED SQUARE ROOT */
+        /* IMPROVED ROOT STYLING */
         .sqrt-group { 
             display: inline-flex; 
-            align-items: stretch; /* Stretch to height of content */
+            align-items: stretch;
+            position: relative;
         }
         
+        .sqrt-degree {
+            font-size: 0.6em;
+            position: absolute;
+            left: -0.6em;
+            top: 0.1em;
+            color: var(--text-dim);
+            text-align: right;
+        }
+
         .sqrt-sym { 
             font-size: 1.2em; 
             color: var(--text-dim); 
             line-height: 1;
-            transform: scaleY(1.1); /* Stretch symbol slightly */
-            margin-right: -2px; /* Pull closer to bar */
+            margin-right: -2px;
+            /* Anchors the symbol to the bottom */
+            align-self: flex-end;
+            transform-origin: bottom right;
+            transform: scaleY(2.25) translateY(-3px);
+            margin-left: 2px;
+            margin-bottom: -12px; /* Tweaked for alignment */
         }
         
+        /* For N-th root, give a bit more space on left */
+        .sqrt-group.nth { margin-left: 0.5em; }
+
         .sqrt-content {
             border-top: 2px solid var(--text-dim);
-            padding-top: 2px;
-            padding-left: 2px;
-            margin-top: 0.3em; /* Align with top of radical */
+            padding-top: 1px;
+            padding-left: 3px;
+            margin-top: 0; /* REMOVED MARGIN to align text */
             display: inline-block;
         }
+
+        /* INTEGRAL TYPOGRAPHY FIXES */
+        .int-group {
+            display: inline-flex;
+            align-items: center;
+            vertical-align: middle;
+            position: relative;
+            margin: 0 4px;
+        }
+        .int-sym {
+            font-size: 2.5em;
+            font-family: 'Times New Roman', serif;
+            font-style: italic;
+            color: var(--text-dim);
+            line-height: 1;
+            margin-right: 0px;
+            font-weight: normal;
+        }
+        .int-limits {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: flex-start; 
+            height: 3.2em; 
+            margin-left: -4px; 
+            margin-right: 8px; 
+            font-size: 0.65em;
+            color: var(--text-dim);
+            text-align: left;
+        }
+        
+        .int-limit-up { margin-top: -18px; }
+        .int-limit-down { margin-bottom: -15px; }
+        
+        .int-body { color: var(--text); }
+        .dx { color: var(--text-dim); font-size: 0.85em; font-style: italic; margin-left: 4px; }
+
         
         .no-sol { color: #ff4444; letter-spacing: 2px; text-transform: uppercase; font-size: 1rem;}
 
@@ -319,7 +369,7 @@
         <!-- HEADER -->
         <div class="header">
             <h1 class="title">SIX-SEVENFY</h1>
-            <div class="subtitle">by Tebby</div>
+            <div class="subtitle">by Tebby (Calc+)</div>
         </div>
 
         <!-- CLOCK -->
@@ -373,24 +423,39 @@
             '^': { name: "Exponent", text: "Multiplies number by itself" },
             '!': { name: "Factorial", text: "Product of descending integers" },
             '√': { name: "Square Root", text: "Value that squares to this" },
+            'root_n': { name: "N-th Root", text: "Value that multiplied by itself N times equals base" },
             'log': { name: "Log (Base 10)", text: "Orders of magnitude" },
             'floor': { name: "Floor", text: "Rounds down to integer" },
-            'ceil': { name: "Ceiling", text: "Rounds up to integer" }
+            'ceil': { name: "Ceiling", text: "Rounds up to integer" },
+            'int_x': { name: "Definite Integral (x)", text: "Area under y=x from a to b\n(b² - a²) / 2" },
+            'int_x2': { name: "Definite Integral (x²)", text: "Area under y=x² from a to b\n(b³ - a³) / 3" }
         };
 
         function solve(digits) {
             const perms = getPermutations(digits);
+            
+            // Phase 1: Standard Math + Simple Roots (Fast)
             for(let p of perms) {
                 const parts = getPartitions(p);
                 for(let part of parts) {
-                    const res = solveDeep(part, 0);
+                    const res = solveDeep(part, 0, false);
                     if(res) return res;
                 }
             }
+
+            // Phase 2: Calculus + Complex Operations
+            for(let p of perms) {
+                const parts = getPartitions(p);
+                for(let part of parts) {
+                    const res = solveDeep(part, 0, true);
+                    if(res) return res;
+                }
+            }
+
             return null;
         }
 
-        function solveDeep(nodes, depth) {
+        function solveDeep(nodes, depth, useCalculus) {
             if(depth > 4) return null;
             if(nodes.length === 1) {
                 if(Math.abs(nodes[0].val - TARGET) < 1e-5) return nodes[0];
@@ -411,18 +476,43 @@
                     if(Math.abs(b.val)>1e-4) ops.push({ v:a.val/b.val, s:'/' });
                     if(Math.abs(a.val)<12 && Math.abs(b.val)<6) ops.push({ v:Math.pow(a.val,b.val), s:'^' });
 
+                    // Root N Logic (A = base, B = degree)
+                    // We only want integer-ish results for clean display
+                    if(b.val >= 2 && b.val <= 10 && a.val > 0) {
+                        const r = Math.pow(a.val, 1/b.val);
+                        // Allow small floating point drift
+                        if(Math.abs(Math.round(r) - r) < 1e-5) {
+                            ops.push({ v:Math.round(r), s:'root_n' }); 
+                        }
+                    }
+
+                    // CALCULUS OPS (Integral from a to b)
+                    if(useCalculus) {
+                        // Integral of x: (b^2 - a^2) / 2
+                        if(Math.abs(a.val) < 25 && Math.abs(b.val) < 25) {
+                            let valIntX = (Math.pow(b.val,2) - Math.pow(a.val,2)) / 2;
+                            ops.push({ v:valIntX, s:'int_x' });
+                        }
+                        
+                        // Integral of x^2: (b^3 - a^3) / 3
+                        if(Math.abs(a.val) < 12 && Math.abs(b.val) < 12) {
+                            let valIntX2 = (Math.pow(b.val,3) - Math.pow(a.val,3)) / 3;
+                            ops.push({ v:valIntX2, s:'int_x2' });
+                        }
+                    }
+
                     for(let op of ops) {
                         const bin = { val:op.v, type:'binary', op:op.s, left:a, right:b };
                         if(rest.length===0 && Math.abs(op.v-TARGET)<1e-5) return bin;
                         
-                        let res = solveDeep([bin, ...rest], depth+1);
+                        let res = solveDeep([bin, ...rest], depth+1, useCalculus);
                         if(res) return res;
 
                         // Unary Logic
-                        if(Number.isInteger(op.v) && op.v >= 3 && op.v <= 5) {
+                        if(Number.isInteger(op.v) && op.v >= 3 && op.v <= 6) {
                             let f = { val:factMap[op.v], type:'unary', op:'!', side:'right', child:bin };
                             if(rest.length===0 && Math.abs(f.val-TARGET)<1e-5) return f;
-                            let subRes = solveDeep([f, ...rest], depth+1);
+                            let subRes = solveDeep([f, ...rest], depth+1, useCalculus);
                             if(subRes) return subRes;
                         }
                         if(op.v > 0) {
@@ -430,29 +520,29 @@
                             if(Number.isInteger(root)) {
                                 let s = { val:root, type:'unary', op:'√', side:'left', child:bin };
                                 if(rest.length===0 && Math.abs(s.val-TARGET)<1e-5) return s;
-                                let subRes = solveDeep([s, ...rest], depth+1);
+                                let subRes = solveDeep([s, ...rest], depth+1, useCalculus);
                                 if(subRes) return subRes;
                             }
                         }
-                        if(op.v >= 10) {
+                        if(op.v >= 10 && op.v <= 100000) {
                             let l = Math.log10(op.v);
                             if(Number.isInteger(l)) {
                                 let ln = { val:l, type:'unary', op:'log', side:'left', child:bin };
-                                let subRes = solveDeep([ln, ...rest], depth+1);
+                                let subRes = solveDeep([ln, ...rest], depth+1, useCalculus);
                                 if(subRes) return subRes;
                             }
                         }
-                        if(!Number.isInteger(op.v)) {
+                        if(!Number.isInteger(op.v) && Math.abs(op.v) < 1000) {
                             let fl = Math.floor(op.v);
                             let fln = { val:fl, type:'unary', op:'floor', side:'wrap', child:bin };
                             if(rest.length===0 && Math.abs(fl-TARGET)<1e-5) return fln;
-                            let subResFl = solveDeep([fln, ...rest], depth+1);
+                            let subResFl = solveDeep([fln, ...rest], depth+1, useCalculus);
                             if(subResFl) return subResFl;
 
                             let ce = Math.ceil(op.v);
                             let cen = { val:ce, type:'unary', op:'ceil', side:'wrap', child:bin };
                             if(rest.length===0 && Math.abs(ce-TARGET)<1e-5) return cen;
-                            let subResCe = solveDeep([cen, ...rest], depth+1);
+                            let subResCe = solveDeep([cen, ...rest], depth+1, useCalculus);
                             if(subResCe) return subResCe;
                         }
                     }
@@ -474,6 +564,7 @@
             let n = arr.map(String);
             const mk = (v) => ({ val:parseInt(v), type:'leaf' });
             let l=[];
+            // Standard partitions
             l.push([mk(n[0]), mk(n[1]), mk(n[2]), mk(n[3])]);
             l.push([mk(n[0]+n[1]), mk(n[2]), mk(n[3])]);
             l.push([mk(n[0]), mk(n[1]+n[2]), mk(n[3])]);
@@ -486,7 +577,12 @@
         
         function getExprStr(node) {
             if(node.type === 'leaf') return node.val.toString();
-            if(node.type === 'binary') return `(${getExprStr(node.left)} ${node.op} ${getExprStr(node.right)})`;
+            if(node.type === 'binary') {
+                if(node.op === 'int_x') return `∫(${getExprStr(node.left)} to ${getExprStr(node.right)}) x dx`;
+                if(node.op === 'int_x2') return `∫(${getExprStr(node.left)} to ${getExprStr(node.right)}) x² dx`;
+                if(node.op === 'root_n') return `root(${getExprStr(node.left)}, ${getExprStr(node.right)})`;
+                return `(${getExprStr(node.left)} ${node.op} ${getExprStr(node.right)})`;
+            }
             if(node.type === 'unary') {
                 const c = getExprStr(node.child);
                 if(node.side === 'right') return `${c}!`;
@@ -519,15 +615,40 @@
                 let right = renderHTML(node.right);
                 
                 if(node.op === '^') {
-                    // Fix: If base is complex, wrap in parens
-                    if(node.left.type === 'binary') {
-                        left = `(${left})`;
-                    }
+                    if(node.left.type === 'binary') left = `(${left})`;
                     inner = `${left}<sup>${right}</sup>`;
                 } else if (node.op === '*') {
                     inner = `(${left} <span class="op">&times;</span> ${right})`;
                 } else if (node.op === '/') {
                     inner = `(${left} <span class="op">&divide;</span> ${right})`;
+                } else if (node.op === 'root_n') {
+                    // N-th Root Renderer
+                    inner = `<span class="sqrt-group nth">
+                                <span class="sqrt-degree">${right}</span>
+                                <span class="sqrt-sym">√</span>
+                                <span class="sqrt-content">${left}</span>
+                             </span>`;
+                } else if (node.op === 'int_x' || node.op === 'int_x2') {
+                    // INTEGRAL RENDERER
+                    
+                    // Helper to wrap complex bounds in parens ONLY if they are also integrals
+                    // This avoids wrapping simple "1+1" arithmetic
+                    const isIntegral = (n) => n.op === 'int_x' || n.op === 'int_x2';
+                    
+                    if(isIntegral(node.left)) left = `<span class="bracket">(</span>${left}<span class="bracket">)</span>`;
+                    if(isIntegral(node.right)) right = `<span class="bracket">(</span>${right}<span class="bracket">)</span>`;
+
+                    const content = node.op === 'int_x' ? 'x' : 'x²';
+                    inner = `
+                    <div class="int-group">
+                        <span class="int-sym">∫</span>
+                        <div class="int-limits">
+                            <div class="int-limit-up">${right}</div>
+                            <div class="int-limit-down">${left}</div>
+                        </div>
+                        <span class="int-body">${content}</span>
+                        <span class="dx">dx</span>
+                    </div>`;
                 } else {
                     inner = `(${left} <span class="op">${node.op}</span> ${right})`;
                 }
@@ -542,13 +663,11 @@
                 } else if(node.op === 'log') {
                     inner = `<span class="op">log</span>(${c})`;
                 } else if(node.op === '√') {
-                    // Improved Connected Sqrt
                     inner = `<span class="sqrt-group"><span class="sqrt-sym">√</span><span class="sqrt-content">${c}</span></span>`;
                 } else {
                     inner = `<span class="op">${node.op}</span>${c}`;
                 }
             }
-            // Add data-type attribute for CSS filtering
             return `<div class="node" id="${id}" data-type="${node.type}">${inner}</div>`;
         }
 
