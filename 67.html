@@ -579,7 +579,7 @@
             if(node.type === 'leaf') return node.val.toString();
             if(node.type === 'binary') {
                 if(node.op === 'int_x') return `∫(${getExprStr(node.left)} to ${getExprStr(node.right)}) x dx`;
-                if(node.op === 'int_x2') return `∫(${getExprStr(node.left)} to ${getExprStr(node.right)}) x² dx`;
+                if(node.op === 'int_x2') return `∫(${getExprStr(node.left)} to ${getExprStr(node.right)}) x•x dx`;
                 if(node.op === 'root_n') return `root(${getExprStr(node.left)}, ${getExprStr(node.right)})`;
                 return `(${getExprStr(node.left)} ${node.op} ${getExprStr(node.right)})`;
             }
