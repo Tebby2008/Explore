@@ -428,7 +428,7 @@
             'floor': { name: "Floor", text: "Rounds down to integer" },
             'ceil': { name: "Ceiling", text: "Rounds up to integer" },
             'int_x': { name: "Definite Integral (x)", text: "Area under y=x from a to b\n(b² - a²) / 2" },
-            'int_x2': { name: "Definite Integral (x²)", text: "Area under y=x² from a to b\n(b³ - a³) / 3" }
+            'int_x2': { name: "Definite Integral (x•x)", text: "Area under y=x•x from a to b\n(b³ - a³) / 3" }
         };
 
         function solve(digits) {
@@ -638,7 +638,7 @@
                     if(isIntegral(node.left)) left = `<span class="bracket">(</span>${left}<span class="bracket">)</span>`;
                     if(isIntegral(node.right)) right = `<span class="bracket">(</span>${right}<span class="bracket">)</span>`;
 
-                    const content = node.op === 'int_x' ? 'x' : 'x²';
+                    const content = node.op === 'int_x' ? 'x' : 'x•x';
                     inner = `
                     <div class="int-group">
                         <span class="int-sym">∫</span>
