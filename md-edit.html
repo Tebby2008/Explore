@@ -383,6 +383,12 @@
                         opacity 0.3s ease;
         }
 
+        body.modal-open {
+            overflow: hidden !important;
+            /* Optional: prevent "layout shift" when scrollbar disappears */
+            padding-right: 8px; 
+        }
+
         .modal-overlay.active .modal {
             /* Active State (Open): Full size, centered */
             transform: scale(1) translateY(0);
@@ -1038,7 +1044,7 @@
                 <div class="dropdown-wrapper">
                     <button class="tool-btn btn-text">File</button>
                     <div class="dropdown-content">
-                        <button class="dropdown-item" onclick="createNewDoc()"><i class="ph ph-file-plus"></i> New File</button>
+                        <button class="dropdown-item" onclick="createNewDoc(true)"><i class="ph ph-file-plus"></i> New File</button>
                         <button class="dropdown-item" onclick="openFileManager()"><i class="ph ph-folder-open"></i> View Files</button>
                         <button class="dropdown-item" onclick="saveToLocal(true)"><i class="ph ph-floppy-disk"></i> Save Now</button>
                         <button class="dropdown-item" onclick="saveAsFile()"><i class="ph ph-download-simple"></i> Save As...</button>                                                
@@ -1334,6 +1340,15 @@
                     };
                 }
             }
+            const allDocs = JSON.parse(localStorage.getItem('docs') || '{}');
+            if (!allDocs[currentDocId]) {
+                // If it doesn't exist, we are in "New Session" mode.
+                // We set up the UI but we DO NOT call saveToLocal().
+                document.getElementById('docTitle').value = "";
+                editor.innerHTML = "<h1>Markdown Editor</h1><p>Start typing here...</p>";
+            } else {
+                loadCurrentDoc();
+            }
             
         }); 
 
@@ -1448,18 +1463,11 @@
                 });
             }
             document.getElementById('fileModal').classList.add('active');
+            toggleScrollLock(true); // LOCK
         }
 
         function loadDoc(id) { currentDocId = id; localStorage.setItem('current_id', id); loadCurrentDoc(); document.getElementById('fileModal').classList.remove('active'); }
-        function deleteDoc(id) { 
-            // --- UPDATED: Use Custom Dialog ---
-            showDialog("Delete File?", "Are you sure you want to delete this file? This cannot be undone.", "warning", () => {
-                let allDocs = JSON.parse(localStorage.getItem('docs') || '{}'); 
-                delete allDocs[id]; 
-                localStorage.setItem('docs', JSON.stringify(allDocs)); 
-                openFileManager(); 
-            });
-        }
+        
         // --- Keyboard Logic ---
         window.addEventListener('DOMContentLoaded', () => {
             if (typeof MathfieldElement !== 'undefined') {
@@ -1624,18 +1632,16 @@
 
         // 1. Drag Start
         function handleDragStart(e, item) {
-            // A. Block Drag (Existing logic)
             if (item) {
+                // We are dragging a block (Image/Graph/Table)
                 draggedItem = item;
                 e.dataTransfer.effectAllowed = 'move';
+                // Put the HTML of the block into the dataTransfer
                 e.dataTransfer.setData('text/html', item.outerHTML);
                 requestAnimationFrame(() => item.classList.add('is-dragging'));
-                internalDragRange = null; // Clear text drag ref
-            } 
-            // B. Text Selection Drag (New Logic)
-            else {
-                // If we aren't dragging a specific block, check if we are dragging selected text
-                setClipboardData(e, true); // Use our unified helper, isDrag=true
+            } else {
+                // We are dragging a text selection
+                setClipboardData(e, true); 
             }
         }
         editor.addEventListener('dragstart', (e) => {
@@ -2547,26 +2553,41 @@
         }
 
 
-        function createNewDoc() {
-            // 1. Save current work first
-            saveToLocal();
-            
-            // 2. Reset ID and UI
+        function createNewDoc(force = false) {
+            // 1. Generate a new ID but DO NOT save it to localStorage yet
             currentDocId = 'doc_' + Date.now();
             localStorage.setItem('current_id', currentDocId);
             
+            // 2. Clear UI
             document.getElementById('docTitle').value = "";
             document.getElementById('miniTitleInput').value = "";
-            editor.innerHTML = "<p>Start typing here...</p>"; // Reset content
+            document.getElementById('styleLabel').innerText = "Normal";
+            editor.innerHTML = "<h1>Markdown Editor</h1><p>Start typing here...</p>";
             
-            // 3. Save the new blank file immediately so it exists
-            saveToLocal();
+            // 3. UI Cleanup
+            const fileModal = document.getElementById('fileModal');
+            if(fileModal) fileModal.classList.remove('active');
+            toggleScrollLock(false); // Unlock background
             
-            // 4. Close modals if open
-            document.getElementById('fileModal').classList.remove('active');
-            
-            // 5. Focus title
             document.getElementById('docTitle').focus();
+            checkFormatState();
+            
+            if (force) { saveToLocal(true); } 
+            // The file will only be saved when the user actually types (via MutationObserver).
+        }
+
+        function deleteDoc(id) { 
+            showDialog("Delete File?", "Are you sure you want to delete this file?", "warning", () => {
+                let allDocs = JSON.parse(localStorage.getItem('docs') || '{}'); 
+                delete allDocs[id]; 
+                localStorage.setItem('docs', JSON.stringify(allDocs)); 
+
+                if (id === currentDocId) {
+                    // Wipe the screen but don't save a new entry yet
+                    createNewDoc();
+                }
+                openFileManager(); 
+            });
         }
 
         // --- NEW: Dark Mode Logic ---
@@ -3249,6 +3270,7 @@
         }
 
         function spawnModal(title, contentHTML, onConfirm) {
+            toggleScrollLock(true);
             // Remove existing if any (cleanup)
             const existing = document.getElementById('dynamicModal');
             if(existing) existing.remove();
@@ -3276,6 +3298,7 @@
 
             const close = () => {
                 overlay.classList.remove('active');
+                toggleScrollLock(false); // UNLOCK
                 setTimeout(() => overlay.remove(), 300);
             };
 
@@ -3484,6 +3507,10 @@
                 e.dataTransfer.effectAllowed = isDrag ? 'move' : 'copy';
             }
             return true;
+        }
+
+        function toggleScrollLock(isActive) {
+            document.body.classList.toggle('modal-open', isActive);
         }
         </script>
 </body>
