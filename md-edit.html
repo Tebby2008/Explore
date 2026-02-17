@@ -342,25 +342,52 @@
         .quote-wrapper:hover .btn-block-delete, .code-block-wrapper:hover .btn-block-delete, .visual-block-wrapper:hover .btn-block-delete, .block-container:hover .btn-block-delete, details.markscheme:hover .btn-block-delete { opacity: 1; transform: scale(1); pointer-events: auto; }
         .btn-block-delete:hover { transform: scale(1.1); background: #d70000; }
 
-        /* --- Modals (Merged) --- */
+        /* --- FIXED MODAL ANIMATIONS --- */
+
         .modal-overlay {
-            cursor: default;
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.2); backdrop-filter: blur(8px); z-index: 5000;
             display: flex; justify-content: center; align-items: center;
-            transition: 0.3s;
-            visibility: hidden; /* Hides it completely */
+            cursor: default;
+            
+            /* Default State (Closed) */
+            opacity: 0;
+            visibility: hidden;
             pointer-events: none;
+            
+            /* CLOSE ANIMATION: Fade out opacity (0.3s), but WAIT 0.3s before snapping visibility to hidden */
+            transition: opacity 0.3s ease, visibility 0s linear 0.3s; 
         }
-        .modal-overlay.active { pointer-events: auto; visibility: visible; }
-        
+
+        .modal-overlay.active {
+            /* Active State (Open) */
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            
+            /* OPEN ANIMATION: Fade in opacity, show visibility INSTANTLY */
+            transition: opacity 0.3s ease, visibility 0s;
+        }
+
         .modal {
             background: rgba(255, 255, 255, 0.95); padding: 30px;
             border-radius: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
             border: 1px solid rgba(255,255,255,0.8); display: flex; flex-direction: column; gap: 15px;
-            transform: scale(0.85); transition: 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+            
+            /* Default State (Closed): Slightly smaller and lower to create a "drop" effect */
+            transform: scale(0.95) translateY(10px);
+            opacity: 0;
+            
+            /* Smooth physics-based curve */
+            transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1),
+                        opacity 0.3s ease;
         }
-        .modal-overlay.active .modal { transform: scale(1) translateY(0); }
+
+        .modal-overlay.active .modal {
+            /* Active State (Open): Full size, centered */
+            transform: scale(1) translateY(0);
+            opacity: 1;
+        }
         .modal h3 { margin: 0; font-size: 1.2rem; text-align: center; color: #333; margin-bottom: 5px;}
 
         /* File List Styles (From 1.html) */
@@ -1223,6 +1250,32 @@
             }
             document.addEventListener('selectionchange', handleTableFocusChange); 
             document.getElementById('editor').addEventListener('keyup', checkFormatState);
+            // --- FIX: ROBUST AUTO-SAVE (MutationObserver) ---
+            // This watches for ANY change in the editor (typing, math, checkboxes, dragging)
+            const observerConfig = { 
+                childList: true,  // Watch for added/removed lines/blocks
+                subtree: true,    // Watch everything deep inside
+                characterData: true, // Watch text changes
+                attributes: true, // Watch for class changes (like checkboxes)
+                attributeFilter: ['class', 'value', 'checked'] // Optimization
+            };
+
+            const autoSaveObserver = new MutationObserver((mutations) => {
+                // Trigger the DEBOUNCED save (waits 1s)
+                saveToLocal(false);
+            });
+
+            // Start observing the editor
+            autoSaveObserver.observe(document.getElementById('editor'), observerConfig);
+
+            // --- FIX: MathLive Specific Listener ---
+            // MathLive fields fire 'input' events that might escape the observer
+            document.getElementById('editor').addEventListener('input', (e) => {
+                // If it's a math-field, force a save trigger
+                if (e.target.tagName.toLowerCase() === 'math-field') {
+                    saveToLocal(false);
+                }
+            });
 
             editor.addEventListener('click', (e) => {
                 if (e.target === editor) {
@@ -2987,31 +3040,69 @@
             editor.appendChild(document.createElement('p')); // Spacing
         }
 
+        // --- INLINE LINK LOGIC ---
+
+        // 1. Open the Modal
         function openLinkModal() {
+            // Capture the current selection so we can restore it later
             saveSelection();
+            
+            // Get currently selected text to pre-fill the input
             const s = window.getSelection();
             const selectedText = (!s.isCollapsed) ? s.toString() : "";
 
             const content = `
-                <input type="text" class="glass-input" id="dynLinkText" placeholder="Text to display" value="${selectedText}">
-                <input type="text" class="glass-input" id="dynLinkUrl" placeholder="https://example.com" style="margin-top:10px;">
+                <div class="builder-row" style="margin-bottom:10px;">
+                    <input type="text" class="glass-input" id="dynLinkText" placeholder="Link Text" value="${selectedText}">
+                </div>
+                <div class="builder-row">
+                    <input type="text" class="glass-input" id="dynLinkUrl" placeholder="URL (https://...)" autofocus>
+                </div>
             `;
 
+            // Spawn the generic modal
             const modal = spawnModal('Insert Link', content, (overlay) => {
                 const text = overlay.querySelector('#dynLinkText').value || "link";
-                const url = overlay.querySelector('#dynLinkUrl').value;
+                let url = overlay.querySelector('#dynLinkUrl').value;
 
                 if (url) {
-                    restoreSelection();
-                    const html = `<a href="${url}" target="_blank" contenteditable="false">${text}</a>`;
-                    document.execCommand('insertHTML', false, html);
-                    window.getSelection().collapseToEnd();
-                    return true;
+                    // Basic URL protocol fix
+                    if (!url.startsWith('http') && !url.startsWith('#') && !url.startsWith('/')) {
+                        url = 'https://' + url;
+                    }
+                    insertInlineLink(text, url);
+                    return true; // Close modal
                 }
-                return false;
+                return false; // Keep open if invalid
             });
+            
+            // Focus the URL input automatically
+            setTimeout(() => {
+                const urlInput = modal.querySelector('#dynLinkUrl');
+                if(urlInput) urlInput.focus();
+            }, 50);
+        }
 
-            setTimeout(() => modal.querySelector('#dynLinkUrl').focus(), 50);
+        // 2. Insert the Link (Strictly Inline)
+        function insertInlineLink(text, url) {
+            restoreSelection(); // Put cursor back exactly where it was
+            
+            // Create the anchor element
+            const a = document.createElement('a');
+            a.href = url;
+            a.target = "_blank";
+            a.textContent = text;
+            a.contentEditable = "false"; // Makes it behave like a solid unit (optional, usually better "true" for editing text)
+            // Actually, for easy editing, let's keep it true but style it:
+            a.contentEditable = "true"; 
+            
+            // We use execCommand 'insertHTML' because it handles replacing the selection perfectly
+            // and keeps the flow inline (doesn't break paragraphs).
+            const html = `<a href="${url}" target="_blank">${text}</a>`;
+            document.execCommand('insertHTML', false, html);
+            
+            // Trigger Save
+            saveToLocal(false);
         }
 
         function closeLinkModal() {
