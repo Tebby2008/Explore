@@ -1386,17 +1386,18 @@
 
         // --- 2. The Actual Save Execution ---
         function performSave() {
-            // Critical: Update MathLive fields so their content is saved in the HTML
             editor.querySelectorAll('math-field').forEach(mf => {
                 mf.setAttribute('value', mf.value);
             });
 
-            const title = document.getElementById('docTitle').value || "Untitled Document";
-            const content = editor.innerHTML;
+            // --- CHANGE HERE ---
+            const rawTitle = document.getElementById('docTitle').value.trim();
+            const titleForStorage = rawTitle || "Untitled Document"; // Fallback for the file list
             
+            const content = editor.innerHTML;
             const meta = {
                 id: currentDocId,
-                title: title,
+                title: titleForStorage, 
                 content: content,
                 date: new Date().toLocaleString(),
                 size: (content.length / 1024).toFixed(2) + ' KB'
@@ -1406,7 +1407,6 @@
             allDocs[currentDocId] = meta;
             localStorage.setItem('docs', JSON.stringify(allDocs));
             localStorage.setItem('current_id', currentDocId);
-            
         }
 
         // --- 3. The Debounced Trigger (Waits 1 second) ---
@@ -1425,12 +1425,15 @@
             const allDocs = JSON.parse(localStorage.getItem('docs') || '{}');
             const meta = allDocs[currentDocId];
             if (meta) {
-                document.getElementById('docTitle').value = meta.title;
-                document.getElementById('miniTitleInput').value = meta.title;
+                // --- CHANGE HERE ---
+                // If the title is the default, set it to "" so the grey placeholder appears
+                const titleForUI = (meta.title === "Untitled Document") ? "" : meta.title;
                 
-                editor.innerHTML = meta.content; // DOM is created here
+                document.getElementById('docTitle').value = titleForUI;
+                document.getElementById('miniTitleInput').value = titleForUI;
                 
-                // Re-attach all listeners immediately
+                editor.innerHTML = meta.content; 
+                
                 setTimeout(() => {
                     hydrateDOM(); 
                 }, 50);
