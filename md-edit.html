@@ -70,6 +70,25 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
+        ::selection {
+            background-color: rgba(0, 122, 255, 0.25); /* Very light blue */
+            color: inherit; /* Keeps syntax highlighting/text color visible */
+        }
+
+        ::-moz-selection {
+            background-color: rgba(0, 122, 255, 0.25);
+            color: inherit;
+        }
+
+        body.dark-mode ::selection {
+            background-color: rgba(64, 156, 255, 0.35); 
+            color: #fff; /* In dark mode, white text is usually safer for contrast */
+        }
+
+        body.dark-mode ::-moz-selection {
+            background-color: rgba(64, 156, 255, 0.35);
+            color: #fff;
+        }
 
         math-virtual-keyboard { --keyboard-zindex: 3000; }
         math-field.chem-field { --math-font-style: normal; }
@@ -114,7 +133,9 @@
             box-shadow: var(--glass-shadow);
             border: 1px solid var(--glass-border);
             padding: 8px 35px;
-            transition: var(--transition);
+            transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), 
+                        transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1),
+                        padding 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
             display: flex;
             flex-direction: column;
             
@@ -159,13 +180,17 @@
 
         /* Mini Title (Hidden by default) */
         .mini-title-wrapper {
-            width: 0;
+            max-width: 0;
             overflow: hidden;
             opacity: 0;
-            transition: var(--transition);
+            transition: max-width 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), 
+                        opacity 0.4s ease-in,
+                        margin-right 0.4s ease,
+                        padding-right 0.4s ease;
             margin-right: 0;
             display: flex;
             align-items: center;
+            white-space: nowrap;
         }
 
         .sticky-wrapper.is-stuck .mini-title-wrapper {
@@ -173,7 +198,7 @@
             opacity: 1;
             margin-right: 12px;
             padding-right: 12px;
-           border-right: 1px solid rgba(0,0,0,0.1);
+            border-right: 1px solid rgba(0,0,0,0.1);
             max-width: 200px;
         }
 
@@ -215,19 +240,22 @@
         /* --- Dropdowns (From 1.html) --- */
         .dropdown-wrapper { position: relative; display: flex; align-items: center; }
         .dropdown-content {
-            position: absolute; top: 100%; left: 50%; transform: translateX(-50%) translateY(10px) scale(0.95);
-            margin-top: 8px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(15px);
+            position: absolute; top: 100%; left: 50%; transform: translateX(-50%) scale(0.95);
+            margin-top: 5px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(15px);
             border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.15);
             border: 1px solid rgba(0,0,0,0.05); padding: 6px;
-            display: flex; flex-direction: column; gap: 2px;
+            display: flex; flex-direction: column; gap: 5px;
             min-width: 160px; opacity: 0; visibility: hidden;
             transition: 0.2s; z-index: 2500;
         }
         
         /* Bridge for hover */
-        .dropdown-wrapper::after { content:''; position: absolute; top: 100%; left:0; width:100%; height:15px; }
+        .dropdown-wrapper::after { content:''; position: absolute; top: 100%; left:0; width:100%; height:2px; }
         .dropdown-wrapper:hover .dropdown-content, .dropdown-content:hover { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0) scale(1); pointer-events: auto; }
 
+        .dropdown-item label {
+            cursor: pointer;
+        }
         .dropdown-item {
             padding: 8px 12px; border-radius: 8px; cursor: pointer; 
             font-size: 0.9rem; color: #333; display: flex; align-items: center; gap: 10px;
@@ -251,6 +279,8 @@
             width: 100%; max-width: 850px; min-height: 1000px; border-radius: 8px; 
             box-shadow: 0 4px 20px rgba(0,0,0,0.05); padding: 80px; box-sizing: border-box;
             outline: none; font-size: 17px; line-height: 1.7; margin-bottom: 50px;
+            padding-bottom: 50px; /* Huge bottom padding so user can always scroll past content */
+            cursor: text; /* Ensure it looks clickable */
             transition: box-shadow 0.3s;
         }
         #editor:focus { box-shadow: 0 12px 40px rgba(0,0,0,0.08); }
@@ -314,6 +344,7 @@
 
         /* --- Modals (Merged) --- */
         .modal-overlay {
+            cursor: default;
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.2); backdrop-filter: blur(8px); z-index: 5000;
             display: flex; justify-content: center; align-items: center;
@@ -327,14 +358,14 @@
             background: rgba(255, 255, 255, 0.95); padding: 30px;
             border-radius: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
             border: 1px solid rgba(255,255,255,0.8); display: flex; flex-direction: column; gap: 15px;
-            transform: scale(0.95) translateY(20px); transition: 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+            transform: scale(0.85); transition: 0.3s cubic-bezier(0.19, 1, 0.22, 1);
         }
         .modal-overlay.active .modal { transform: scale(1) translateY(0); }
         .modal h3 { margin: 0; font-size: 1.2rem; text-align: center; color: #333; margin-bottom: 5px;}
 
         /* File List Styles (From 1.html) */
         #fileList { width: 500px; max-height: 400px; overflow-y: auto; }
-        .file-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; transition: 0.2s; }
+        .file-item { cursor: pointer; display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; transition: 0.2s; }
         .file-item:hover { background: rgba(0,0,0,0.03); }
         .file-info { display: flex; flex-direction: column; }
         .file-name { font-weight: 600; font-size: 0.95rem; }
@@ -406,6 +437,7 @@
             position: relative; /* For controls */
             border-radius: 8px;
             transition: var(--transition);
+            cursor: pointer;
         }
 
         /* --- DARK MODE OVERRIDES (Softer) --- */
@@ -743,19 +775,175 @@
             pointer-events: none !important; 
         }
 
-        /* --- PRINT FIX --- */
+        /* --- PROFESSIONAL PRINT STYLES --- */
         @media print {
-            body { background: white !important; color: black !important; padding: 0 !important; overflow: visible !important; }
-            .header-area, .sticky-wrapper, .modal-overlay, .btn-block-delete, ::-webkit-scrollbar { display: none !important; }
-            #editor {
-                margin: 0 !important; padding: 0 !important; 
-                box-shadow: none !important; border: none !important;
-                width: 100% !important; max-width: 100% !important;
-                background: white !important; color: black !important;
-                min-height: auto !important;
+            /* 1. Page Setup */
+            @page {
+                margin: 2cm;
+                size: auto;
             }
-            /* Ensure charts/images don't break across pages awkwardly */
-                .visual-block-wrapper, img, canvas { page-break-inside: avoid; }
+
+            /* 2. Global Resets */
+            body, body.dark-mode {
+                background: white !important;
+                color: black !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                overflow: visible !important;
+                /* Use a crisp system font for print */
+                font-family: 'Helvetica', 'Arial', sans-serif;
+                font-size: 12pt !important;
+                line-height: 1.5;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            /* 3. Hide UI Elements */
+            .header-area, 
+            .sticky-wrapper, 
+            .modal-overlay, 
+            .btn-block-delete, 
+            .table-controls-x, 
+            .table-controls-y,
+            .drag-handle,
+            .toggle-switch,
+            #drop-indicator,
+            ::-webkit-scrollbar {
+                display: none !important;
+            }
+
+            /* 4. Editor Container Clean-up */
+            #editor {
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                min-height: auto !important;
+                background: white !important;
+                color: black !important;
+                overflow: visible !important;
+            }
+
+            /* 5. Typography & Headers */
+            #editor h1 { font-size: 24pt; margin-top: 0; border-bottom: 2px solid #000; padding-bottom: 5px; color: #000; }
+            #editor h2 { font-size: 18pt; margin-top: 20px; color: #000; border-bottom: 1px solid #ccc; }
+            #editor h3 { font-size: 14pt; margin-top: 15px; color: #333; }
+            #editor p, #editor li { font-size: 12pt; color: #000; }
+
+            /* 6. Links (Make them text-only, no blue) */
+            a {
+                text-decoration: underline;
+                color: #000 !important;
+                border: none;
+            }
+            /* Optional: Show URL after link? Uncomment if desired:
+            a::after { content: " (" attr(href) ")"; font-size: 0.8em; color: #555; } */
+
+            /* 7. Code Blocks (Ink Saver Mode) */
+            /* Turn dark blocks into white blocks with borders */
+            .code-block-wrapper pre {
+                background: #fff !important;
+                border: 1px solid #ccc;
+                color: #000 !important;
+                font-family: 'Courier New', monospace;
+                font-size: 10pt;
+                white-space: pre-wrap; /* Wrap text so it doesn't get cut off */
+                box-shadow: none;
+                padding: 10px;
+            }
+            .inline-code {
+                background: #f0f0f0 !important;
+                border: 1px solid #ddd;
+                color: #000 !important;
+            }
+
+            /* 8. Math & Chemistry */
+            math-field, 
+            math-field.chem-field {
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                color: black !important;
+                font-size: 12pt; /* Ensure math matches text size */
+            }
+            /* Remove the green tint from Chem fields to save color ink */
+            math-field.chem-field {
+                background-color: transparent !important;
+            }
+
+            /* 9. Visual Blocks (Charts, Images, Mermaid) */
+            .visual-block-wrapper {
+                border: none !important;
+                background: transparent !important;
+                margin: 20px 0;
+                page-break-inside: avoid; /* Prevent cutting images in half */
+                text-align: center;
+            }
+            
+            /* Hide "Double click to edit" */
+            .visual-block-wrapper::after { display: none !important; }
+
+            img, canvas, svg {
+                max-width: 100% !important;
+                height: auto !important;
+                display: block;
+                margin: 0 auto;
+                page-break-inside: avoid;
+            }
+
+            /* 10. Tables */
+            table {
+                width: 100% !important;
+                border-collapse: collapse;
+                border: 1px solid #000;
+                page-break-inside: avoid;
+            }
+            th, td {
+                border: 1px solid #000 !important; /* Crisp black borders */
+                padding: 8px;
+                color: #000;
+            }
+            th {
+                background-color: #f0f0f0 !important; /* Light grey header */
+                font-weight: bold;
+            }
+
+            /* 11. Markschemes (Force Open) */
+            details.markscheme {
+                border: 1px solid #ccc;
+                background: none !important;
+                page-break-inside: avoid;
+                margin: 15px 0;
+            }
+            details.markscheme summary {
+                background: #f9f9f9 !important;
+                font-weight: bold;
+                list-style: none; /* Hide arrow if desired */
+            }
+            /* Force markscheme content to be visible even if closed on screen */
+            details.markscheme[open] .markscheme-content,
+            details.markscheme:not([open]) .markscheme-content {
+                display: block !important; 
+            }
+
+            /* 12. Blockquotes */
+            .quote-wrapper blockquote {
+                background: transparent !important;
+                border-left: 4px solid #ccc !important;
+                color: #444 !important;
+                font-style: italic;
+            }
+            
+            /* 13. Task Lists */
+            ul.task-list li::before {
+                border-color: #000 !important; /* Black checkboxes */
+            }
+            ul.task-list li.checked::before {
+                background: #eee !important;
+                color: #000 !important;
+            }
         }
 
         .visual-block-wrapper.type-image::after {
@@ -766,7 +954,7 @@
 </head>
 <body>
     <!-- Sentinel for Sticky Observer -->
-    <div id="scroll-sentinel" style="position: absolute; top: 0; left: 0; width: 100%; height: 1px; pointer-events: none; opacity: 0;"></div>
+    <div id="scroll-sentinel" style="position: absolute; top: 120px; left: 0; width: 100%; height: 1px; pointer-events: none; opacity: 0;"></div>
     <!-- Header Area (Title) -->
     <div class="header-area">
         <input type="text" id="docTitle" placeholder="Untitled Document" spellcheck="false" autocomplete="off" oninput="syncTitle('main')">
@@ -1008,7 +1196,7 @@
 
         const CHEM_LAYOUT = {
             label: "Chem", tooltip: "Chemistry",
-            rows: [[{ label: "1", key: "1" }, { label: "2", key: "2" }, { label: "3", key: "3" }, { label: "4", key: "4" }, { label: "5", key: "5" }, { label: "+", key: "+" }, { label: "−", key: "-" }, { label: "=", key: "=" }, { label: "⟶", latex: "\\longrightarrow" }, { label: "⇌", latex: "\\rightleftharpoons" }], [{ label: "6", key: "6" }, { label: "7", key: "7" }, { label: "8", key: "8" }, { label: "9", key: "9" }, { label: "0", key: "0" }, { label: "(", key: "(" }, { label: ")", key: ")" }, { label: "<span>◻</span><sup><span>◻</span></sup>", latex: "^{#?}" }, { label: "<span>◻</span><sub><span>◻</span></sub>", latex: "_{#?}" }, { label: "Sup/Sub", latex: "_{#?}^{#?}" }], [{ label: "e⁻", latex: "e^-" }, { label: "H⁺", latex: "H^+" }, { label: "Δ", latex: "\\Delta" }, { label: "mol", latex: "\\text{mol}" }, { label: "(s)", latex: "_{(s)}" }, { label: "(l)", latex: "_{(l)}" }, { label: "(g)", latex: "_{(g)}" }, { label: "(aq)", latex: "_{(aq)}" }, { class: "action", label: "⌫", command: ["performWithFeedback", "deleteBackward"] }, { class: "action warning", label: "🗑", command: "deleteEquation" }]]
+            rows: [[{ label: "1", key: "1" }, { label: "2", key: "2" }, { label: "3", key: "3" }, { label: "4", key: "4" }, { label: "5", key: "5" }, { label: "+", key: "+" }, { label: "−", key: "-" }, { label: "=", key: "=" }, { label: "⟶", latex: "\\longrightarrow" }, { label: "⇌", latex: "\\rightleftharpoons" }], [{ label: "6", key: "6" }, { label: "7", key: "7" }, { label: "8", key: "8" }, { label: "9", key: "9" }, { label: "0", key: "0" }, { label: "(", key: "(" }, { label: ")", key: ")" }, { label: "<span>◻</span><sup><span>◻</span></sup>", latex: "^{#?}" }, { label: "<span>◻</span><sub><span>◻</span></sub>", latex: "_{#?}" }, { label: "Sup/Sub", latex: "_{#?}^{#?}" }], [{ label: "e⁻", latex: "e^-" }, { label: "H⁺", latex: "H^+" }, { label: "Δ", latex: "\\Delta" }, { label: "mol", latex: "\\text{mol}" }, { label: "(s)", latex: "_{(s)}" }, { label: "(l)", latex: "_{(l)}" }, { label: "(g)", latex: "_{(g)}" }, { label: "(aq)", latex: "_{(aq)}" }, { class: "action", label: "⌫", command: ["performWithFeedback", "deleteBackward"] }, { class: "action warning", label: "🗑", command: "deleteAll" }]]
         };
 
         const editor = document.getElementById('editor');
@@ -1034,6 +1222,25 @@
                 document.getElementById('darkModeToggle').checked = true;
             }
             document.addEventListener('selectionchange', handleTableFocusChange); 
+            document.getElementById('editor').addEventListener('keyup', checkFormatState);
+
+            editor.addEventListener('click', (e) => {
+                if (e.target === editor) {
+                    // Only if clicking below the last element
+                    const lastChild = editor.lastElementChild;
+                    if (lastChild) {
+                        const rect = lastChild.getBoundingClientRect();
+                        if (e.clientY > rect.bottom) {
+                            const range = document.createRange();
+                            range.selectNodeContents(editor);
+                            range.collapse(false); // Move to end
+                            const sel = window.getSelection();
+                            sel.removeAllRanges();
+                            sel.addRange(range);
+                        }
+                    }
+                }
+            });
 
             
             // --- FIX: Robust Sticky Observer (Sentinel Method) ---
@@ -1055,6 +1262,25 @@
             // Ensure the sentinel exists before observing
             const sentinel = document.getElementById('scroll-sentinel');
             if (sentinel) observer.observe(sentinel);
+
+            if (typeof MathfieldElement !== 'undefined') {
+                // Only define this if the 'commands' property is exposed (Older versions)
+                // Newer versions handle this differently, so we skip to avoid the crash.
+                if (MathfieldElement.commands) {
+                    MathfieldElement.commands.deleteEquation = (mf) => {
+                        const parent = mf.parentElement;
+                        if (parent) { 
+                            setTimeout(() => { 
+                                if(parent.classList.contains('math-wrapper')) parent.remove(); 
+                                else if(parent.classList.contains('block-container')) parent.remove(); 
+                                else mf.remove(); 
+                                editor.focus(); 
+                            }, 10); 
+                        } 
+                        return true;
+                    };
+                }
+            }
             
         }); 
 
@@ -1080,14 +1306,26 @@
             saveToLocal();
         }
 
-        function saveToLocal(force = false) {
-            // Serialize MathLive fields
+        // --- 1. Debounce Helper (Prevents lag while typing) ---
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                const context = this;
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(context, args), wait);
+            };
+        }
+
+        // --- 2. The Actual Save Execution ---
+        function performSave() {
+            // Critical: Update MathLive fields so their content is saved in the HTML
             editor.querySelectorAll('math-field').forEach(mf => {
                 mf.setAttribute('value', mf.value);
             });
 
             const title = document.getElementById('docTitle').value || "Untitled Document";
             const content = editor.innerHTML;
+            
             const meta = {
                 id: currentDocId,
                 title: title,
@@ -1095,13 +1333,24 @@
                 date: new Date().toLocaleString(),
                 size: (content.length / 1024).toFixed(2) + ' KB'
             };
+            
             let allDocs = JSON.parse(localStorage.getItem('docs') || '{}');
             allDocs[currentDocId] = meta;
             localStorage.setItem('docs', JSON.stringify(allDocs));
             localStorage.setItem('current_id', currentDocId);
             
-            // --- UPDATED: Use Custom Dialog ---
-            if(force) showDialog('Saved', 'Your document has been saved successfully.', 'alert');
+        }
+
+        // --- 3. The Debounced Trigger (Waits 1 second) ---
+        const triggerAutoSave = debounce(performSave, 1000);
+
+        // --- 4. Main Function (Call this on input) ---
+        function saveToLocal(force = false) {
+            if (force) {
+                performSave(); // Save Immediately
+            } else {
+                triggerAutoSave(); // Wait for user to stop typing
+            }
         }
 
         function loadCurrentDoc() {
@@ -1184,23 +1433,47 @@
         function selectStyle(tag, label) { document.execCommand('formatBlock', false, tag); document.getElementById('styleLabel').innerText = label; editor.focus(); }
         function toggleFormat(cmd) { document.execCommand(cmd, false, null); editor.focus(); checkFormatState(); }
         function checkFormatState() {
+            // 1. Toggle Button Highlights (Keep existing logic)
             document.getElementById('btnBold').classList.toggle('active-state', document.queryCommandState('bold'));
             document.getElementById('btnItalic').classList.toggle('active-state', document.queryCommandState('italic'));
             document.getElementById('btnUnderline').classList.toggle('active-state', document.queryCommandState('underline'));
             document.getElementById('btnStrike').classList.toggle('active-state', document.queryCommandState('strikeThrough'));
             
+            // 2. Determine Block Type (Fixing the "Stuck Label" bug)
             const selection = window.getSelection();
+            let labelFound = "Normal"; // Default fallback if nothing is found
+
             if (selection.rangeCount > 0) {
                 let node = selection.anchorNode;
+                
+                // Climb up the DOM tree from the cursor
                 while (node && node !== editor) {
-                    if (node.nodeType === 1) { 
+                    if (node.nodeType === 1) { // If it's an Element (not text)
                         const tag = node.tagName.toUpperCase();
-                        const labelMap = { 'P': 'Normal', 'H1': 'Heading 1', 'H2': 'Heading 2', 'H3': 'Heading 3', 'H4': 'Heading 4', 'H5': 'Heading 5' };
-                        if (labelMap[tag]) { document.getElementById('styleLabel').innerText = labelMap[tag]; return; }
+                        const labelMap = { 
+                            'P': 'Normal', 
+                            'H1': 'Heading 1', 
+                            'H2': 'Heading 2', 
+                            'H3': 'Heading 3', 
+                            'H4': 'Heading 4', 
+                            'H5': 'Heading 5',
+                            // Optional: Add these for better UX
+                            'BLOCKQUOTE': 'Quote',
+                            'PRE': 'Code',
+                            'LI': 'List'
+                        };
+                        
+                        if (labelMap[tag]) { 
+                            labelFound = labelMap[tag]; 
+                            break; // Stop looking once we find the closest match
+                        }
                     }
                     node = node.parentNode;
                 }
             }
+            
+            // 3. Apply the label (Always update, even if we fell back to "Normal")
+            document.getElementById('styleLabel').innerText = labelFound;
         }
         document.addEventListener('selectionchange', () => { if (document.activeElement === editor || editor.contains(document.activeElement)) checkFormatState(); });
         document.execCommand('defaultParagraphSeparator', false, 'p');
@@ -1298,66 +1571,128 @@
 
         // 1. Drag Start
         function handleDragStart(e, item) {
-            draggedItem = item;
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/html', item.outerHTML);
-            
-            // Defer adding the class so the browser grabs the full-opacity snapshot first
-            requestAnimationFrame(() => item.classList.add('is-dragging'));
+            // A. Block Drag (Existing logic)
+            if (item) {
+                draggedItem = item;
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/html', item.outerHTML);
+                requestAnimationFrame(() => item.classList.add('is-dragging'));
+                internalDragRange = null; // Clear text drag ref
+            } 
+            // B. Text Selection Drag (New Logic)
+            else {
+                // If we aren't dragging a specific block, check if we are dragging selected text
+                setClipboardData(e, true); // Use our unified helper, isDrag=true
+            }
         }
+        editor.addEventListener('dragstart', (e) => {
+            // If target is NOT a draggable element/handle we set up, it's text
+            if (!e.target.classList.contains('drag-handle') && 
+                !e.target.classList.contains('visual-block-wrapper') &&
+                e.target.tagName !== 'IMG') {
+                
+                handleDragStart(e, null); // Pass null to indicate text selection
+            }
+        });
 
         // 2. Drag Over
+        let isDragOverThrottled = false;
+
         editor.addEventListener('dragover', (e) => {
             e.preventDefault();
             if (!draggedItem) return;
 
-            const result = getDropLocation(editor, e.clientX, e.clientY);
-            
-            if (result.element) {
-                const rect = result.element.getBoundingClientRect();
-                
-                // Position the blue line
-                dropIndicator.style.left = `${rect.left}px`;
-                dropIndicator.style.width = `${rect.width}px`;
-                dropIndicator.style.display = 'block';
+            // THROTTLE: Only run calculation if not currently waiting for a frame
+            if (isDragOverThrottled) return;
+            isDragOverThrottled = true;
 
-                if (result.position === 'before') {
-                    dropIndicator.style.top = `${rect.top + window.scrollY - 4}px`;
+            requestAnimationFrame(() => {
+                const result = getDropLocation(editor, e.clientX, e.clientY);
+                
+                if (result.element) {
+                    const rect = result.element.getBoundingClientRect();
+                    dropIndicator.style.left = `${rect.left}px`;
+                    dropIndicator.style.width = `${rect.width}px`;
+                    dropIndicator.style.display = 'block';
+
+                    if (result.position === 'before') {
+                        dropIndicator.style.top = `${rect.top + window.scrollY - 4}px`;
+                    } else {
+                        dropIndicator.style.top = `${rect.bottom + window.scrollY + 4}px`;
+                    }
                 } else {
-                    dropIndicator.style.top = `${rect.bottom + window.scrollY + 4}px`;
+                    dropIndicator.style.display = 'none';
                 }
-            } else {
-                dropIndicator.style.display = 'none';
-            }
+                
+                isDragOverThrottled = false; // Reset flag
+            });
         });
 
         // 3. Drop
         editor.addEventListener('drop', (e) => {
             e.preventDefault();
-            if (!draggedItem) return;
-
-            const result = getDropLocation(editor, e.clientX, e.clientY);
-            
-            if (result.element) {
-                if (result.position === 'before') {
-                    editor.insertBefore(draggedItem, result.element);
-                } else {
-                    // Insert after
-                    if (result.element.nextSibling) {
-                        editor.insertBefore(draggedItem, result.element.nextSibling);
-                    } else {
-                        editor.appendChild(draggedItem);
-                    }
-                }
-            } else {
-                editor.appendChild(draggedItem);
-            }
-            
-            // Cleanup
-            draggedItem.classList.remove('is-dragging');
             dropIndicator.style.display = 'none';
-            draggedItem = null;
-            saveToLocal();
+
+            // CASE A: Moving a Block (Existing Logic)
+            if (draggedItem) {
+                const result = getDropLocation(editor, e.clientX, e.clientY);
+                if (result.element) {
+                    if (result.position === 'before') editor.insertBefore(draggedItem, result.element);
+                    else {
+                        if (result.element.nextSibling) editor.insertBefore(draggedItem, result.element.nextSibling);
+                        else editor.appendChild(draggedItem);
+                    }
+                } else {
+                    editor.appendChild(draggedItem);
+                }
+                draggedItem.classList.remove('is-dragging');
+                draggedItem = null;
+                saveToLocal();
+                return;
+            }
+
+            // CASE B: Dropping Text/HTML (New Logic)
+            const html = e.dataTransfer.getData('text/html');
+            if (html) {
+                // 1. Prepare Insertion
+                const isInternal = html.includes('<meta name="md-edit-source" content="internal">');
+                
+                // 2. Sanitize/Process (Reuse Paste Logic)
+                // Note: DragDrop is usually like Ctrl+V (keep format), not Shift+V
+                const cleanHTML = processPaste(html, isInternal, false); 
+
+                // 3. Move Cursor to Drop Location (Crucial for insertHTML)
+                // Browsers handle this differently for Drop, we need to manually set caret
+                let range;
+                if (document.caretRangeFromPoint) {
+                    range = document.caretRangeFromPoint(e.clientX, e.clientY);
+                } else if (e.rangeParent) {
+                    range = document.createRange();
+                    range.setStart(e.rangeParent, e.rangeOffset);
+                }
+
+                if (range) {
+                    const sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                }
+
+                // 4. Insert
+                document.execCommand('insertHTML', false, cleanHTML);
+
+                // 5. Handle "Cut/Move" behavior for Internal Drags
+                if (isInternal && internalDragRange) {
+                    try {
+                        // Delete the original text (The "Move" effect)
+                        internalDragRange.deleteContents(); 
+                    } catch(err) {
+                        console.log("Could not delete original range (might have been overwritten)");
+                    }
+                    internalDragRange = null;
+                }
+
+                saveToLocal();
+            }
         });
 
         editor.addEventListener('dragend', () => {
@@ -1613,29 +1948,29 @@
                 if (editingDesmosElement) {
                     editingDesmosElement.dataset.state = json;
                     editingDesmosElement.querySelector('img').src = shot;
-                    closeBuilderModal();
-                    return;
+                } else {
+                    restoreSelection();
+                    const w = document.createElement('div');
+                    w.className = 'visual-block-wrapper desmos-wrapper';
+                    w.contentEditable = "false";
+                    w.dataset.state = json;
+                    
+                    const img = document.createElement('img');
+                    img.src = shot;
+                    img.style.width = '100%';
+                    img.style.borderRadius = '8px';
+                    w.appendChild(img);
+                    
+                    attachBlockControls(w);
+                    insertNodeAtCursor(w);
+                    wrapperAfter(w);
                 }
 
-                // Handle New Insert
-                restoreSelection();
-                const w = document.createElement('div');
-                w.className = 'visual-block-wrapper desmos-wrapper';
-                w.contentEditable = "false";
-                w.dataset.state = json;
+                // --- FIX: FORCE SAVE NOW ---
+                saveToLocal(true); 
                 
-                const img = document.createElement('img');
-                img.src = shot;
-                img.style.width = '100%';
-                img.style.borderRadius = '8px';
-                w.appendChild(img);
-                
-                attachBlockControls(w);
-                insertNodeAtCursor(w);
-                wrapperAfter(w);
                 closeBuilderModal();
-
-            }, 600); // 600ms delay ensures lines are drawn
+            }, 600);
         }
 
         // --- IMAGES ---
@@ -1678,7 +2013,7 @@
         function handleFileSelect() { if(imgFileInput.files.length) document.getElementById('fileNameDisplay').innerText=imgFileInput.files[0].name; checkImgInput(); }
         function checkImgInput() { btnInsertImg.classList.toggle('active', imgUrlInput.value.trim().length>0 || imgFileInput.files.length>0); }
         function confirmInsertImage() {
-            restoreSelection(); if(imgFileInput.files.length){ const r=new FileReader(); r.onload=e=>insertImageTag(e.target.result); r.readAsDataURL(imgFileInput.files[0]); } else if(imgUrlInput.value.trim()) insertImageTag(imgUrlInput.value.trim()); closeImageModal();
+            restoreSelection(); if(imgFileInput.files.length){ const r=new FileReader(); r.onload=e=>insertImageTag(e.target.result); r.readAsDataURL(imgFileInput.files[0]); saveToLocal(true);} else if(imgUrlInput.value.trim()) { insertImageTag(imgUrlInput.value.trim()); saveToLocal(true); } closeImageModal();
         }
 
         function insertImageTag(src) { 
@@ -1709,18 +2044,34 @@
 
         // --- KEYBOARD DELETION (Text/Inline Only) ---
         editor.addEventListener('keydown', (e) => {
+            // 1. Handle Selection Deletion (Range) - Fixes "Can't delete Desmos/Images"
+            const s = window.getSelection();
+            if ((e.key === 'Backspace' || e.key === 'Delete') && !s.isCollapsed) {
+                // If selection is not empty, force a standard delete command.
+                // This handles contentEditable="false" blocks better than default browser behavior sometimes.
+                document.execCommand('delete');
+                e.preventDefault();
+                saveToLocal();
+                return;
+            }
+
+            // 2. Handle Specific Inline Deletions (Cursor) - Existing Logic
             if (e.key === 'Backspace') {
-                const s = window.getSelection();
                 if (!s.rangeCount || !s.isCollapsed) return;
                 const anchor = s.anchorNode; const offset = s.anchorOffset;
                 if (anchor.nodeType === 3) { 
                     if (offset === 0 && anchor.previousSibling) {
                         const prev = anchor.previousSibling;
-                        if (prev.nodeType === 1 && (prev.classList.contains('math-wrapper') || prev.classList.contains('code-wrapper'))) { e.preventDefault(); prev.remove(); return; }
+                        if (prev.nodeType === 1 && (prev.classList.contains('math-wrapper') || prev.classList.contains('code-wrapper'))) { 
+                            e.preventDefault(); prev.remove(); saveToLocal(); return; 
+                        }
                     }
+                    // Fix for Zero-width space deletion handling
                     else if (offset === 1 && anchor.textContent.charCodeAt(0) === 8203 && anchor.previousSibling) {
                         const prev = anchor.previousSibling;
-                        if (prev.nodeType === 1 && (prev.classList.contains('math-wrapper') || prev.classList.contains('code-wrapper'))) { e.preventDefault(); prev.remove(); anchor.textContent = ''; return; }
+                        if (prev.nodeType === 1 && (prev.classList.contains('math-wrapper') || prev.classList.contains('code-wrapper'))) { 
+                            e.preventDefault(); prev.remove(); anchor.textContent = ''; saveToLocal(); return; 
+                        }
                     }
                 }
             }
@@ -2855,6 +3206,193 @@
             // Trigger Reflow and Show
             setTimeout(() => overlay.classList.add('active'), 10);
             return overlay; // Return in case specific focus is needed
+        }
+        // --- 1. COPY & CUT HANDLERS ---
+        document.addEventListener('copy', (e) => {
+            if (setClipboardData(e)) {
+                e.preventDefault(); // Hijack only if we successfully captured data
+            }
+        });
+
+        document.addEventListener('cut', (e) => {
+            if (setClipboardData(e)) {
+                e.preventDefault();
+                // Execute delete after copying data
+                document.execCommand('delete'); 
+                saveToLocal();
+            }
+        });
+
+        editor.addEventListener('paste', (e) => {
+            e.preventDefault();
+
+            // A. Handle Files (Images)
+            if (e.clipboardData.files && e.clipboardData.files.length > 0) {
+                const file = e.clipboardData.files[0];
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                        insertImageTag(evt.target.result);
+                        saveToLocal(true);
+                    };
+                    reader.readAsDataURL(file);
+                }
+                return;
+            }
+
+            // B. Get Content
+            const html = e.clipboardData.getData('text/html');
+            const text = e.clipboardData.getData('text/plain');
+
+            if (!html) {
+                // Fallback for plain text
+                document.execCommand('insertText', false, text);
+                saveToLocal(false);
+                return;
+            }
+
+            // C. Analyze Source
+            const isInternal = html.includes('<meta name="md-edit-source" content="internal">');
+            const isShiftPressed = e.shiftKey; // Detect Ctrl+Shift+V
+
+            // D. Process HTML
+            const cleanHTML = processPaste(html, isInternal, isShiftPressed);
+
+            // E. Insert
+            // insertHTML handles block splitting (e.g. pasting <h1> inside <h1> will split it)
+            document.execCommand('insertHTML', false, cleanHTML);
+            saveToLocal(false);
+        });
+
+        function processPaste(htmlString, isInternal, isShiftPressed) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlString, 'text/html');
+            const body = doc.body;
+
+            // List of classes that define our Special Blocks
+            const BLOCK_CLASSES = [
+                'visual-block-wrapper', 
+                'math-wrapper', 
+                'code-block-wrapper', 
+                'quote-wrapper',
+                'table-wrapper',
+                'markscheme',
+                'block-container' // Math block container
+            ];
+
+            const walk = (node) => {
+                if (node.nodeType !== 1) return; // Skip text nodes
+
+                // 1. Identify Special Blocks
+                const isSpecialBlock = BLOCK_CLASSES.some(cls => node.classList.contains(cls));
+                const tagName = node.tagName.toLowerCase();
+
+                // 2. Handling Special Blocks (Images, Graphs, Math)
+                if (isSpecialBlock) {
+                    // ALWAYS preserve these, even on Shift+V
+                    // Ensure contentEditable is correct (browsers sometimes strip it)
+                    if (node.classList.contains('visual-block-wrapper') || 
+                        node.classList.contains('code-block-wrapper') ||
+                        node.classList.contains('block-container')) {
+                        node.contentEditable = "false";
+                    }
+                    
+                    // Allow children of special blocks to remain untouched (don't strip inside Desmos/Charts)
+                    return; 
+                }
+
+                // 3. Handling Headers & Structure
+                if (isShiftPressed) {
+                    // Ctrl+Shift+V: "Align with location format"
+                    // Strategy: Flatten Headers/Lists into Paragraphs, strip styles, BUT keep Images.
+                    
+                    // If it's a Header, convert to P
+                    if (/^h[1-6]$/.test(tagName)) {
+                        const p = document.createElement('p');
+                        p.innerHTML = node.innerHTML;
+                        node.replaceWith(p);
+                        node = p; // Update reference
+                    }
+                    // Strip inline formatting (b, i, u, span)
+                    // We do this by unwrapping, unless it holds a special block
+                    if (['b','strong','i','em','u','span','font'].includes(tagName)) {
+                        // If it doesn't contain a special block, unwrap it
+                        if (!node.querySelector(BLOCK_CLASSES.map(c=>'.'+c).join(','))) {
+                            // Using outerHTML replaces the tag with its children
+                            // We need a helper for unwrapping to be safe, but simple approach:
+                            // node.replaceWith(...node.childNodes) works in modern browsers
+                            // We'll just strip attributes to be safe and "align format"
+                            node.removeAttribute('style');
+                            node.removeAttribute('class');
+                            // Actually, Shift+V usually means PLAIN text. 
+                            // To "Align Format", we effectively remove the tag but keep text.
+                            // But user said "keep images".
+                            // So we strip attributes.
+                        }
+                    }
+                } 
+                else if (isInternal) {
+                    // Ctrl+V (Internal): Trust the structure fully.
+                    // Just ensure no garbage styles crept in.
+                    // We usually don't need to do anything if it's internal.
+                } 
+                else {
+                    // Ctrl+V (External): Keep Headers, but strip Word/Web garbage.
+                    node.removeAttribute('style'); // Kill colors/fonts
+                    node.removeAttribute('class'); // Kill 'MsoNormal', etc.
+                    node.removeAttribute('id');
+                    node.removeAttribute('align');
+                }
+
+                // 4. Cleanup Empty Spans (Common in copy-paste)
+                if (tagName === 'span' && node.attributes.length === 0 && !node.classList.length) {
+                    // Unwrap
+                    const parent = node.parentNode;
+                    while(node.firstChild) parent.insertBefore(node.firstChild, node);
+                    parent.removeChild(node);
+                    return; // Node is gone, stop processing it
+                }
+
+                // Recurse
+                Array.from(node.children).forEach(walk);
+            };
+
+            Array.from(body.children).forEach(walk);
+
+            return body.innerHTML;
+        }
+
+        // --- Helper: Prepare Clipboard/Drag Data ---
+        // Wraps selection in <div> and adds "internal" signature
+        let internalDragRange = null; // Store source range for Drag-Move
+
+        function setClipboardData(e, isDrag = false) {
+            const selection = window.getSelection();
+            if (!editor.contains(selection.anchorNode) || selection.isCollapsed) return false;
+
+            // Store range for "Cut" behavior during Drag & Drop
+            if (isDrag) {
+                internalDragRange = selection.getRangeAt(0).cloneRange();
+            }
+
+            // Clone content
+            const userSelection = selection.getRangeAt(0).cloneContents();
+            const div = document.createElement('div');
+            div.appendChild(userSelection);
+
+            // Signature
+            const signature = '<meta name="md-edit-source" content="internal">';
+            
+            // Set Data
+            if (e.clipboardData) {
+                e.clipboardData.setData('text/html', signature + div.innerHTML);
+                e.clipboardData.setData('text/plain', selection.toString());
+            } else if (e.dataTransfer) {
+                e.dataTransfer.setData('text/html', signature + div.innerHTML);
+                e.dataTransfer.setData('text/plain', selection.toString());
+                e.dataTransfer.effectAllowed = isDrag ? 'move' : 'copy';
+            }
+            return true;
         }
         </script>
 </body>
