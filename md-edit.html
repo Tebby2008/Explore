@@ -808,6 +808,20 @@
             pointer-events: none !important; 
         }
 
+        math-field.chem-field { 
+            /* Upright font style */
+            --math-font-style: normal; 
+            
+            /* Green color to visually distinguish from Math */
+            background: rgba(52, 199, 89, 0.1); 
+            color: #0c501e; 
+        }
+
+        /* Dark mode override */
+        body.dark-mode math-field.chem-field {
+            color: #86efac !important;
+        }
+
         /* --- PROFESSIONAL PRINT STYLES --- */
         @media print {
             /* 1. Page Setup */
@@ -1132,7 +1146,7 @@
                 </button>
 
                 <button class="btn-glass" onclick="createNewDoc()"><i class="ph ph-plus"></i> New File</button>
-                <button class="btn-glass btn-glass-cancel" onclick="document.getElementById('fileModal').classList.remove('active')">Close</button>
+                <button class="btn-glass btn-glass-cancel" onclick="document.getElementById('fileModal').classList.remove('active'); toggleScrollLock(false);">Close</button>
             </div>
         </div>
     </div>
@@ -1544,24 +1558,29 @@
 
         // --- Formatting Functions ---
         function insertList(type) {
+            ensureSafeContext();
             if(type === 'ul') document.execCommand('insertUnorderedList', false, null);
             if(type === 'ol') document.execCommand('insertOrderedList', false, null);
             editor.focus();
         }
 
         function insertQuote() {
+            ensureSafeContext(true);
             const wrapper = document.createElement('div'); wrapper.className = "quote-wrapper"; wrapper.contentEditable = "false";
             const bq = document.createElement('blockquote'); bq.contentEditable = "true"; bq.innerText = "Quote text...";
             wrapper.appendChild(bq); attachBlockControls(wrapper); insertNodeAtCursor(wrapper); wrapperAfter(wrapper); setTimeout(() => { bq.focus(); }, 10);
         }
 
         function insertCodeBlock() {
+            ensureSafeContext(true);
             const wrapper = document.createElement('div'); wrapper.className = "code-block-wrapper"; wrapper.contentEditable = "false";
             const pre = document.createElement('pre'); pre.contentEditable = "true"; pre.innerText = "Code...";
             wrapper.appendChild(pre); attachBlockControls(wrapper); insertNodeAtCursor(wrapper); wrapperAfter(wrapper); setTimeout(() => { pre.focus(); }, 10);
         }
 
         function insertInlineCode() {
+            ensureSafeContext(false);
+            ensureSafeContext();
             const wrapper = document.createElement('span'); wrapper.className = 'code-wrapper'; wrapper.contentEditable = "false";
             const code = document.createElement('span'); code.className = 'inline-code'; code.contentEditable = "true"; code.innerText = "code";
             wrapper.appendChild(code);
@@ -1573,12 +1592,24 @@
         function createField(type) {
             const mf = new MathfieldElement(); mf.mathVirtualKeyboardPolicy = "manual"; 
             mf.addEventListener('focus-out', (ev) => { if (ev.detail.direction === 'forward') { const w = mf.parentElement; if (w && w.classList.contains('math-wrapper') && w.nextSibling) { const r = document.createRange(); r.setStart(w.nextSibling, 0); r.collapse(true); const s = window.getSelection(); s.removeAllRanges(); s.addRange(r); } } });
-            if (type === 'chem') { mf.classList.add('chem-field'); mf.setAttribute('letter-shape-style', 'upright'); } else { mf.classList.add('math-field'); } return mf;
+            if (type === 'chem') { mf.classList.add('chem-field'); mf.letterShapeStyle = 'upright'; } else { mf.classList.add('math-field'); } return mf;
         }
 
-        function insertMath(mode) { insertField('math', mode); }
-        function insertChem(mode) { insertField('chem', mode); }
+        function insertMath(mode) {
+            if (mode === 'block') {
+                ensureSafeContext(true); // <--- BLOCK
+            } else {
+                ensureSafeContext(false); // <--- INLINE (Can stay inside P, but not inside other math)
+            }
+            insertField('math', mode);
+        }
+        function insertChem(mode) {
+            if (mode === 'block') ensureSafeContext(true);
+            else ensureSafeContext(false);
+            insertField('chem', mode);
+        }
         function insertField(type, mode) {
+            ensureSafeContext();
             const mf = createField(type); mf.value = type === 'chem' ? "" : "x";
             if (mode === 'inline') {
                 const wrapper = document.createElement('span'); wrapper.className = 'math-wrapper'; wrapper.contentEditable = "false"; wrapper.appendChild(mf);
@@ -1809,6 +1840,7 @@
         // --- MODAL & BUILDER STATE ---
         function closeBuilderModal() {
             builderModal.classList.remove('active');
+            toggleScrollLock(false);
             setTimeout(() => { builderModalContent.innerHTML = ''; }, 300);
             editingChartElement = null; editingCjsElement = null; editingDesmosElement = null;
             if(cjsInstance) { cjsInstance.destroy(); cjsInstance = null; }
@@ -1819,6 +1851,8 @@
         let chartNodes = [], chartEdges = [], editingChartElement = null;
 
         function openFlowchartModal(data = null) {
+            ensureSafeContext(true);
+            toggleScrollLock(true);
             saveSelection();
             builderModalContent.innerHTML = `
                 <div class="builder-layout">
@@ -1898,6 +1932,8 @@
         let cjsInstance = null, cjsData = {type:'bar',title:'',label:'Data',points:[]}, editingCjsElement = null;
 
         function openChartJsModal(data=null) {
+            ensureSafeContext(true);
+            toggleScrollLock(true);
             saveSelection();
             builderModalContent.innerHTML = `
                 <div class="builder-layout">
@@ -1964,6 +2000,8 @@
         // --- DESMOS ---
         let calculator = null, editingDesmosElement = null;
         function openDesmosModal(state = null) {
+            ensureSafeContext(true);
+            toggleScrollLock(true);
             saveSelection();
             builderModalContent.innerHTML = `
                 <div class="builder-layout full-layout">
@@ -2037,6 +2075,8 @@
 
         // --- IMAGES ---
         function openImageModal() {
+            ensureSafeContext(true);
+            ensureSafeContext();
             saveSelection();
             const content = `
                 <input type="text" class="glass-input" id="dynImgUrl" placeholder="Paste image URL here...">
@@ -2071,7 +2111,7 @@
             // Focus URL input
             setTimeout(() => modal.querySelector('#dynImgUrl').focus(), 50);
         }
-        function closeImageModal() { imgModal.classList.remove('active'); imgUrlInput.value=""; imgFileInput.value=""; document.getElementById('fileNameDisplay').innerText="Click to upload"; checkImgInput(); }
+        function closeImageModal() { imgModal.classList.remove('active'); toggleScrollLock(false); imgUrlInput.value=""; imgFileInput.value=""; document.getElementById('fileNameDisplay').innerText="Click to upload"; checkImgInput(); }
         function handleFileSelect() { if(imgFileInput.files.length) document.getElementById('fileNameDisplay').innerText=imgFileInput.files[0].name; checkImgInput(); }
         function checkImgInput() { btnInsertImg.classList.toggle('active', imgUrlInput.value.trim().length>0 || imgFileInput.files.length>0); }
         function confirmInsertImage() {
@@ -2140,6 +2180,7 @@
         });
 
         function insertMarkscheme() {
+            ensureSafeContext(true);
             const d = document.createElement('details'); d.className='markscheme'; d.open=true; d.contentEditable="false"; d.innerHTML=`<summary><span class="summary-title" contenteditable="true">Markscheme</span></summary><div class="markscheme-content" contenteditable="true"><p>Answer...</p></div>`; 
             attachBlockControls(d); insertNodeAtCursor(d); wrapperAfter(d); setTimeout(()=>d.querySelector('.summary-title').focus(),10);
         }
@@ -2247,7 +2288,7 @@
                             const val = isChem ? mathContent.trim().slice(4, -1) : mathContent.trim();
                             const div = document.createElement('div'); div.className='block-container'; div.contentEditable="false";
                             const mf = new MathfieldElement(); mf.value = val; mf.mathVirtualKeyboardPolicy="manual"; 
-                            mf.classList.add(isChem ? 'chem-field' : 'math-field'); if(isChem) mf.setAttribute('letter-shape-style','upright');
+                            mf.classList.add(isChem ? 'chem-field' : 'math-field'); if(isChem) mf.letterShapeStyle = 'upright'; 
                             div.appendChild(mf); attachBlockControls(div); editor.appendChild(div); editor.appendChild(document.createElement('br'));
                             inMathBlock = false; mathBuffer = [];
                         } else { if(inList) { inList = false; listContainer = null; } inMathBlock = true; }
@@ -2406,7 +2447,7 @@
                     const latex = part.slice(1, -1).replace(/___BS___/g, "\\").replace(/___AST___/g, "*").replace(/___US___/g, "_");
                     const isChem = latex.startsWith('\\ce{'); const val = isChem ? latex.slice(4, -1) : latex;
                     const sp = document.createElement('span'); sp.className='math-wrapper'; sp.contentEditable="false";
-                    const mf = new MathfieldElement(); mf.value=val; mf.mathVirtualKeyboardPolicy="manual"; mf.classList.add(isChem?'chem-field':'math-field'); if(isChem) mf.setAttribute('letter-shape-style','upright');
+                    const mf = new MathfieldElement(); mf.value=val; mf.mathVirtualKeyboardPolicy="manual"; mf.classList.add(isChem?'chem-field':'math-field'); if(isChem) mf.letterShapeStyle = 'upright'; 
                     sp.appendChild(mf); p.appendChild(document.createTextNode('\u200B')); p.appendChild(sp); p.appendChild(document.createTextNode('\u200B'));
                 } 
                 else if (part.startsWith('`') && part.endsWith('`')) {
@@ -2837,6 +2878,7 @@
         }
 
         function insertTable(rows = 2, cols = 3) {
+            ensureSafeContext(true);
             const wrapper = document.createElement('div');
             wrapper.className = 'table-wrapper';
             wrapper.contentEditable = "false"; 
@@ -3068,6 +3110,7 @@
 
         // 1. Open the Modal
         function openLinkModal() {
+            ensureSafeContext(false);
             // Capture the current selection so we can restore it later
             saveSelection();
             
@@ -3180,6 +3223,7 @@
 
         // --- NEW: Native Task List Logic ---
         function insertTaskList() {
+            ensureSafeContext();
             document.execCommand('insertUnorderedList');
             const selection = window.getSelection();
             if (!selection.rangeCount) return;
@@ -3514,6 +3558,64 @@
 
         function toggleScrollLock(isActive) {
             document.body.classList.toggle('modal-open', isActive);
+        }
+
+        function ensureSafeContext(isBlockInsertion = false) {
+            const sel = window.getSelection();
+            if (!sel.rangeCount) return;
+
+            let node = sel.anchorNode;
+            // Normalize text nodes to their parent element
+            let el = (node.nodeType === 3) ? node.parentElement : node;
+
+            // 1. ESCAPE "FORBIDDEN" ZONES
+            // These are complex editors (Math, Code, Charts) where we should NEVER nest anything inside.
+            // If inside one of these, jump AFTER it.
+            const forbidden = el.closest('math-field, .code-block-wrapper, .visual-block-wrapper, .block-container, .table-wrapper, .markscheme');
+            
+            if (forbidden) {
+                const range = document.createRange();
+                range.setStartAfter(forbidden);
+                range.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(range);
+                
+                // If there is no space after, create a breathing room
+                if (!forbidden.nextSibling) {
+                    document.execCommand('insertHTML', false, '<p><br></p>');
+                }
+                return; // We are now safe, exit function.
+            }
+
+            // 2. BLOCK INSERTION LOGIC (Only runs if inserting Tables, Code, Charts, etc.)
+            if (isBlockInsertion) {
+                // RULE A: No Blocks inside Lists
+                // If we are in a <ul> or <ol>, jump to the very end of the list.
+                const list = el.closest('ul, ol, li');
+                if (list) {
+                    // Find the actual wrapping UL/OL
+                    const parentList = el.closest('ul, ol');
+                    const range = document.createRange();
+                    range.setStartAfter(parentList);
+                    range.collapse(true);
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                    return;
+                }
+
+                // RULE B: No Blocks inside Paragraphs or Headers
+                // HTML doesn't like <div> inside <p>.
+                // We move the cursor to AFTER the current paragraph/header.
+                const textBlock = el.closest('p, h1, h2, h3, h4, h5, blockquote');
+                if (textBlock) {
+                    const range = document.createRange();
+                    range.setStartAfter(textBlock);
+                    range.collapse(true);
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                    return;
+                }
+            }
         }
         </script>
 </body>
