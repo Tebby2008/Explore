@@ -847,8 +847,7 @@
 
             /* 3. Hide UI Elements */
             .header-area,
-            .ML__menu-toggle,
-            .ML__virtual-keyboard-toggle,
+            .ML__toggles,
             .sticky-wrapper, 
             .modal-overlay, 
             .btn-block-delete, 
@@ -917,6 +916,13 @@
                 color: black !important;
                 font-size: 12pt; /* Ensure math matches text size */
             }
+
+            /* ADD THIS: Hide the toggle buttons inside MathLive's Shadow DOM */
+            math-field::part(virtual-keyboard-toggle),
+            math-field::part(menu-toggle) {
+                display: none !important;
+            }
+
             /* Remove the green tint from Chem fields to save color ink */
             math-field.chem-field {
                 background-color: transparent !important;
