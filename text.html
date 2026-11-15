@@ -2019,6 +2019,9 @@
         buckets.uncommon = [...new Set(buckets.uncommon)].filter(w => !buckets.common.includes(w));
         buckets.rare = [...new Set(buckets.rare)].filter(w => !buckets.common.includes(w) && !buckets.uncommon.includes(w));
 
+        if (datamuseCache.size >= 250) {
+          datamuseCache.delete(datamuseCache.keys().next().value);
+        }
         datamuseCache.set(cacheKey, buckets);
         return {
           common: buckets.common.filter(w => w !== excludeLower),
@@ -2774,15 +2777,54 @@
     const cCtx = confettiCanvas.getContext('2d');
     let confettiParticles = [];
     let confettiRaf = null;
+    let confettiViewW = window.innerWidth;
+    let confettiViewH = window.innerHeight;
+    let confettiDpr = 1;
+    const MAX_CONFETTI_PARTICLES = 220;
 
-    function resizeConfettiCanvas() {
-      const dpr = window.devicePixelRatio || 1;
-      confettiCanvas.width = Math.floor(window.innerWidth * dpr);
-      confettiCanvas.height = Math.floor(window.innerHeight * dpr);
-      cCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    function syncConfettiCanvasSize() {
+      const rect = confettiCanvas.getBoundingClientRect();
+      confettiViewW = Math.max(1, Math.round(rect.width || window.innerWidth));
+      confettiViewH = Math.max(1, Math.round(rect.height || window.innerHeight));
+      confettiDpr = Math.min(window.devicePixelRatio || 1, 2); // Cap DPR at 2x to save mobile VRAM
+
+      const targetW = Math.floor(confettiViewW * confettiDpr);
+      const targetH = Math.floor(confettiViewH * confettiDpr);
+      if (confettiCanvas.width !== targetW || confettiCanvas.height !== targetH) {
+        confettiCanvas.width = targetW;
+        confettiCanvas.height = targetH;
+      }
     }
-    resizeConfettiCanvas();
-    window.addEventListener('resize', resizeConfettiCanvas);
+
+    function releaseConfettiCanvas() {
+      if (confettiRaf !== null) {
+        cancelAnimationFrame(confettiRaf);
+        confettiRaf = null;
+      }
+      confettiParticles.length = 0;
+      // Reset transform & wipe buffer, then shrink to 1x1 so mobile browsers free the GPU texture
+      cCtx.setTransform(1, 0, 0, 1, 0, 0);
+      cCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+      confettiCanvas.width = 1;
+      confettiCanvas.height = 1;
+    }
+
+    function capConfettiParticles() {
+      if (confettiParticles.length > MAX_CONFETTI_PARTICLES) {
+        confettiParticles.splice(0, confettiParticles.length - MAX_CONFETTI_PARTICLES);
+      }
+    }
+
+    const handleViewportResize = () => {
+      if (confettiParticles.length > 0) syncConfettiCanvasSize();
+    };
+    window.addEventListener('resize', handleViewportResize);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleViewportResize);
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) releaseConfettiCanvas();
+    });
 
     function spawnOutwardConfetti(cx, cy, tier, isDelete) {
       let palette = ['#38bdf8', '#60a5fa', '#2563eb', '#a855f7', '#ffffff'];
@@ -2817,6 +2859,7 @@
           decay: 0.013 + Math.random() * 0.011
         });
       }
+      capConfettiParticles();
       startConfettiLoop();
     }
 
@@ -2851,13 +2894,20 @@
           decay: 0.025 + Math.random() * 0.015
         });
       }
+      capConfettiParticles();
       startConfettiLoop();
     }
 
     function startConfettiLoop() {
+      syncConfettiCanvasSize();
       if (confettiRaf) return;
+
       const step = () => {
-        cCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+        // Clear full pixel buffer with identity transform so zero ghost pixels remain
+        cCtx.setTransform(1, 0, 0, 1, 0, 0);
+        cCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+        cCtx.setTransform(confettiDpr, 0, 0, confettiDpr, 0, 0);
+
         for (let i = confettiParticles.length - 1; i >= 0; i--) {
           const p = confettiParticles[i];
           p.vx *= p.drag;
@@ -2868,10 +2918,21 @@
           p.rot += p.vRot;
           p.tilt += p.vTilt;
           p.alpha -= p.decay;
-          if (p.alpha <= 0.01) { confettiParticles.splice(i, 1); continue; }
+
+          // Cull faded OR off-screen particles via swap-and-pop
+          if (
+            p.alpha <= 0.01 ||
+            p.y > confettiViewH + 60 ||
+            p.x < -60 ||
+            p.x > confettiViewW + 60
+          ) {
+            confettiParticles[i] = confettiParticles[confettiParticles.length - 1];
+            confettiParticles.pop();
+            continue;
+          }
 
           cCtx.save();
-          cCtx.globalAlpha = Math.max(0, p.alpha);
+          cCtx.globalAlpha = p.alpha;
           cCtx.translate(p.x, p.y);
           cCtx.rotate(p.rot);
           cCtx.scale(p.scale, p.scale * Math.cos(p.tilt));
@@ -2879,9 +2940,14 @@
           cCtx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
           cCtx.restore();
         }
-        if (confettiParticles.length > 0) confettiRaf = requestAnimationFrame(step);
-        else { confettiRaf = null; cCtx.clearRect(0, 0, window.innerWidth, window.innerHeight); }
+
+        if (confettiParticles.length > 0) {
+          confettiRaf = requestAnimationFrame(step);
+        } else {
+          releaseConfettiCanvas();
+        }
       };
+
       confettiRaf = requestAnimationFrame(step);
     }
 
@@ -3567,6 +3633,7 @@
       modal.classList.remove('pop-into-editor');
       modal.style.transform = '';
       resetRarityVisuals();
+      stripEl.innerHTML = '';
 
       const curSelStart = textarea.selectionStart;
       const curSelEnd = textarea.selectionEnd;
@@ -3646,6 +3713,8 @@
 
     document.getElementById('btn-new').addEventListener('click', () => {
       if (textarea.value.length > 0 && !confirm('Clear current .txt document and start fresh?')) return;
+      releaseConfettiCanvas();
+      stripEl.innerHTML = '';
       textarea.value = '';
       lastText = '';
       settledSpans = [];
