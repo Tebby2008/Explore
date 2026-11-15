@@ -1,0 +1,3708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Untitled — Text Editor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/compromise@14.14.4/builds/compromise.min.js"></script>
+  <style>
+    :root {
+      --bg-studio: #eef2f6;
+      --bg-paper: #ffffff;
+      --border-subtle: #dde4ee;
+      --text-main: #111827;
+      --text-muted: #64748b;
+      --accent-blue: #2563eb;
+      --accent-red: #dc2626;
+      --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-studio);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ============================
+       MAIN EDITOR STAGE (FOV SHIFT)
+       ============================ */
+    #app-stage {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 18px 20px 16px;
+      perspective: 1200px;
+      transform-style: preserve-3d;
+      transition:
+        transform 0.48s cubic-bezier(0.16, 1, 0.3, 1),
+        filter 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+      will-change: transform, filter;
+    }
+
+    body.modal-active #app-stage {
+      transform: scale(0.905) translateZ(-75px) rotateX(1.7deg);
+      filter: blur(5px) brightness(0.42) saturate(0.75);
+      pointer-events: none;
+    }
+
+    .topbar {
+      width: 100%;
+      max-width: 940px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 14px;
+      margin-bottom: 12px;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+      flex-shrink: 0;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .brand-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 10px;
+      border-radius: 8px;
+      background: #f1f5f9;
+      color: #0f172a;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: -0.01em;
+      user-select: none;
+    }
+
+    #filename-input {
+      border: 1px solid transparent;
+      background: transparent;
+      font-family: var(--font-sans);
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text-main);
+      padding: 4px 8px;
+      border-radius: 6px;
+      width: 165px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    #filename-input:hover { background: #f1f5f9; }
+    #filename-input:focus {
+      outline: none;
+      background: #ffffff;
+      border-color: var(--accent-blue);
+    }
+
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border-subtle);
+      background: #ffffff;
+      color: #334155;
+      font-family: var(--font-sans);
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.16s ease;
+      user-select: none;
+    }
+
+    .btn:hover {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+      color: #0f172a;
+      transform: translateY(-1px);
+    }
+
+    .btn:active { transform: translateY(0); }
+
+    .btn.active-toggle {
+      background: #eff6ff;
+      border-color: #93c5fd;
+      color: #1d4ed8;
+    }
+
+    .btn-primary {
+      background: #0f172a;
+      border-color: #0f172a;
+      color: #ffffff;
+    }
+
+    .btn-primary:hover {
+      background: #1e293b;
+      border-color: #1e293b;
+      color: #ffffff;
+    }
+
+    .revealed-after-roll {
+      display: none;
+    }
+    .revealed-after-roll.shown {
+      display: inline-flex;
+      animation: fadeInChip 0.35s ease;
+    }
+    @keyframes fadeInChip {
+      from { opacity: 0; transform: translateY(-3px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Paper Sheet & Layered Editor */
+    .paper-shell {
+      width: 100%;
+      max-width: 940px;
+      flex: 1;
+      min-height: 0;
+      background: var(--bg-paper);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      box-shadow: 0 12px 34px rgba(15, 23, 42, 0.05);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .editor-wrap {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      min-height: 0;
+    }
+
+    /* Pixel-locked Sans-Serif typography between mirror & textarea */
+    .editor-layer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 36px 46px;
+      border: 0;
+      font-family: var(--font-sans);
+      font-size: 17px;
+      font-weight: 500;
+      line-height: 1.75;
+      letter-spacing: 0px;
+      font-kerning: normal;
+      font-variant-ligatures: none;
+      font-feature-settings: "liga" 0, "calt" 0;
+      tab-size: 4;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      overflow-y: scroll;
+      scrollbar-gutter: stable;
+      box-sizing: border-box;
+    }
+
+    #editor-mirror {
+      z-index: 1;
+      color: var(--text-main);
+      pointer-events: none;
+      user-select: none;
+      background: transparent;
+      scrollbar-color: transparent transparent;
+    }
+
+    #editor-mirror::-webkit-scrollbar { width: 12px; }
+    #editor-mirror::-webkit-scrollbar-thumb,
+    #editor-mirror::-webkit-scrollbar-track { background: transparent; }
+
+    #editor-textarea {
+      z-index: 2;
+      background: transparent;
+      color: transparent;
+      caret-color: #0f172a;
+      resize: none;
+      outline: none;
+    }
+
+    #editor-textarea::selection {
+      background: rgba(37, 99, 235, 0.2);
+      color: transparent;
+    }
+
+    #editor-textarea::-webkit-scrollbar { width: 12px; }
+    #editor-textarea::-webkit-scrollbar-track { background: transparent; }
+    #editor-textarea::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 999px;
+      border: 3px solid transparent;
+      background-clip: content-box;
+    }
+
+    #editor-textarea.anim-hide-caret { caret-color: transparent; }
+
+    .editor-placeholder {
+      position: absolute;
+      top: 36px;
+      left: 46px;
+      right: 46px;
+      font-family: var(--font-sans);
+      font-size: 17px;
+      font-weight: 500;
+      line-height: 1.75;
+      color: #94a3b8;
+      pointer-events: none;
+      z-index: 0;
+      transition: opacity 0.2s ease;
+    }
+    .editor-placeholder.hidden { opacity: 0; }
+
+    .statusbar {
+      width: 100%;
+      max-width: 940px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 6px 0;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .status-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    /* ============================
+       IN-EDITOR MORPH ANIMATIONS (BLUE & RED)
+       ============================ */
+    .token-lock-target {
+      display: inline;
+      color: #111827;
+      transition: color 0.2s ease, text-shadow 0.2s ease, background 0.2s ease;
+      border-radius: 5px;
+    }
+
+    .token-lock-target.pre-blue {
+      color: var(--accent-blue);
+      text-shadow: 0 0 10px rgba(37, 99, 235, 0.35);
+      background: rgba(37, 99, 235, 0.14);
+      box-shadow: 0 0 10px 3px rgba(37, 99, 235, 0.22);
+    }
+
+    .token-lock-target.pre-red {
+      color: var(--accent-red);
+      text-shadow: 0 0 10px rgba(220, 38, 38, 0.4);
+      background: rgba(220, 38, 38, 0.15);
+      box-shadow: 0 0 10px 3px rgba(220, 38, 38, 0.25);
+    }
+
+    .morph-pill {
+      display: inline-flex;
+      align-items: baseline;
+      vertical-align: baseline;
+      position: relative;
+      transition: width 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+      white-space: pre;
+    }
+
+    .morph-blur-bar {
+      position: absolute;
+      inset: -1px -5px;
+      border-radius: 7px;
+      background: linear-gradient(90deg, rgba(37, 99, 235, 0.42), rgba(59, 130, 246, 0.58), rgba(37, 99, 235, 0.42));
+      box-shadow: 0 0 18px rgba(37, 99, 235, 0.55);
+      filter: blur(5px);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 2;
+      transition: opacity 0.22s ease, filter 0.34s ease, transform 0.34s ease;
+    }
+
+    .morph-blur-bar.red-theme {
+      background: linear-gradient(90deg, rgba(220, 38, 38, 0.45), rgba(239, 68, 68, 0.62), rgba(220, 38, 38, 0.45));
+      box-shadow: 0 0 18px rgba(220, 38, 38, 0.6);
+    }
+
+    .morph-blur-bar.visible { opacity: 1; filter: blur(4px); }
+    .morph-blur-bar.fade-out {
+      opacity: 0;
+      filter: blur(11px);
+      transform: scale(1.06, 0.92);
+    }
+
+    .morph-new-word {
+      display: inline-block;
+      color: var(--accent-blue);
+      opacity: 0;
+      transform: translateY(2px) scale(0.95);
+      transition:
+        opacity 0.18s ease,
+        color 0.44s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
+      position: relative;
+      z-index: 1;
+    }
+
+    .morph-new-word.red-theme {
+      color: var(--accent-red);
+    }
+
+    .morph-new-word.revealed {
+      opacity: 1;
+      transform: translateY(-4px) scale(1.06);
+    }
+
+    .morph-new-word.settled {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      color: var(--text-main);
+    }
+
+    /* ============================
+       IMMERSIVE ROULETTE MODAL + SHAKE + RARITY
+       ============================ */
+    #roulette-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: radial-gradient(circle at 50% 45%, rgba(15, 23, 42, 0.64), rgba(3, 7, 18, 0.88));
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    #roulette-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    #shake-wrapper {
+      width: 100%;
+      max-width: 810px;
+      display: flex;
+      justify-content: center;
+      will-change: transform;
+    }
+
+    #roulette-modal {
+      width: 100%;
+      background: linear-gradient(165deg, #0f172a 0%, #152036 55%, #0a101f 100%);
+      border: 1px solid rgba(148, 163, 184, 0.24);
+      border-radius: 22px;
+      padding: 24px 26px 22px;
+      box-shadow:
+        0 32px 95px rgba(0, 0, 0, 0.72),
+        0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+        0 0 60px rgba(37, 99, 235, 0.16);
+      color: #f8fafc;
+      transform: scale(0.68) translateY(28px);
+      opacity: 0;
+      transition:
+        transform 0.44s cubic-bezier(0.16, 1, 0.3, 1),
+        opacity 0.3s ease,
+        border-color 0.3s ease,
+        box-shadow 0.35s ease;
+      will-change: transform, opacity;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #roulette-modal.delete-mode {
+      background: linear-gradient(165deg, #1b0c12 0%, #241018 55%, #12080c 100%);
+      border-color: rgba(248, 113, 113, 0.32);
+      box-shadow:
+        0 32px 95px rgba(0, 0, 0, 0.75),
+        0 0 60px rgba(220, 38, 38, 0.22);
+    }
+
+    #roulette-backdrop.open #roulette-modal {
+      transform: scale(1) translateY(0);
+      opacity: 1;
+    }
+
+    #roulette-modal.pop-into-editor {
+      transition:
+        transform 0.34s cubic-bezier(0.55, 0.05, 0.35, 1),
+        opacity 0.28s ease-in !important;
+      opacity: 0 !important;
+    }
+
+    /* High Rarity Modal Borders */
+    #roulette-modal.rarity-glow-epic {
+      border-color: #a855f7;
+      box-shadow: 0 0 70px rgba(168, 85, 247, 0.48), 0 30px 90px rgba(0, 0, 0, 0.75);
+    }
+    #roulette-modal.rarity-glow-legendary {
+      border-color: #fbbf24;
+      box-shadow: 0 0 85px rgba(245, 158, 11, 0.62), 0 30px 90px rgba(0, 0, 0, 0.8);
+    }
+    #roulette-modal.rarity-glow-mythic {
+      border-color: #f43f5e;
+      box-shadow:
+        0 0 95px rgba(236, 72, 153, 0.72),
+        0 0 140px rgba(56, 189, 248, 0.35),
+        0 30px 90px rgba(0, 0, 0, 0.85);
+    }
+
+    /* Intrusive High-Rarity Celebration Banner Overlay */
+    #rarity-intrusion {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+      opacity: 0;
+      transform: scale(1.7);
+      transition: opacity 0.22s ease, transform 0.38s cubic-bezier(0.22, 1.4, 0.36, 1);
+    }
+
+    #rarity-intrusion.active {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .rarity-burst-backdrop {
+      position: absolute;
+      inset: 0;
+      opacity: 0.28;
+    }
+
+    .rarity-stamp {
+      position: relative;
+      padding: 10px 26px;
+      border-radius: 14px;
+      font-weight: 800;
+      font-size: 26px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #ffffff;
+      text-shadow: 0 4px 18px rgba(0, 0, 0, 0.6);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+      border: 2px solid rgba(255, 255, 255, 0.45);
+      transform: rotate(-2deg);
+    }
+
+    .rarity-stamp.tier-epic {
+      background: linear-gradient(135deg, #7e22ce, #a855f7);
+    }
+    .rarity-stamp.tier-legendary {
+      background: linear-gradient(135deg, #d97706, #fbbf24, #f59e0b);
+      color: #1e1200;
+      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+    }
+    .rarity-stamp.tier-mythic {
+      background: linear-gradient(125deg, #ec4899, #8b5cf6, #06b6d4, #f43f5e);
+      background-size: 250% 250%;
+      animation: mythicShimmer 1.6s linear infinite;
+    }
+    @keyframes mythicShimmer {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 200% 50%; }
+    }
+
+    .rarity-pct-popup {
+      position: relative;
+      margin-top: 8px;
+      padding: 4px 14px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.92);
+      border: 1.5px solid rgba(255, 255, 255, 0.45);
+      color: #fde68a;
+      font-size: 13.5px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
+      display: none;
+    }
+    .rarity-pct-popup.visible {
+      display: inline-block;
+      animation: popBadge 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes popBadge {
+      from { opacity: 0; transform: scale(0.5) translateY(10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .modal-tags {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .tag-chip {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .tag-pos {
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      color: #7dd3fc;
+    }
+
+    .tag-pos.delete-chip {
+      background: rgba(248, 113, 113, 0.16);
+      border-color: rgba(248, 113, 113, 0.4);
+      color: #fca5a5;
+    }
+
+    .tag-odds {
+      background: rgba(245, 158, 11, 0.16);
+      border: 1px solid rgba(245, 158, 11, 0.38);
+      color: #fcd34d;
+    }
+
+    .tag-source {
+      background: rgba(148, 163, 184, 0.14);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      color: #cbd5e1;
+    }
+
+    .typed-preview {
+      font-size: 13px;
+      font-weight: 600;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .typed-preview strong {
+      font-family: var(--font-sans);
+      color: #fde68a;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.28);
+      padding: 2px 10px;
+      border-radius: 7px;
+      font-size: 14px;
+      max-width: 240px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Roulette Track */
+    .roulette-viewport {
+      position: relative;
+      width: 100%;
+      height: 136px;
+      border-radius: 14px;
+      background: linear-gradient(180deg, #070b14 0%, #0d1424 50%, #070b14 100%);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      box-shadow: inset 0 8px 24px rgba(0, 0, 0, 0.78);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 10%, #000 90%, transparent 100%);
+      mask-image: linear-gradient(90deg, transparent 0%, #000 10%, #000 90%, transparent 100%);
+    }
+
+    .needle-overlay {
+      position: relative;
+      width: 100%;
+      height: 0;
+      pointer-events: none;
+      z-index: 15;
+    }
+
+    .needle-line {
+      position: absolute;
+      left: 50%;
+      top: -136px;
+      width: 3px;
+      height: 136px;
+      transform: translateX(-50%);
+      background: linear-gradient(180deg, #fbbf24 0%, #38bdf8 50%, #fbbf24 100%);
+      box-shadow: 0 0 14px rgba(251, 191, 36, 0.85), 0 0 28px rgba(56, 189, 248, 0.45);
+    }
+
+    .needle-cap-top,
+    .needle-cap-bottom {
+      position: absolute;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-left: 9px solid transparent;
+      border-right: 9px solid transparent;
+      transform: translateX(-50%);
+      transition: transform 0.08s ease-out;
+    }
+
+    .needle-cap-top {
+      top: -139px;
+      border-top: 11px solid #fbbf24;
+      filter: drop-shadow(0 2px 6px rgba(251, 191, 36, 0.8));
+    }
+
+    .needle-cap-bottom {
+      top: -8px;
+      border-bottom: 11px solid #fbbf24;
+      filter: drop-shadow(0 -2px 6px rgba(251, 191, 36, 0.8));
+    }
+
+    .needle-cap-top.tick-kick {
+      transform: translateX(-50%) rotate(-11deg) scale(1.12);
+    }
+
+    #roulette-strip {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      will-change: transform;
+      padding: 0;
+    }
+
+    .slot-card {
+      flex: 0 0 156px;
+      width: 156px;
+      height: 98px;
+      border-radius: 12px;
+      padding: 10px 10px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      background: linear-gradient(160deg, #1e293b, #141c2f);
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      border-bottom: 4px solid #64748b;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+      user-select: none;
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+    }
+
+    /* Rarity Card Styling */
+    .slot-card.tier-original {
+      background: linear-gradient(160deg, #2b2210, #19140a);
+      border-color: rgba(251, 191, 36, 0.42);
+      border-bottom-color: #eab308;
+    }
+    .slot-card.tier-common {
+      background: linear-gradient(160deg, #1b283a, #121b29);
+      border-bottom-color: #38bdf8;
+    }
+    .slot-card.tier-uncommon {
+      background: linear-gradient(160deg, #112b26, #0a1b18);
+      border-color: rgba(16, 185, 129, 0.32);
+      border-bottom-color: #10b981;
+    }
+    .slot-card.tier-rare {
+      background: linear-gradient(160deg, #17254a, #0e1730);
+      border-color: rgba(59, 130, 246, 0.4);
+      border-bottom-color: #3b82f6;
+    }
+    .slot-card.tier-epic {
+      background: linear-gradient(160deg, #2b1745, #180d28);
+      border-color: rgba(168, 85, 247, 0.48);
+      border-bottom-color: #a855f7;
+    }
+    .slot-card.tier-legendary {
+      background: linear-gradient(160deg, #422607, #241404);
+      border-color: rgba(251, 191, 36, 0.65);
+      border-bottom-color: #f59e0b;
+      box-shadow: 0 0 18px rgba(245, 158, 11, 0.28);
+    }
+    .slot-card.tier-mythic {
+      background: linear-gradient(145deg, #3b0d2c, #241142, #0d2b3b);
+      border-color: rgba(244, 63, 94, 0.72);
+      border-bottom-color: #ec4899;
+      box-shadow: 0 0 22px rgba(236, 72, 153, 0.4);
+    }
+
+    .slot-card.winner-card {
+      transform: scale(1.11);
+      z-index: 6;
+      border-color: #ffffff;
+      box-shadow: 0 0 32px rgba(59, 130, 246, 0.72), 0 0 54px rgba(255, 255, 255, 0.25);
+    }
+    .slot-card.tier-epic.winner-card {
+      box-shadow: 0 0 36px rgba(168, 85, 247, 0.85);
+    }
+    .slot-card.tier-legendary.winner-card {
+      box-shadow: 0 0 42px rgba(251, 191, 36, 0.92);
+    }
+    .slot-card.tier-mythic.winner-card {
+      box-shadow: 0 0 48px rgba(236, 72, 153, 0.95), 0 0 70px rgba(56, 189, 248, 0.6);
+    }
+
+    .slot-badge {
+      position: absolute;
+      top: 6px;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+    }
+
+    .tier-original .slot-badge { color: #fde047; }
+    .tier-common .slot-badge { color: #7dd3fc; }
+    .tier-uncommon .slot-badge { color: #6ee7b7; }
+    .tier-rare .slot-badge { color: #93c5fd; }
+    .tier-epic .slot-badge { color: #d8b4fe; }
+    .tier-legendary .slot-badge { color: #fcd34d; }
+    .tier-mythic .slot-badge { color: #f9a8d4; }
+
+    .slot-word {
+      font-family: var(--font-sans);
+      font-weight: 700;
+      font-size: 18px;
+      color: #f8fafc;
+      text-align: center;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-top: 8px;
+    }
+
+    .slot-word.len-med { font-size: 15px; }
+    .slot-word.len-long { font-size: 12.5px; }
+
+    .slot-pct {
+      position: absolute;
+      bottom: 4px;
+      font-size: 9px;
+      font-weight: 700;
+      color: rgba(226, 232, 240, 0.55);
+    }
+
+    .modal-footer {
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 30px;
+      gap: 12px;
+    }
+
+    .outcome-banner {
+      font-size: 14px;
+      font-weight: 600;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .outcome-banner.win-kept { color: #fbbf24; }
+    .outcome-banner.win-rolled { color: #60a5fa; }
+    .outcome-banner.win-delete { color: #f87171; }
+
+    .queue-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    .btn-skip {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      color: #e2e8f0;
+      font-family: var(--font-sans);
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 7px;
+      cursor: pointer;
+    }
+    .btn-skip:hover { background: rgba(255, 255, 255, 0.16); }
+
+    #confetti-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 200;
+    }
+
+    @media (max-width: 640px) {
+      .editor-layer { padding: 20px; font-size: 15.5px; }
+      .editor-placeholder { top: 20px; left: 20px; right: 20px; font-size: 15.5px; }
+      #roulette-modal { padding: 18px 14px; }
+      .slot-card { flex: 0 0 132px; width: 132px; height: 88px; }
+      .rarity-stamp { font-size: 20px; padding: 8px 18px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Innocent Plain-Text Editor Workspace -->
+  <div id="app-stage">
+    <header class="topbar">
+      <div class="brand-group">
+        <div class="brand-badge">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          <span>PlainText</span>
+        </div>
+        <input id="filename-input" type="text" value="untitled.txt" spellcheck="false" title="Edit .txt filename" />
+      </div>
+
+      <div class="toolbar-actions">
+        <button class="btn" id="btn-new" title="New blank document">New</button>
+        <button class="btn" id="btn-open" title="Open a .txt file">Open .txt</button>
+        <input type="file" id="file-input" accept=".txt,text/plain" hidden />
+        <button class="btn btn-primary" id="btn-save" title="Download as .txt">Save .txt</button>
+        <button class="btn revealed-after-roll" id="btn-turbo" title="Faster roulette spins">Turbo: Off</button>
+        <button class="btn active-toggle revealed-after-roll" id="btn-sfx" title="Toggle audio">SFX: On</button>
+      </div>
+    </header>
+
+    <main class="paper-shell">
+      <div class="editor-wrap">
+        <div id="editor-placeholder" class="editor-placeholder">Start typing...</div>
+        <div id="editor-mirror" class="editor-layer" aria-hidden="true"></div>
+        <textarea id="editor-textarea" class="editor-layer" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+      </div>
+    </main>
+
+    <footer class="statusbar">
+      <div class="status-group">
+        <span id="status-mode">Plain Text · UTF-8</span>
+        <span id="stat-counts">0 words · 0 chars</span>
+      </div>
+      <div class="status-group">
+        <span id="stat-luck" class="revealed-after-roll">Kept: 0 · Randomized: 0</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Immersive Roulette Popup -->
+  <div id="roulette-backdrop" aria-hidden="true">
+    <div id="shake-wrapper">
+      <div id="roulette-modal">
+        <div id="rarity-intrusion">
+          <div class="rarity-burst-backdrop" id="rarity-burst-bg"></div>
+          <div class="rarity-stamp" id="rarity-stamp-label">LEGENDARY</div>
+          <div class="rarity-pct-popup" id="rarity-pct-popup">0.45% CHANCE</div>
+        </div>
+
+        <div class="modal-header">
+          <div class="modal-tags">
+            <span class="tag-chip tag-pos" id="modal-pos-tag">NOUN</span>
+            <span class="tag-chip tag-odds" id="modal-odds-tag">KEEP ODDS: 30%</span>
+            <span class="tag-chip tag-source" id="modal-source-tag">PREDICTIVE</span>
+          </div>
+          <div class="typed-preview">
+            <span id="modal-typed-label">TYPED</span>
+            <strong id="modal-typed-word">word</strong>
+          </div>
+        </div>
+
+        <div class="roulette-viewport" id="roulette-viewport">
+          <div id="roulette-strip"></div>
+        </div>
+        <div class="needle-overlay">
+          <div class="needle-line"></div>
+          <div class="needle-cap-top" id="needle-cap-top"></div>
+          <div class="needle-cap-bottom"></div>
+        </div>
+
+        <div class="modal-footer">
+          <div class="outcome-banner" id="outcome-banner">Spinning...</div>
+          <div class="queue-controls" id="queue-controls" style="display:none;">
+            <span id="queue-count-label"></span>
+            <button class="btn-skip" id="btn-skip-queue">Skip remaining</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="confetti-canvas"></canvas>
+
+  <script>
+  (() => {
+    'use strict';
+
+    /* =========================================================================
+       1. CURATED & EXPANDABLE WORD BANKS + BRAINROT/SLANG + COHERENCE SUBTYPES
+       ========================================================================= */
+    const SLANG_BANK = {
+      noun_singular: [
+        'mogger','diva','sigma','alpha','beta','npc','normie','boomer','zoomer','doomer',
+        'chad','gigachad','gremlin','goblin','menace','bestie','pookie','bro','homie','meme',
+        'simp','clown','goat','unc','blud','ratio','banger','flop','vibe','flex',
+        'ick','delusion','crashout','glowup','situationship','sidequest','lore','canon','skibidi','troll',
+        'gooner','queen','king','icon','villain','tryhard','sweat','bot','rizzler','edgelord'
+      ],
+      noun_mass: [
+        'brainrot','rizz','aura','cringe','slop','delulu','clout','drama','drip','copium',
+        'hopium','doomscrolling','mewing','looksmaxxing','yapping','glazing','gaslighting','hype','beef','sludge',
+        'cinema','peak','mid','rot','gyatt','fanum','chaos','slander','tea','sauce'
+      ],
+      verb_transitive: [
+        'mog','slay','rizz','ratio','gaslight','gatekeep','glaze','roast','cook','yeet',
+        'ghost','cancel','fumble','humble','dogwalk','unhinge','manifest','spam','troll','simp',
+        'stan','ship','flex','dodge','ragebait','clown','carry','solo','banish','curse'
+      ],
+      verb_intransitive: [
+        'mog','slay','cook','yap','mew','tweak','crashout','spiral','vibe','cope',
+        'seethe','mald','ragequit','ascend','dissociate','glitch','lurk','flex','chill','flop',
+        'serve','glowup','doomscroll','ascend','lockin'
+      ],
+      adj_base: [
+        'skibidi','unhinged','goofy','cursed','bussin','delulu','cooked','fried','feral','toxic',
+        'iconic','cringe','based','mid','peak','valid','sus','shady','chaotic','extra',
+        'dramatic','savage','petty','clapped','zesty','goated','washed','glitchy','diabolical','unserious',
+        'devious','villainous','brainrotted','sigma','alpha','rizzful','blessed','haunted','cursed','radioactive'
+      ],
+      adv_degree: [
+        'lowkey','highkey','deadass','unironically','literally','chronically','terminally',
+        'aggressively','insanely','diabolically','suspiciously','dangerously','mad','hella',
+        'kinda','sorta','ultra','mega','genuinely','wildly','absurdly'
+      ],
+      adv: [
+        'lowkey','highkey','deadass','unironically','aggressively','chaotically','ferally',
+        'suspiciously','dramatically','shamelessly','recklessly','casually','frantically','relentlessly'
+      ],
+      interjection: [
+        'bruh','bro','yo','slay','sheesh','yikes','oof','rip','ayyo','nah','fr','bet',
+        'period','purr','skibidi','bazinga','yeet','gg'
+      ]
+    };
+
+    const SLANG_VERB_FORMS = {
+      mog:       { past: 'mogged', gerund: 'mogging', present3s: 'mogs' },
+      yap:       { past: 'yapped', gerund: 'yapping', present3s: 'yaps' },
+      simp:      { past: 'simped', gerund: 'simping', present3s: 'simps' },
+      ship:      { past: 'shipped', gerund: 'shipping', present3s: 'ships' },
+      spam:      { past: 'spammed', gerund: 'spamming', present3s: 'spams' },
+      flop:      { past: 'flopped', gerund: 'flopping', present3s: 'flops' },
+      rizz:      { past: 'rizzed', gerund: 'rizzing', present3s: 'rizzes' },
+      slay:      { past: 'slayed', gerund: 'slaying', present3s: 'slays' },
+      yeet:      { past: 'yeeted', gerund: 'yeeting', present3s: 'yeets' },
+      cook:      { past: 'cooked', gerund: 'cooking', present3s: 'cooks' },
+      mew:       { past: 'mewed', gerund: 'mewing', present3s: 'mews' },
+      cope:      { past: 'coped', gerund: 'coping', present3s: 'copes' },
+      mald:      { past: 'malded', gerund: 'malding', present3s: 'malds' },
+      seethe:    { past: 'seethed', gerund: 'seething', present3s: 'seethes' },
+      glaze:     { past: 'glazed', gerund: 'glazing', present3s: 'glazes' },
+      tweak:     { past: 'tweaked', gerund: 'tweaking', present3s: 'tweaks' },
+      flex:      { past: 'flexed', gerund: 'flexing', present3s: 'flexes' },
+      vibe:      { past: 'vibed', gerund: 'vibing', present3s: 'vibes' },
+      ratio:     { past: 'ratioed', gerund: 'ratioing', present3s: 'ratios' },
+      gaslight:  { past: 'gaslit', gerund: 'gaslighting', present3s: 'gaslights' },
+      unhinge:   { past: 'unhinged', gerund: 'unhinging', present3s: 'unhinges' },
+      crashout:  { past: 'crashedout', gerund: 'crashingout', present3s: 'crashesout' },
+      ragequit:  { past: 'ragequit', gerund: 'ragequitting', present3s: 'ragequits' },
+      stan:      { past: 'stanned', gerund: 'stanning', present3s: 'stans' },
+      diff:      { past: 'diffed', gerund: 'diffing', present3s: 'diffs' },
+      solo:      { past: 'soloed', gerund: 'soloing', present3s: 'solos' },
+      carry:     { past: 'carried', gerund: 'carrying', present3s: 'carries' }
+    };
+
+    const SLANG_SETS = {
+      noun_singular: new Set(SLANG_BANK.noun_singular),
+      noun_mass: new Set(SLANG_BANK.noun_mass),
+      noun_plural: new Set(),
+      verb_transitive: new Set(SLANG_BANK.verb_transitive),
+      verb_intransitive: new Set(SLANG_BANK.verb_intransitive),
+      verb_base: new Set([...SLANG_BANK.verb_transitive, ...SLANG_BANK.verb_intransitive]),
+      verb_past: new Set(),
+      verb_gerund: new Set(),
+      verb_present3s: new Set(),
+      adj_base: new Set(SLANG_BANK.adj_base),
+      adv_degree: new Set(SLANG_BANK.adv_degree),
+      adv: new Set(SLANG_BANK.adv),
+      interjection: new Set(SLANG_BANK.interjection)
+    };
+
+    const BANKS = {
+      firstName: [
+        'Liam','Emma','Noah','Olivia','Mateo','Sophia','Lucas','Mia','Ethan','Amelia',
+        'Aiden','Harper','Elijah','Evelyn','Marcus','Elena','Darius','Keiko','Svetlana','Tariq',
+        'Chloe','Julian','Aria','Leo','Nora','Gabriel','Zoe','Sebastian','Hannah','Caleb',
+        'Layla','Owen','Riley','Isaac','Maya','Wyatt','Hazel','Nathan','Aurora','Adrian',
+        'Luna','Ezra','Stella','Xavier','Violet','Miles','Claire','Dominic','Savannah','Victor',
+        'Iris','Roman','Ruby','Vincent','Alice','Jasper','Eleanor','Oscar','Freya','Hugo',
+        'Beatrice','Felix','Nadia','Arthur','Clara','Simon','Sienna','Rafael','Tessa','Diego',
+        'Mila','Henrik','Astrid','Kieran','Yuki','Priya','Arjun','Fatima','Omar','Amara',
+        'Gideon','Daphne','Malcolm','Phoebe','Winston','Margot','Trevor','Brenda','Gary','Linda',
+        'Kevin','Karen','Chad','Tiffany','Eugene','Mildred','Bernie','Gertrude','Bartholomew','Zelda'
+      ],
+      lastName: [
+        'Smith','Johnson','Williams','Brown','Jones','Garcia','Miller','Davis','Rodriguez','Martinez',
+        'Hernandez','Lopez','Gonzalez','Wilson','Anderson','Thomas','Taylor','Moore','Jackson','Martin',
+        'Lee','Perez','Thompson','White','Harris','Sanchez','Clark','Ramirez','Lewis','Robinson',
+        'Walker','Young','Allen','King','Wright','Scott','Torres','Nguyen','Hill','Flores',
+        'Green','Adams','Nelson','Baker','Hall','Rivera','Campbell','Mitchell','Carter','Roberts',
+        'Nakamura','Kowalski','OConnor','Patel','Vance','Moretti','Lindqvist','Dubois','Volkov','Kim',
+        'Chen','Zhang','Singh','Alvarez','Castillo','Reyes','Morales','Ortiz','Gomez','Cruz',
+        'Stewart','Morris','Rogers','Reed','Cook','Morgan','Bell','Murphy','Bailey','Cooper'
+      ],
+      company: [
+        'Google','Microsoft','Apple','Amazon','Tesla','Netflix','Spotify','Nike','Adidas','Sony',
+        'Nintendo','Disney','Starbucks','McDonalds','IKEA','Costco','OpenAI','Anthropic','Nvidia','Intel',
+        'Adobe','Uber','Airbnb','Lego','Boeing','Samsung','Toyota','Honda','Ferrari','Porsche',
+        'Rolex','Oracle','Salesforce','Stripe','PayPal','Walmart','Target','CocaCola','Pepsi','Reddit',
+        'Discord','YouTube','TikTok','Instagram','Meta','IBM','Cisco','Dell','Lenovo','Asus',
+        'AMD','SpaceX','NASA','FedEx','UPS','Visa','Mastercard','Chase','Subway','Dominos',
+        'Chipotle','BestBuy','HomeDepot','Ford','BMW','Audi','Mercedes','Volvo','Steam','Valve','Pixar'
+      ],
+      place: [
+        'Tokyo','Paris','London','NewYork','Berlin','Cairo','Sydney','Toronto','Seoul','Mumbai',
+        'Rio','Reykjavik','Nairobi','Bangkok','Istanbul','Vienna','Prague','Lisbon','Dublin','Oslo',
+        'Stockholm','Zurich','Amsterdam','Brussels','Madrid','Rome','Athens','Warsaw','Budapest','Helsinki',
+        'Chicago','Seattle','Austin','Miami','Boston','Denver','Portland','Atlanta','Phoenix','Dallas',
+        'Japan','France','Brazil','Canada','Egypt','Norway','Mexico','India','Germany','Italy',
+        'Spain','Australia','Iceland','Peru','Chile','Kenya','Morocco','Thailand','Vietnam','Greece',
+        'Antarctica','Atlantis','Sahara','Siberia','Hawaii','Alaska','Manhattan','Brooklyn','Kyoto','Ohio'
+      ],
+      pronoun_subj_3s: ['he','she','it'],
+      pronoun_subj_pl: ['you','we','they'],
+      pronoun_subj_all: ['I','you','he','she','it','we','they'],
+      pronoun_obj: ['me','you','him','her','it','us','them'],
+      pronoun_poss_det: ['my','your','his','her','its','our','their'],
+      pronoun_poss_pro: ['mine','yours','his','hers','ours','theirs'],
+      pronoun_refl: ['myself','yourself','himself','herself','itself','ourselves','themselves'],
+      pronoun_indef: ['someone','anyone','everyone','nobody','everybody','somebody','nothing','everything','something','anything'],
+      det_sg: ['the','this','that','a','an','some','every','each','no','another','one','any'],
+      det_pl: ['the','these','those','some','many','several','all','few','no','any'],
+      preposition: [
+        'in','on','at','under','over','through','beside','behind','near','with','without','towards',
+        'among','beyond','inside','outside','against','around','between','beneath','above','below',
+        'across','along','during','before','after','despite','except','past','via','into','from','about','for','of','by','until'
+      ],
+      conj_coord: ['and','but','or','yet','so','plus','versus'],
+      conj_sub: ['because','although','while','unless','whereas','though','if','when','since','whenever'],
+      modal: ['can','could','will','would','shall','should','may','might','must'],
+      aux_do_pres: ['do','can','will','should','might'],
+      aux_do_3s: ['does','can','will','should','might'],
+      aux_do_past: ['did','could','would','might'],
+      aux_have_pres: ['have','must','might','could','should'],
+      aux_have_3s: ['has','must','might','could','should'],
+      aux_have_past: ['had','could','would','might'],
+      negation: ['not','never','barely','hardly','scarcely'],
+      wh_word: ['what','who','where','when','why','how','which'],
+      // Present vs past linking verbs kept strictly separated!
+      copula_3s_pres: ['is','becomes','seems','looks','feels','smells','sounds','tastes','remains','stays','appears','resembles'],
+      copula_3s_past: ['was','became','seemed','looked','felt','smelled','sounded','tasted','remained','stayed','appeared','resembled'],
+      copula_pl_pres: ['are','become','seem','look','feel','smell','sound','taste','remain','stay','appear','resemble'],
+      copula_pl_past: ['were','became','seemed','looked','felt','smelled','sounded','tasted','remained','stayed','appeared','resembled'],
+      copula_1s_pres: ['am','become','feel','look','seem','sound','remain','stay'],
+      // Progressive auxiliaries before -ing verbs (never "seems" + "-ing"!)
+      prog_3s_pres: ['is','keeps','starts','stops','loves','hates','enjoys','avoids','continues'],
+      prog_3s_past: ['was','kept','started','stopped','loved','hated','enjoyed','avoided','continued'],
+      prog_pl_pres: ['are','keep','start','stop','love','hate','enjoy','avoid','continue'],
+      prog_pl_past: ['were','kept','started','stopped','loved','hated','enjoyed','avoided','continued'],
+      prog_1s_pres: ['am','keep','start','stop','love','hate','enjoy','avoid','continue'],
+      interjection: [
+        'hello','hi','hey','howdy','greetings','yo','ahoy','bonjour','aloha','ciao','farewell','goodbye',
+        'wow','oops','ouch','whoa','bravo','hurray','alas','ugh','yikes','bam','zoinks','phew','gosh','oh','aha',
+        ...SLANG_BANK.interjection
+      ],
+      number_word: [
+        'zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve',
+        'thirteen','fifteen','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety',
+        'hundred','thousand','million','billion','trillion','dozen'
+      ],
+      ordinal_word: [
+        'first','second','third','fourth','fifth','sixth','seventh','eighth','ninth','tenth',
+        'eleventh','twelfth','twentieth','thirtieth','hundredth','thousandth','millionth','last','final'
+      ],
+      noun_mass: [
+        'intelligence','knowledge','wisdom','chaos','entropy','electricity','gravity','moisture','butter','cheese',
+        'mayonnaise','spaghetti','confetti','toothpaste','garlic','caffeine','serotonin','melatonin','cholesterol',
+        'tungsten','uranium','microplastics','propaganda','taxation','homework','traffic','luggage','furniture',
+        'software','firmware','hardware','trauma','nostalgia','sarcasm','nonsense','garbage','debris','static',
+        'radiation','oxygen','methane','coffee','gravy','custard','sandpaper','cardboard','velvet','glitter',
+        'music','math','history','art','science','sleep','luck','money','water','fire','ice','air','mud',
+        'slime','foam','dust','smoke','fog','rain','snow','thunder','energy','power','time','space',
+        ...SLANG_BANK.noun_mass
+      ],
+      noun_singular: [
+        'name','bus','cat','toaster','umbrella','bicycle','penguin','sandwich','volcano','telescope','backpack',
+        'banana','keyboard','helicopter','potato','cactus','lantern','submarine','accordion','saxophone','suitcase',
+        'refrigerator','dinosaur','skateboard','mushroom','tornado','pineapple','chandelier','compass','escalator','hamster',
+        'lighthouse','meteor','necklace','octopus','parachute','raccoon','spatula','trampoline','walrus','zeppelin',
+        'algorithm','balloon','briefcase','carpet','dolphin','envelope','fountain','glacier','hedgehog','igloo',
+        'jacket','kangaroo','lemon','magnet','notebook','ostrich','pancake','quilt','robot','squirrel',
+        'teapot','unicorn','vacuum','waffle','xylophone','yacht','zebra','anvil','broccoli','castle',
+        'dragon','espresso','flamingo','giraffe','harmonica','island','jellyfish','ketchup','lobster','mirror',
+        'noodle','omelet','pickle','quicksand','raincoat','skeleton','trombone','ukulele','vampire','whisper',
+        'blizzard','cinnamon','detective','earthquake','firework','gondola','horizon','illusion','javelin',
+        'kaleidoscope','labyrinth','marshmallow','nightmare','observatory','pendulum','sculpture','tapestry',
+        'artifact','blueberry','cathedral','dumpster','emerald','fortress','hurricane','jukebox',
+        'kitchen','laundromat','microscope','napkin','orchestra','pavement','radish','thermostat','utensil',
+        'apartment','basement','cafeteria','driveway','elevator','factory','garage','highway','library',
+        'museum','office','pharmacy','restaurant','stadium','theater','university','warehouse',
+        'idea','secret','rumor','mistake','disaster','miracle','complaint','excuse','bargain','gamble',
+        'theory','recipe','password','trophy','ticket','receipt','contract','promise','mystery','paradox',
+        'lawyer','accountant','dentist','therapist','uncle','cousin','neighbor','dog','goldfish','alibi','mustache',
+        'microwave','squirrel','squirrel','goblin','wizard','cucumber','bagel','spatula','roommate','intern',
+        ...SLANG_BANK.noun_singular
+      ],
+      verb_intransitive: [
+        'run','jump','explode','whisper','teleport','melt','sneeze','vanish','bounce','collapse',
+        'wander','sprint','levitate','disappear','nap','giggle','hesitate','tremble','vibrate','wobble',
+        'yawn','zoom','float','snore','skate','crawl','glide','hover','plunge','spin',
+        'twirl','groan','hum','roar','scream','sigh','whistle','yell','malfunction','glitch','panic',
+        ...SLANG_BANK.verb_intransitive
+      ],
+      verb_transitive: [
+        'google','juggle','investigate','devour','construct','demolish','orbit','tickle','smuggle','broadcast',
+        'invent','squish','negotiate','celebrate','borrow','forgive','assemble','bake','climb','dodge',
+        'escape','ignite','launch','measure','observe','polish','question','rescue','scramble','unlock',
+        'adopt','balance','capture','deliver','entertain','freeze','gather','haunt','ignore','kick',
+        'lick','mimic','nudge','open','paint','repair','shatter','taste','upload','verify',
+        'warn','zap','confess','swallow','chew','sip','grill','toast','blend','slice','pour','spill','scrub',
+        'microwave','confiscate','pirate','uninstall','summon','yeet',
+        ...SLANG_BANK.verb_transitive
+      ],
+      verb_catenative: [
+        'want','need','try','love','hate','like','refuse','plan','hope','forget',
+        'decide','learn','pretend','promise','threaten','struggle','beg','agree','fail','manage',
+        'choose','prefer','expect','demand','dare','attempt','intend','deserve','hesitate','offer'
+      ],
+      adj_base: [
+        'good','bad','blue','red','green','purple','yellow','orange','crispy','haunted',
+        'magnetic','soggy','fluorescent','ancient','tiny','massive','broken','invisible','spicy','fluffy',
+        'plastic','golden','wooden','electric','frozen','melted','shiny','rusty','quiet','loud',
+        'weird','suspicious','illegal','famous','hungry','sleepy','dizzy','clumsy','fancy','cheap',
+        'expensive','sticky','slippery','bouncy','hollow','heavy','weightless','bitter','sweet','sour',
+        'salty','crunchy','chewy','fuzzy','spiky','smooth','rough','crooked','straight','round',
+        'square','triangular','striped','spotted','transparent','opaque','glowing','radioactive','volcanic','tropical',
+        'arctic','underground','suburban','medieval','futuristic','vintage','awkward','dramatic','polite','rude',
+        'chaotic','peaceful','reckless','cautious','greedy','generous','stubborn','curious','bored','excited',
+        'jealous','proud','nervous','brave','wicked','innocent','ordinary','bizarre','magnificent',
+        'terrible','mediocre','unbelievable','portable','disposable','inflatable','edible','toxic','fragile',
+        'synthetic','quantum','digital','artificial','interesting','hilarious','terrifying','absurd','deranged',
+        ...SLANG_BANK.adj_base
+      ],
+      adj_comparative: [
+        'better','worse','bluer','redder','greener','faster','slower','louder','quieter','weirder',
+        'stranger','tinier','bigger','heavier','lighter','brighter','darker','shinier','soggier','crispier',
+        'spicier','sweeter','sourer','crazier','wilder','fluffier','stickier','smoother','sharper','gloomier',
+        'cheaper','tastier','noisier','messier','neater','fancier','rustier','sturdier','deadlier','sillier',
+        'goofier','cringier','spicier','shadier','zestier','cookedier'
+      ],
+      adj_superlative: [
+        'best','worst','bluest','reddest','greenest','fastest','slowest','loudest','quietest','weirdest',
+        'strangest','tiniest','biggest','heaviest','lightest','brightest','darkest','shiniest','soggiest','crispiest',
+        'spiciest','sweetest','sourest','craziest','wildest','fluffiest','stickiest','smoothest','sharpest','gloomiest',
+        'cheapest','tastiest','noisiest','messiest','neatest','fanciest','rustiest','sturdiest','deadliest','silliest',
+        'goofiest','cringiest','shadiest','zestiest','basedest'
+      ],
+      adv_degree: [
+        'very','really','so','too','quite','rather','pretty','fairly','extremely','incredibly',
+        'unbelievably','super','mega','ultra','totally','completely','utterly','genuinely','deeply',
+        'wildly','absurdly','dangerously','suspiciously','hilariously','embarrassingly','catastrophically',
+        'majestically','eerily','strangely','weirdly','terribly','awfully','remarkably',
+        ...SLANG_BANK.adv_degree
+      ],
+      adv: [
+        'quickly','slowly','suspiciously','awkwardly','violently','serenely','allegedly','eternally','clumsily','loudly',
+        'quietly','accidentally','deliberately','nervously','boldly','reluctantly','eagerly','desperately','politely','rudely',
+        'magically','scientifically','dramatically','casually','secretly','publicly','rarely','frequently','barely','completely',
+        'partially','suddenly','gradually','eventually','immediately','temporarily','permanently','chaotically','gracefully','recklessly',
+        'cheerfully','miserably','bravely','foolishly','cleverly','wildly','strangely','oddly','curiously','honestly',
+        'technically','theoretically','practically','emotionally','financially','digitally','physically','mentally','ironically','tragically',
+        'hilariously','spectacularly','horribly','wonderfully','frantically','calmly','smoothly','roughly','tightly',
+        ...SLANG_BANK.adv
+      ],
+      tld: ['com','org','net','io','ai','dev','app','edu','gov','pizza','ninja','club','space','zip','cat','horse','museum','tv','gg','xyz']
+    };
+
+    BANKS.verb_base = [...new Set([...BANKS.verb_transitive, ...BANKS.verb_intransitive])];
+
+    // Closed-class function words that must NEVER pollute content-word (noun/verb/adj/adv) dictionaries
+    const FUNCTION_WORD_BLOCKLIST = new Set([
+      ...BANKS.pronoun_subj_all, ...BANKS.pronoun_obj, ...BANKS.pronoun_poss_det,
+      ...BANKS.pronoun_poss_pro, ...BANKS.pronoun_refl, ...BANKS.pronoun_indef,
+      ...BANKS.det_sg, ...BANKS.det_pl, ...BANKS.preposition, ...BANKS.conj_coord, ...BANKS.conj_sub,
+      ...BANKS.modal, ...BANKS.negation, ...BANKS.wh_word,
+      'to','do','does','did','have','has','had','is','am','are','was','were','be','been','being',
+      'there','here','than','as','even','just','only','still','already','yet','also','ever','too','very',
+      'more','most','less','least','such','both','either','neither','whether','however','therefore','meanwhile','hence','ago'
+    ].map(w => w.toLowerCase()));
+
+    // Rich common 1-4 letter English words for clean Delete-Roulette conversions ("Hel" -> "Hey")
+    const COMMON_SHORT_WORDS = [
+      'a','i',
+      'am','an','as','at','be','by','do','go','he','hi','if','in','is','it','me','my','no','of','oh','ok','on','or','ox','so','to','up','us','we','yo','fr','gg',
+      'act','add','age','ago','aid','aim','air','ale','all','and','ant','any','ape','apt','arc','are','ark','arm','art','ash','ask','ate','awe','axe',
+      'bad','bag','ban','bar','bat','bay','bed','bee','beg','bet','bid','big','bin','bit','bob','bog','boo','bow','box','boy','bro','bud','bug','bun','bus','but','buy','bye',
+      'cab','cam','can','cap','car','cat','cob','cod','cog','cop','cot','cow','coy','cry','cub','cue','cup','cut',
+      'dab','dad','dam','day','den','dew','did','die','dig','dim','din','dip','doe','dog','dot','dry','dub','due','dug','duh','duo','dye',
+      'ear','eat','ebb','eel','egg','ego','elf','elk','elm','emu','end','eon','era','err','eve','eye',
+      'fab','fad','fan','far','fat','fax','fed','fee','few','fib','fig','fin','fir','fit','fix','flu','fly','foe','fog','for','fox','fry','fun','fur',
+      'gab','gag','gal','gap','gas','gel','gem','get','gig','gin','gnu','gob','god','got','gum','gun','gut','guy','gym',
+      'had','hag','ham','has','hat','hay','hem','hen','her','hew','hex','hey','hid','him','hip','his','hit','hob','hoe','hog','hop','hot','how','hub','hue','hug','hum','hut',
+      'ice','icy','ilk','ill','imp','ink','inn','ion','ire','irk','its','ivy',
+      'jab','jag','jam','jar','jaw','jay','jet','jig','job','jog','jot','joy','jug','jut',
+      'keg','ken','key','kid','kin','kit',
+      'lab','lad','lag','lap','law','lax','lay','led','leg','let','lid','lie','lip','lit','lob','log','lop','lot','low','lug',
+      'mad','mag','man','map','mar','mat','max','may','men','met','mew','mid','mix','mob','mod','mog','mom','moo','mop','mow','mud','mug','mum',
+      'nab','nag','nap','nay','net','new','nib','nil','nip','nit','nod','nor','not','now','npc','nub','nun','nut',
+      'oaf','oak','oar','oat','odd','ode','off','oft','ohm','oil','old','one','opt','orb','ore','our','out','owe','owl','own',
+      'pad','pal','pan','par','pat','paw','pay','pea','peg','pen','pep','per','pet','pew','pic','pie','pig','pin','pit','ply','pod','pop','pot','pow','pro','pry','pub','pug','pun','pup','put',
+      'rad','rag','ram','ran','rap','rat','raw','ray','red','ref','rep','rib','rid','rig','rim','rip','rob','rod','roe','rot','row','rub','rug','rum','run','rut','rye',
+      'sad','sag','sap','sat','saw','sax','say','sea','sec','see','set','sew','she','shy','sin','sip','sir','sis','sit','six','ski','sky','sly','sob','sod','son','sop','sot','sow','soy','spa','spy','sty','sub','sue','sum','sun','sup','sus',
+      'tab','tad','tag','tan','tap','tar','tax','tea','tee','ten','the','thy','tic','tie','tin','tip','toe','tog','ton','too','top','tot','tow','toy','try','tub','tug','tun','two',
+      'ugh','unc','urn','use','van','vat','vet','vex','via','vie','vow','wad','wag','wan','war','was','wax','way','web','wed','wee','wet','who','why','wig','win','wit','woe','wok','won','woo','wow','wry',
+      'yak','yam','yap','yaw','yea','yen','yes','yet','yew','yip','you','zag','zap','zen','zig','zip','zit','zoo',
+      'able','acid','aged','also','area','army','aura','away','baby','back','ball','band','bank','base','bath','bear','beat','been','beer','bell','belt','best','bill','bird','blow','blue','boat','body','bomb','bond','bone','book','boom','born','boss','both','bowl','bruh','bulk','burn','bush','busy','cake','call','calm','came','camp','card','care','case','cash','cast','cell','chat','chip','city','club','coal','coat','code','cold','come','cook','cool','cope','copy','core','cost','crew','crop','dark','data','date','dawn','days','dead','deal','dean','dear','debt','deep','deny','desk','dial','diet','disc','disk','diva','does','done','door','dose','down','draw','drew','drop','drug','dual','duke','dust','duty','each','earn','ease','east','easy','edge','else','even','ever','evil','exit','face','fact','fail','fair','fall','farm','fast','fate','fear','feed','feel','feet','fell','felt','file','fill','film','find','fine','fire','firm','fish','five','flat','flex','flow','food','foot','ford','form','fort','four','free','from','fuel','full','fund','gain','game','gate','gave','gear','gene','gift','girl','give','glad','goal','goat','goes','gold','golf','gone','good','gray','grew','grey','grow','gulf','hair','half','hall','hand','hang','hard','harm','hate','have','head','hear','heat','held','hell','help','here','hero','high','hill','hire','hold','hole','holy','home','hope','host','hour','huge','hung','hunt','hurt','idea','inch','into','iron','item','jack','jane','jean','john','join','jump','jury','just','keen','keep','kent','kept','kick','kill','kind','king','knee','knew','know','lack','lady','laid','lake','land','lane','last','late','lead','left','less','life','lift','like','line','link','list','live','load','loan','lock','logo','long','look','lord','lose','loss','lost','love','luck','lurk','made','mail','main','make','mald','male','many','mark','mass','matt','meal','mean','meat','meet','meme','menu','mere','mike','mile','milk','mill','mind','mine','miss','mode','mood','moon','more','most','move','much','must','name','navy','near','neck','need','news','next','nice','nick','nine','none','nose','note','okay','once','only','onto','open','oral','over','pace','pack','page','paid','pain','pair','palm','park','part','pass','past','path','peak','pick','pink','pipe','plan','play','plot','plug','plus','poll','pool','poor','port','post','pull','pure','push','race','rail','rain','rank','rare','rate','read','real','rear','rely','rent','rest','rice','rich','ride','ring','rise','risk','rizz','road','rock','role','roll','roof','room','root','rose','rule','rush','ruth','safe','said','sake','sale','salt','same','sand','save','seat','seed','seek','seem','seen','self','sell','send','sent','sept','ship','shop','shot','show','shut','sick','side','sign','simp','site','size','skin','slay','slip','slop','slow','snow','soft','soil','sold','sole','some','song','soon','sort','soul','spot','stan','star','stay','step','stop','such','suit','sure','take','tale','talk','tall','tank','tape','task','team','tech','tell','tend','term','test','text','than','that','them','then','they','thin','this','thus','till','time','tiny','told','toll','tone','tony','took','tool','tour','town','tree','trip','true','tune','turn','twin','type','unit','upon','used','user','vary','vast','very','vibe','vice','view','vote','wage','wait','wake','walk','wall','want','ward','warm','wash','wave','ways','weak','wear','week','well','went','were','west','what','when','whom','wide','wife','wild','will','wind','wine','wing','wire','wise','wish','with','wood','word','wore','work','yard','yeah','year','yeet','your','zero','zone'
+    ];
+
+    const COMPANY_SET = new Set(BANKS.company.map(w => w.toLowerCase()));
+    const FIRST_NAME_SET = new Set(BANKS.firstName.map(w => w.toLowerCase()));
+    const LAST_NAME_SET = new Set(BANKS.lastName.map(w => w.toLowerCase()));
+    const PLACE_SET = new Set(BANKS.place.map(w => w.toLowerCase()));
+    const TLD_SET = new Set(BANKS.tld);
+
+    const DICT = {};
+    for (const [k, arr] of Object.entries(BANKS)) {
+      DICT[k] = new Set(arr.map(w => w.toLowerCase()));
+    }
+    DICT.noun_plural = new Set();
+    DICT.verb_past = new Set();
+    DICT.verb_gerund = new Set();
+    DICT.verb_present3s = new Set();
+
+    // Master word pools by length for Delete Roulette minimum-edit-distance matching
+    const WORDS_BY_LEN = new Map();
+    const VALID_WORDS = new Set();
+
+    function registerWordForEditDistance(word) {
+      if (!word || !/^[a-z]+$/i.test(word)) return;
+      const w = word.toLowerCase();
+      VALID_WORDS.add(w);
+      let set = WORDS_BY_LEN.get(w.length);
+      if (!set) {
+        set = new Set();
+        WORDS_BY_LEN.set(w.length, set);
+      }
+      set.add(w);
+    }
+
+    for (const w of COMMON_SHORT_WORDS) registerWordForEditDistance(w);
+
+    const hasNLP = typeof window.nlp === 'function';
+
+    function capitalize(s) {
+      return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s;
+    }
+
+    function inflectPlural(noun) {
+      const lower = noun.toLowerCase();
+      if (lower === 'npc') return 'npcs';
+      if (lower === 'skibidi') return 'skibidis';
+      if (hasNLP && !SLANG_SETS.noun_singular.has(lower)) {
+        try {
+          const out = window.nlp(noun).nouns().toPlural().text().trim();
+          if (out && out !== noun && !/\s/.test(out)) return out.toLowerCase();
+        } catch {}
+      }
+      if (/(s|x|z|ch|sh)$/i.test(noun)) return noun + 'es';
+      if (/[^aeiou]y$/i.test(noun)) return noun.slice(0, -1) + 'ies';
+      return noun + 's';
+    }
+
+    function inflectVerb(base, form) {
+      const lower = base.toLowerCase();
+      if (SLANG_VERB_FORMS[lower]?.[form]) return SLANG_VERB_FORMS[lower][form];
+
+      if (hasNLP && !SLANG_SETS.verb_base.has(lower)) {
+        try {
+          const doc = window.nlp(base);
+          let out = '';
+          if (form === 'past') out = doc.verbs().toPastTense().text();
+          else if (form === 'gerund') out = doc.verbs().toGerund().text();
+          else if (form === 'present3s') out = doc.verbs().toPresentTense().text();
+          out = (out || '').replace(/^is\s+/i, '').trim();
+          if (out && !/\s/.test(out)) return out.toLowerCase();
+        } catch {}
+      }
+      if (form === 'past') {
+        if (/e$/i.test(base)) return base + 'd';
+        if (/[^aeiou]y$/i.test(base)) return base.slice(0, -1) + 'ied';
+        return base + 'ed';
+      }
+      if (form === 'gerund') {
+        if (/ie$/i.test(base)) return base.slice(0, -2) + 'ying';
+        if (/[^e]e$/i.test(base)) return base.slice(0, -1) + 'ing';
+        return base + 'ing';
+      }
+      if (form === 'present3s') {
+        if (/(s|x|z|ch|sh|o)$/i.test(base)) return base + 'es';
+        if (/[^aeiou]y$/i.test(base)) return base.slice(0, -1) + 'ies';
+        return base + 's';
+      }
+      return base;
+    }
+
+    function seedAllDictionaries() {
+      for (const n of DICT.noun_singular) {
+        const pl = inflectPlural(n);
+        DICT.noun_plural.add(pl);
+        if (SLANG_SETS.noun_singular.has(n)) SLANG_SETS.noun_plural.add(pl);
+      }
+      for (const v of DICT.verb_base) {
+        const p = inflectVerb(v, 'past');
+        const g = inflectVerb(v, 'gerund');
+        const p3 = inflectVerb(v, 'present3s');
+        DICT.verb_past.add(p);
+        DICT.verb_gerund.add(g);
+        DICT.verb_present3s.add(p3);
+        if (SLANG_SETS.verb_base.has(v)) {
+          SLANG_SETS.verb_past.add(p);
+          SLANG_SETS.verb_gerund.add(g);
+          SLANG_SETS.verb_present3s.add(p3);
+        }
+      }
+
+      if (hasNLP) {
+        try {
+          const world = typeof window.nlp.world === 'function' ? window.nlp.world() : null;
+          const lex = world?.model?.one?.lexicon;
+          if (lex && typeof lex === 'object') {
+            for (const [rawWord, rawTag] of Object.entries(lex)) {
+              if (!rawWord || rawWord.length < 2 || !/^[a-zA-Z]+$/.test(rawWord)) continue;
+              const w = rawWord.toLowerCase();
+              registerWordForEditDistance(w);
+              if (FUNCTION_WORD_BLOCKLIST.has(w)) continue;
+
+              const tags = new Set(Array.isArray(rawTag) ? rawTag : [rawTag]);
+              if (tags.has('FirstName')) DICT.firstName.add(capitalize(w));
+              else if (tags.has('LastName')) DICT.lastName.add(capitalize(w));
+              else if (tags.has('Organization') || tags.has('Company')) DICT.company.add(capitalize(w));
+              else if (tags.has('Place') || tags.has('City') || tags.has('Country')) DICT.place.add(capitalize(w));
+              else if (tags.has('Adverb') && w.endsWith('ly')) DICT.adv.add(w);
+              else if (tags.has('Comparative')) DICT.adj_comparative.add(w);
+              else if (tags.has('Superlative')) DICT.adj_superlative.add(w);
+              else if (tags.has('Adjective')) DICT.adj_base.add(w);
+              else if (tags.has('PastTense')) DICT.verb_past.add(w);
+              else if (tags.has('Gerund')) DICT.verb_gerund.add(w);
+              else if (tags.has('Infinitive') || tags.has('Verb')) DICT.verb_base.add(w);
+              else if (tags.has('Plural')) DICT.noun_plural.add(w);
+              else if (tags.has('Singular') || tags.has('Noun')) DICT.noun_singular.add(w);
+            }
+          }
+        } catch {}
+      }
+
+      for (const set of Object.values(DICT)) {
+        for (const w of set) registerWordForEditDistance(w);
+      }
+    }
+
+    async function expandDictionaryBackground() {
+      try {
+        const prefixes = ['a','b','c','d','e','f','g','h','l','m','p','r','s','t','w'];
+        const chosen = prefixes.sort(() => Math.random() - 0.5).slice(0, 6);
+        await Promise.allSettled(chosen.map(async (ch) => {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 3000);
+          try {
+            const res = await fetch(`https://api.datamuse.com/words?sp=${ch}*&md=pf&max=300`, { signal: ctrl.signal });
+            clearTimeout(timer);
+            if (!res.ok) return;
+            const list = await res.json();
+            for (const item of list) {
+              const w = item.word;
+              if (!w || !/^[a-z]+$/.test(w) || w.length < 3) continue;
+              registerWordForEditDistance(w);
+              if (FUNCTION_WORD_BLOCKLIST.has(w)) continue;
+              const tags = item.tags || [];
+              if (tags.includes('prop')) continue;
+              if (tags.includes('adj')) DICT.adj_base.add(w);
+              else if (tags.includes('adv') && w.endsWith('ly')) DICT.adv.add(w);
+              else if (tags.includes('v')) DICT.verb_base.add(w);
+              else if (tags.includes('n')) {
+                if (w.endsWith('s') && !w.endsWith('ss')) DICT.noun_plural.add(w);
+                else DICT.noun_singular.add(w);
+              }
+            }
+          } catch { clearTimeout(timer); }
+        }));
+
+        if (hasNLP) {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 3500);
+          try {
+            const res = await fetch('https://cdn.jsdelivr.net/npm/wordlist-english@1.2.1/english-words-10.json', { signal: ctrl.signal });
+            clearTimeout(timer);
+            if (res.ok) {
+              const words = await res.json();
+              if (Array.isArray(words)) {
+                let idx = 0;
+                const step = () => {
+                  const end = Math.min(idx + 350, words.length);
+                  for (; idx < end; idx++) {
+                    const w = words[idx];
+                    if (typeof w !== 'string' || w.length < 2 || !/^[a-z]+$/.test(w)) continue;
+                    registerWordForEditDistance(w);
+                    if (w.length < 3 || FUNCTION_WORD_BLOCKLIST.has(w)) continue;
+                    const d = window.nlp(w);
+                    if (d.has('#Adverb') && w.endsWith('ly')) DICT.adv.add(w);
+                    else if (d.has('#Comparative')) DICT.adj_comparative.add(w);
+                    else if (d.has('#Superlative')) DICT.adj_superlative.add(w);
+                    else if (d.has('#Adjective')) DICT.adj_base.add(w);
+                    else if (d.has('#PastTense')) DICT.verb_past.add(w);
+                    else if (d.has('#Gerund')) DICT.verb_gerund.add(w);
+                    else if (d.has('#Verb')) DICT.verb_base.add(w);
+                    else if (d.has('#Plural')) DICT.noun_plural.add(w);
+                    else if (d.has('#Noun')) DICT.noun_singular.add(w);
+                  }
+                  if (idx < words.length) setTimeout(step, 20);
+                };
+                setTimeout(step, 40);
+              }
+            }
+          } catch { clearTimeout(timer); }
+        }
+      } catch {}
+    }
+
+    seedAllDictionaries();
+    setTimeout(expandDictionaryBackground, 300);
+
+    /* =========================================================================
+       2. EDIT-DISTANCE CONVERTER FOR DELETE ROULETTE ("Hel" -> "Hey")
+       ========================================================================= */
+    function levenshtein(a, b) {
+      const m = a.length, n = b.length;
+      const dp = new Array(n + 1);
+      for (let j = 0; j <= n; j++) dp[j] = j;
+      for (let i = 1; i <= m; i++) {
+        let prev = dp[0];
+        dp[0] = i;
+        for (let j = 1; j <= n; j++) {
+          const temp = dp[j];
+          dp[j] = a[i - 1] === b[j - 1]
+            ? prev
+            : 1 + Math.min(prev, dp[j], dp[j - 1]);
+          prev = temp;
+        }
+      }
+      return dp[n];
+    }
+
+    function hamming(a, b) {
+      let diff = 0;
+      for (let i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) diff++;
+      }
+      return diff;
+    }
+
+    const COMMON_SHORT_SET = new Set(COMMON_SHORT_WORDS);
+
+    function findClosestSameLengthWord(fragment, originalCaseSource) {
+      if (!fragment || !/^[a-zA-Z]+$/.test(fragment)) return fragment;
+      const lower = fragment.toLowerCase();
+      if (VALID_WORDS.has(lower)) {
+        return matchCase(originalCaseSource || fragment, lower);
+      }
+
+      const len = lower.length;
+      if (len === 1) {
+        return originalCaseSource && /^[A-Z]/.test(originalCaseSource) ? 'I' : (Math.random() < 0.6 ? 'a' : 'I');
+      }
+
+      const pool = WORDS_BY_LEN.get(len);
+      if (!pool || pool.size === 0) return fragment;
+
+      let bestScore = Infinity;
+      let bestCandidates = [];
+
+      for (const cand of pool) {
+        const h = hamming(lower, cand);
+        if (h > bestScore + 1) continue;
+        const lev = levenshtein(lower, cand);
+        const prefixBonus = cand[0] === lower[0] ? -0.15 : 0;
+        const commonBonus = COMMON_SHORT_SET.has(cand) ? -0.25 : 0;
+        const score = h + lev * 0.2 + prefixBonus + commonBonus;
+
+        if (score < bestScore - 0.001) {
+          bestScore = score;
+          bestCandidates = [cand];
+        } else if (Math.abs(score - bestScore) <= 0.001) {
+          bestCandidates.push(cand);
+        }
+      }
+
+      const chosen = bestCandidates.length > 0
+        ? bestCandidates[Math.floor(Math.random() * bestCandidates.length)]
+        : lower;
+
+      return matchCase(originalCaseSource || fragment, chosen);
+    }
+
+    /* =========================================================================
+       3. CASE MATCHING, VOWEL HARMONY & SYNTACTIC COHERENCE CLASSIFIER
+       ========================================================================= */
+    function matchCase(original, replacement) {
+      if (!original || !replacement) return replacement;
+      if (/\s/.test(replacement)) {
+        // Multi-word replacement like "to lowkey": preserve initial cap only if original was capitalized
+        if (/^[A-Z]/.test(original) && original.length > 1 && original === original.toUpperCase()) {
+          return replacement.toUpperCase();
+        }
+        if (/^[A-Z]/.test(original)) {
+          return replacement.charAt(0).toUpperCase() + replacement.slice(1).toLowerCase();
+        }
+        return replacement.toLowerCase();
+      }
+
+      const letters = original.replace(/[^a-zA-Z]/g, '');
+      if (!letters) return replacement;
+
+      if (letters.length === 1 && letters === letters.toUpperCase()) {
+        return replacement.charAt(0).toUpperCase() + replacement.slice(1).toLowerCase();
+      }
+      if (letters.length > 1 && letters === letters.toUpperCase()) {
+        return replacement.toUpperCase();
+      }
+      if (letters === letters.toLowerCase()) {
+        return replacement.toLowerCase();
+      }
+      if (
+        original.charAt(0) === original.charAt(0).toUpperCase() &&
+        original.slice(1) === original.slice(1).toLowerCase()
+      ) {
+        return replacement.charAt(0).toUpperCase() + replacement.slice(1).toLowerCase();
+      }
+      let res = '';
+      const origChars = [...original];
+      const repChars = [...replacement.toLowerCase()];
+      for (let i = 0; i < repChars.length; i++) {
+        const ch = repChars[i];
+        if (i < origChars.length) {
+          const oc = origChars[i];
+          res += (oc !== oc.toLowerCase() && oc === oc.toUpperCase()) ? ch.toUpperCase() : ch.toLowerCase();
+        } else {
+          res += ch.toLowerCase();
+        }
+      }
+      return res;
+    }
+
+    function startsWithVowelSound(word) {
+      if (!word) return false;
+      const w = word.toLowerCase();
+      if (/^(uni|use|usu|uk|euro|one)/.test(w)) return false;
+      if (/^(hour|honest|honor|heir|herb)/.test(w)) return true;
+      return /^[aeiou]/.test(w);
+    }
+
+    function looksLikeDeterminer(w) {
+      if (!w) return false;
+      const l = w.toLowerCase();
+      return DICT.det_sg.has(l) || DICT.det_pl.has(l) || DICT.pronoun_poss_det.has(l) || DICT.number_word.has(l) || /^\d+$/.test(l);
+    }
+
+    function looksLikeAdjective(w) {
+      if (!w) return false;
+      const l = w.toLowerCase();
+      if (DICT.adj_base.has(l) || DICT.adj_comparative.has(l) || DICT.adj_superlative.has(l)) return true;
+      if (hasNLP) {
+        try { if (window.nlp(l).has('#Adjective')) return true; } catch {}
+      }
+      return /(ous|ful|less|able|ible|ish|ive|ic|al|y|ed|ing)$/i.test(l) && !DICT.noun_singular.has(l);
+    }
+
+    function looksLikePluralNoun(w) {
+      if (!w) return false;
+      const l = w.toLowerCase();
+      if (DICT.noun_plural.has(l)) return true;
+      if (hasNLP) {
+        try { if (window.nlp(l).has('#Plural')) return true; } catch {}
+      }
+      return l.endsWith('s') && !l.endsWith('ss') && l.length > 3 && !DICT.verb_present3s.has(l);
+    }
+
+    function looksLikeDirectObjectStart(nextWord) {
+      if (!nextWord) return false;
+      const l = nextWord.toLowerCase();
+      if (looksLikeDeterminer(l) || DICT.pronoun_obj.has(l) || DICT.pronoun_indef.has(l) || DICT.pronoun_refl.has(l)) return true;
+      if (DICT.noun_singular.has(l) || DICT.noun_plural.has(l) || DICT.noun_mass.has(l)) return true;
+      if (looksLikeAdjective(l)) return true;
+      return false;
+    }
+
+    function classifyWord(token, fullText) {
+      const word = token.text;
+      const lower = word.toLowerCase();
+      const prevLower = (token.prevWord || '').toLowerCase();
+      const prev2Lower = (token.prev2Word || '').toLowerCase();
+      const nextLower = (token.nextWord || '').toLowerCase();
+      const isCapitalized = /^[A-Z]/.test(word);
+
+      // URL / TLD
+      if (token.precededByDot && TLD_SET.has(lower)) {
+        return { category: 'tld', label: 'DOMAIN TLD', dmPos: null, predictive: false };
+      }
+
+      // Subject pronouns with verb agreement!
+      if (BANKS.pronoun_subj_all.includes(lower) || word === 'I') {
+        if (['is','was','has','does'].includes(nextLower) || (nextLower.endsWith('s') && DICT.verb_present3s.has(nextLower))) {
+          return { category: 'pronoun_subj_3s', label: 'PRONOUN (3S)', dmPos: null, predictive: false };
+        }
+        if (['are','were'].includes(nextLower)) {
+          return { category: 'pronoun_subj_pl', label: 'PRONOUN (PL)', dmPos: null, predictive: false };
+        }
+        if (['am'].includes(nextLower)) {
+          return { category: 'pronoun_subj_all', label: 'PRONOUN', dmPos: null, predictive: false, customPool: ['I'] };
+        }
+        if (['have','do'].includes(nextLower) || DICT.verb_base.has(nextLower)) {
+          return { category: 'pronoun_subj_all', label: 'PRONOUN', dmPos: null, predictive: false, customPool: ['I','you','we','they'] };
+        }
+        return { category: 'pronoun_subj_all', label: 'PRONOUN', dmPos: null, predictive: false };
+      }
+
+      if (BANKS.pronoun_obj.includes(lower)) return { category: 'pronoun_obj', label: 'OBJECT PRONOUN', dmPos: null, predictive: false };
+      if (BANKS.pronoun_poss_det.includes(lower)) return { category: 'pronoun_poss_det', label: 'POSSESSIVE', dmPos: null, predictive: false };
+      if (BANKS.pronoun_poss_pro.includes(lower)) return { category: 'pronoun_poss_pro', label: 'POSSESSIVE', dmPos: null, predictive: false };
+      if (BANKS.pronoun_refl.includes(lower)) return { category: 'pronoun_refl', label: 'REFLEXIVE', dmPos: null, predictive: false };
+      if (BANKS.pronoun_indef.includes(lower)) return { category: 'pronoun_indef', label: 'PRONOUN', dmPos: null, predictive: false };
+
+      // Infinitive "to" before verb vs directional preposition "to"
+      if (lower === 'to') {
+        if (nextLower && (DICT.verb_base.has(nextLower) || (hasNLP && window.nlp(nextLower).has('#Infinitive')))) {
+          return {
+            category: 'infinitive_to',
+            label: 'INFINITIVE',
+            dmPos: null,
+            predictive: false,
+            customPool: ['to','to lowkey','to deadass','to casually','to aggressively','to secretly','to immediately']
+          };
+        }
+        return {
+          category: 'preposition',
+          label: 'PREPOSITION',
+          dmPos: null,
+          predictive: false,
+          customPool: ['to','towards','into','near','past','through','around','beside','behind']
+        };
+      }
+
+      // Copula & Progressive Auxiliary (strict tense + -ing distinction!)
+      const nextIsGerund = nextLower.endsWith('ing') && !['interesting','boring','amazing','annoying','exciting','terrifying','confusing','charming'].includes(nextLower);
+      if (['is','becomes','seems','remains','appears'].includes(lower)) {
+        return nextIsGerund && lower === 'is'
+          ? { category: 'prog_3s_pres', label: 'AUXILIARY', dmPos: null, predictive: false }
+          : { category: 'copula_3s_pres', label: 'LINKING VERB', dmPos: null, predictive: false };
+      }
+      if (['was','became','seemed','remained','appeared'].includes(lower)) {
+        return nextIsGerund && lower === 'was'
+          ? { category: 'prog_3s_past', label: 'AUXILIARY', dmPos: null, predictive: false }
+          : { category: 'copula_3s_past', label: 'LINKING VERB', dmPos: null, predictive: false };
+      }
+      if (lower === 'are') {
+        return nextIsGerund
+          ? { category: 'prog_pl_pres', label: 'AUXILIARY', dmPos: null, predictive: false }
+          : { category: 'copula_pl_pres', label: 'LINKING VERB', dmPos: null, predictive: false };
+      }
+      if (lower === 'were') {
+        return nextIsGerund
+          ? { category: 'prog_pl_past', label: 'AUXILIARY', dmPos: null, predictive: false }
+          : { category: 'copula_pl_past', label: 'LINKING VERB', dmPos: null, predictive: false };
+      }
+      if (lower === 'am') {
+        return nextIsGerund
+          ? { category: 'prog_1s_pres', label: 'AUXILIARY', dmPos: null, predictive: false }
+          : { category: 'copula_1s_pres', label: 'LINKING VERB', dmPos: null, predictive: false };
+      }
+
+      // Auxiliary do / have / negation / wh-words
+      if (lower === 'do') return { category: 'aux_do_pres', label: 'AUXILIARY', dmPos: null, predictive: false };
+      if (lower === 'does') return { category: 'aux_do_3s', label: 'AUXILIARY', dmPos: null, predictive: false };
+      if (lower === 'did') return { category: 'aux_do_past', label: 'AUXILIARY', dmPos: null, predictive: false };
+      if (lower === 'have' && (DICT.verb_past.has(nextLower) || nextLower === 'been' || nextLower === 'to')) {
+        return { category: 'aux_have_pres', label: 'AUXILIARY', dmPos: null, predictive: false };
+      }
+      if (lower === 'has' && (DICT.verb_past.has(nextLower) || nextLower === 'been' || nextLower === 'to')) {
+        return { category: 'aux_have_3s', label: 'AUXILIARY', dmPos: null, predictive: false };
+      }
+      if (lower === 'had' && (DICT.verb_past.has(nextLower) || nextLower === 'been' || nextLower === 'to')) {
+        return { category: 'aux_have_past', label: 'AUXILIARY', dmPos: null, predictive: false };
+      }
+      if (BANKS.negation.includes(lower)) return { category: 'negation', label: 'NEGATION', dmPos: null, predictive: false };
+      if (BANKS.wh_word.includes(lower)) return { category: 'wh_word', label: 'QUESTION WORD', dmPos: null, predictive: false };
+
+      // Determiners with singular/plural + a/an harmony
+      if (DICT.det_sg.has(lower) || DICT.det_pl.has(lower)) {
+        if (looksLikePluralNoun(nextLower) && DICT.det_pl.has(lower)) {
+          return { category: 'det_pl', label: 'DETERMINER', dmPos: null, predictive: false };
+        }
+        let customDet = BANKS.det_sg.filter(d => d !== 'a' && d !== 'an');
+        if (nextLower) {
+          customDet.push(startsWithVowelSound(nextLower) ? 'an' : 'a');
+        }
+        return { category: 'det_sg', label: 'DETERMINER', dmPos: null, predictive: false, customPool: customDet };
+      }
+
+      // Closed grammatical classes
+      if (BANKS.modal.includes(lower)) return { category: 'modal', label: 'MODAL VERB', dmPos: null, predictive: false };
+      if (BANKS.conj_coord.includes(lower)) return { category: 'conj_coord', label: 'CONJUNCTION', dmPos: null, predictive: false };
+      if (BANKS.conj_sub.includes(lower)) return { category: 'conj_sub', label: 'SUBJUNCTION', dmPos: null, predictive: false };
+      if (BANKS.preposition.includes(lower)) return { category: 'preposition', label: 'PREPOSITION', dmPos: null, predictive: false };
+      if (BANKS.interjection.includes(lower)) return { category: 'interjection', label: 'EXCLAMATION', dmPos: null, predictive: false };
+      if (BANKS.number_word.includes(lower)) return { category: 'number_word', label: 'NUMBER WORD', dmPos: null, predictive: false };
+      if (BANKS.ordinal_word.includes(lower)) return { category: 'ordinal_word', label: 'ORDINAL WORD', dmPos: null, predictive: false };
+
+      // Degree Adverbs / Intensifiers (e.g., "very interesting", "lowkey goofy")
+      if (DICT.adv_degree.has(lower) && (!nextLower || looksLikeAdjective(nextLower) || DICT.adv_degree.has(nextLower) || DICT.adv.has(nextLower))) {
+        return { category: 'adv_degree', label: 'INTENSIFIER', dmPos: 'adv', predictive: false };
+      }
+
+      // Named Entities
+      if (COMPANY_SET.has(lower) && (isCapitalized || /\b(at|for|inc|corp|ceo|stock|app|company)\b/i.test(prevLower))) {
+        return { category: 'company', label: 'COMPANY / BRAND', dmPos: null, predictive: false };
+      }
+      if (FIRST_NAME_SET.has(lower) && isCapitalized) return { category: 'firstName', label: 'PERSON FIRST NAME', dmPos: null, predictive: false };
+      if (LAST_NAME_SET.has(lower) && isCapitalized) return { category: 'lastName', label: 'PERSON LAST NAME', dmPos: null, predictive: false };
+      if (PLACE_SET.has(lower) && isCapitalized) return { category: 'place', label: 'LOCATION', dmPos: null, predictive: false };
+
+      // Contextual NLP tagging
+      let detected = null;
+      if (hasNLP) {
+        try {
+          const ctxStart = Math.max(0, token.start - 150);
+          const ctxEnd = Math.min(fullText.length, token.end + 100);
+          const doc = window.nlp(fullText.slice(ctxStart, ctxEnd));
+          const terms = doc.terms().json();
+
+          let bestTags = null;
+          let bestDist = Infinity;
+          let running = ctxStart;
+          for (const entry of terms) {
+            const t = entry.terms && entry.terms[0] ? entry.terms[0] : entry;
+            const tText = t.text || '';
+            const idx = fullText.indexOf(tText, Math.max(ctxStart, running - 4));
+            if (idx !== -1) running = idx + tText.length;
+            if (tText.toLowerCase() === lower || (t.normal && t.normal === lower)) {
+              const dist = Math.abs((idx === -1 ? token.start : idx) - token.start);
+              if (dist < bestDist) {
+                bestDist = dist;
+                bestTags = new Set(t.tags || []);
+              }
+            }
+          }
+
+          if (bestTags) {
+            if (bestTags.has('Organization') || bestTags.has('Company')) return { category: 'company', label: 'COMPANY / ORG', dmPos: null, predictive: false };
+            if (bestTags.has('FirstName')) return { category: 'firstName', label: 'PERSON FIRST NAME', dmPos: null, predictive: false };
+            if (bestTags.has('LastName')) return { category: 'lastName', label: 'PERSON LAST NAME', dmPos: null, predictive: false };
+            if (bestTags.has('Person')) return { category: 'firstName', label: 'PERSON NAME', dmPos: null, predictive: false };
+            if (bestTags.has('Place') || bestTags.has('City') || bestTags.has('Country')) return { category: 'place', label: 'LOCATION', dmPos: null, predictive: false };
+            if (bestTags.has('Adverb')) detected = { category: 'adv', label: 'ADVERB', dmPos: 'adv', predictive: true };
+            else if (bestTags.has('Comparative')) detected = { category: 'adj_comparative', label: 'COMPARATIVE ADJ', dmPos: 'adj', predictive: true };
+            else if (bestTags.has('Superlative')) detected = { category: 'adj_superlative', label: 'SUPERLATIVE ADJ', dmPos: 'adj', predictive: true };
+            else if (bestTags.has('Adjective')) detected = { category: 'adj_base', label: 'ADJECTIVE', dmPos: 'adj', predictive: true };
+            else if (bestTags.has('Gerund')) detected = { category: 'verb_gerund', label: 'VERB (-ING)', dmPos: 'v', predictive: true };
+            else if (bestTags.has('PastTense')) detected = { category: 'verb_past', label: 'PAST TENSE VERB', dmPos: 'v', predictive: true };
+            else if (bestTags.has('PresentTense') && lower.endsWith('s') && !lower.endsWith('ss')) detected = { category: 'verb_present3s', label: 'VERB (3RD PERSON)', dmPos: 'v', predictive: true };
+            else if (bestTags.has('Verb') || bestTags.has('Infinitive')) detected = { category: 'verb_base', label: 'VERB', dmPos: 'v', predictive: true };
+            else if (bestTags.has('Plural')) detected = { category: 'noun_plural', label: 'PLURAL NOUN', dmPos: 'n', predictive: true };
+            else if (bestTags.has('Noun') || bestTags.has('Singular')) detected = { category: 'noun_singular', label: 'NOUN', dmPos: 'n', predictive: true };
+          }
+        } catch {}
+      }
+
+      // Syntactic guards that enforce sentence coherence!
+      // 1. After degree intensifier ("very", "lowkey") -> MUST be adjective (or degree adverb if another adj follows)
+      if (DICT.adv_degree.has(prevLower)) {
+        if (nextLower && looksLikeAdjective(nextLower) && (DICT.adv_degree.has(lower) || lower.endsWith('ly'))) {
+          detected = { category: 'adv_degree', label: 'INTENSIFIER', dmPos: 'adv', predictive: false };
+        } else {
+          detected = { category: 'adj_base', label: 'ADJECTIVE', dmPos: 'adj', predictive: true };
+        }
+      }
+
+      // 2. Adverb immediately before an adjective -> use degree adverb pool so "is [adv] interesting" stays coherent
+      if (detected && detected.category === 'adv' && nextLower && looksLikeAdjective(nextLower)) {
+        detected = { category: 'adv_degree', label: 'INTENSIFIER', dmPos: 'adv', predictive: false };
+      }
+
+      // 3. After linking verb ("is", "was", "seems") when NOT followed by direct object -> participial adjectives like "interesting" stay adj_base!
+      if (['is','was','are','were','am','seems','seemed','feels','felt','looks','looked','sounds','sounded','becomes','became'].includes(prevLower)) {
+        if (DICT.adj_base.has(lower) || (lower.endsWith('ing') && !looksLikeDirectObjectStart(nextLower))) {
+          if (detected && detected.category === 'verb_gerund' && !looksLikeDirectObjectStart(nextLower)) {
+            detected = { category: 'adj_base', label: 'ADJECTIVE', dmPos: 'adj', predictive: true };
+          }
+        }
+      }
+
+      // 4. After possessive/determiner -> never base verb; classify as adj (if before noun) or noun!
+      if (looksLikeDeterminer(prevLower)) {
+        if (!detected || detected.dmPos === 'v') {
+          if ((DICT.adj_base.has(lower) || looksLikeAdjective(lower)) && nextLower && !BANKS.preposition.includes(nextLower) && !BANKS.conj_coord.includes(nextLower) && !['is','are','was','were'].includes(nextLower)) {
+            detected = { category: 'adj_base', label: 'ADJECTIVE', dmPos: 'adj', predictive: true };
+          } else {
+            detected = looksLikePluralNoun(lower)
+              ? { category: 'noun_plural', label: 'PLURAL NOUN', dmPos: 'n', predictive: true }
+              : { category: 'noun_singular', label: 'NOUN', dmPos: 'n', predictive: true };
+          }
+        }
+      }
+
+      // 5. After "to" or modal or "do/does/did" -> base verb (and after catenative "wants to" -> base verb)
+      if (['to','can','could','will','would','should','must','may','might','did','do','does'].includes(prevLower)) {
+        detected = { category: 'verb_base', label: 'VERB', dmPos: 'v', predictive: true };
+      }
+
+      // 6. After 3s subject pronoun -> 3rd-person singular present verb
+      if (['he','she','it'].includes(prevLower) && detected && detected.category === 'verb_base') {
+        detected = { category: 'verb_present3s', label: 'VERB (3RD PERSON)', dmPos: 'v', predictive: true };
+      }
+
+      // 7. Before infinitive "to" + verb ("wants to unhinge") -> catenative verb!
+      if (nextLower === 'to' && detected && detected.dmPos === 'v') {
+        const verbSub = detected.category === 'verb_present3s' ? 'verb_catenative_3s'
+          : detected.category === 'verb_past' ? 'verb_catenative_past'
+          : 'verb_catenative';
+        return { category: verbSub, label: 'VERB', dmPos: 'v', predictive: false };
+      }
+
+      // 8. Transitive vs Intransitive verb refinement
+      if (detected && (detected.category === 'verb_base' || detected.category === 'verb_past' || detected.category === 'verb_present3s' || detected.category === 'verb_gerund')) {
+        const hasObj = looksLikeDirectObjectStart(nextLower);
+        detected.transitivity = hasObj ? 'transitive' : 'intransitive';
+      }
+
+      // 9. Mass / Uncountable Noun check: singular noun with NO determiner in its NP ("Artificial intelligence") -> noun_mass!
+      if (detected && detected.category === 'noun_singular') {
+        const hasDetBefore = looksLikeDeterminer(prevLower) || (looksLikeAdjective(prevLower) && looksLikeDeterminer(prev2Lower));
+        const afterPrepNoDet = ['at','in','on','by','with','without','for','from','to'].includes(prevLower) && !DICT.noun_mass.has(lower);
+        if (DICT.noun_mass.has(lower) || (!hasDetBefore && !afterPrepNoDet)) {
+          detected = { category: 'noun_mass', label: 'CONCEPT / MASS NOUN', dmPos: 'n', predictive: true };
+        }
+      }
+
+      if (detected) return detected;
+
+      // Fallback suffix rules
+      if (DICT.adv.has(lower) || (lower.endsWith('ly') && lower.length > 4)) return { category: 'adv', label: 'ADVERB', dmPos: 'adv', predictive: true };
+      if (DICT.adj_comparative.has(lower)) return { category: 'adj_comparative', label: 'COMPARATIVE ADJ', dmPos: 'adj', predictive: true };
+      if (DICT.adj_superlative.has(lower)) return { category: 'adj_superlative', label: 'SUPERLATIVE ADJ', dmPos: 'adj', predictive: true };
+      if (DICT.adj_base.has(lower) || /(ous|ful|less|able|ible|ish|ive)$/i.test(lower)) return { category: 'adj_base', label: 'ADJECTIVE', dmPos: 'adj', predictive: true };
+      if (DICT.verb_gerund.has(lower) || lower.endsWith('ing')) return { category: 'verb_gerund', label: 'VERB (-ING)', dmPos: 'v', predictive: true, transitivity: looksLikeDirectObjectStart(nextLower) ? 'transitive' : 'intransitive' };
+      if (DICT.verb_past.has(lower) || (lower.endsWith('ed') && lower.length > 3)) return { category: 'verb_past', label: 'PAST TENSE VERB', dmPos: 'v', predictive: true, transitivity: looksLikeDirectObjectStart(nextLower) ? 'transitive' : 'intransitive' };
+      if (DICT.verb_base.has(lower)) return { category: 'verb_base', label: 'VERB', dmPos: 'v', predictive: true, transitivity: looksLikeDirectObjectStart(nextLower) ? 'transitive' : 'intransitive' };
+      if (DICT.noun_plural.has(lower) || (lower.endsWith('s') && !lower.endsWith('ss') && lower.length > 3)) return { category: 'noun_plural', label: 'PLURAL NOUN', dmPos: 'n', predictive: true };
+      if (DICT.noun_mass.has(lower)) return { category: 'noun_mass', label: 'CONCEPT / MASS NOUN', dmPos: 'n', predictive: true };
+
+      return { category: 'noun_singular', label: 'NOUN', dmPos: 'n', predictive: true };
+    }
+
+    /* =========================================================================
+       4. PREDICTIVE ENGINE + SLANG WEIGHTING + 7-TIER RARITY DECK BUILDER
+       ========================================================================= */
+    const datamuseCache = new Map();
+
+    async function fetchPredictiveNextWords(prevWord, nextWord, dmPos, category, excludeLower) {
+      if (!dmPos || !prevWord) return { common: [], uncommon: [], rare: [] };
+      const cacheKey = `${prevWord.toLowerCase()}|${(nextWord || '').toLowerCase()}|${dmPos}|${category}`;
+      if (datamuseCache.has(cacheKey)) {
+        const cached = datamuseCache.get(cacheKey);
+        return {
+          common: cached.common.filter(w => w !== excludeLower),
+          uncommon: cached.uncommon.filter(w => w !== excludeLower),
+          rare: cached.rare.filter(w => w !== excludeLower)
+        };
+      }
+
+      const params = new URLSearchParams({ lc: prevWord.toLowerCase(), md: 'pf', max: '120' });
+      if (nextWord) {
+        params.set('rc', nextWord.toLowerCase());
+        if (dmPos === 'adj') params.set('rel_jjb', nextWord.toLowerCase());
+      }
+
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 450);
+      try {
+        const res = await fetch(`https://api.datamuse.com/words?${params.toString()}`, { signal: ctrl.signal });
+        clearTimeout(timer);
+        if (!res.ok) return { common: [], uncommon: [], rare: [] };
+        const data = await res.json();
+
+        const buckets = { common: [], uncommon: [], rare: [] };
+        const prevLower = prevWord.toLowerCase();
+
+        for (const item of data) {
+          let w = (item.word || '').toLowerCase();
+          if (!w || !/^[a-z]+$/.test(w) || w.length < 3) continue;
+          if (FUNCTION_WORD_BLOCKLIST.has(w)) continue;
+
+          const tags = item.tags || [];
+          if (tags.includes('prop')) continue;
+          if (!tags.includes(dmPos)) continue;
+
+          const fTag = tags.find(t => t.startsWith('f:'));
+          const freq = fTag ? parseFloat(fTag.slice(2)) : 3;
+          if (freq < 1.2) continue;
+
+          // Respect article a/an harmony
+          if (prevLower === 'a' && startsWithVowelSound(w)) continue;
+          if (prevLower === 'an' && !startsWithVowelSound(w)) continue;
+
+          // Keep morphological & grammatical subtype strict!
+          if (category === 'adv' && !w.endsWith('ly')) continue;
+          if (category === 'noun_mass' && !DICT.noun_mass.has(w)) continue;
+          if (category === 'noun_singular' && w.endsWith('s') && !/(ss|us|is)$/.test(w) && hasNLP && window.nlp(w).has('#Plural')) continue;
+
+          if (category === 'noun_plural') w = inflectPlural(w);
+          else if (category === 'verb_past') w = inflectVerb(w, 'past');
+          else if (category === 'verb_gerund') w = inflectVerb(w, 'gerund');
+          else if (category === 'verb_present3s') w = inflectVerb(w, 'present3s');
+
+          if (freq >= 22) buckets.common.push(w);
+          else if (freq >= 5) buckets.uncommon.push(w);
+          else buckets.rare.push(w);
+        }
+
+        buckets.common = [...new Set(buckets.common)];
+        buckets.uncommon = [...new Set(buckets.uncommon)].filter(w => !buckets.common.includes(w));
+        buckets.rare = [...new Set(buckets.rare)].filter(w => !buckets.common.includes(w) && !buckets.uncommon.includes(w));
+
+        datamuseCache.set(cacheKey, buckets);
+        return {
+          common: buckets.common.filter(w => w !== excludeLower),
+          uncommon: buckets.uncommon.filter(w => w !== excludeLower),
+          rare: buckets.rare.filter(w => w !== excludeLower)
+        };
+      } catch {
+        clearTimeout(timer);
+        return { common: [], uncommon: [], rare: [] };
+      }
+    }
+
+    function generateNumberCandidates(orig) {
+      const results = new Set();
+      const isNeg = orig.startsWith('-');
+      const isOrdinal = /(st|nd|rd|th)$/i.test(orig);
+      const isDecimal = orig.includes('.');
+      const formatOrdinal = (n) => {
+        const mod100 = n % 100;
+        if (mod100 >= 11 && mod100 <= 13) return n + 'th';
+        const m = n % 10;
+        return n + (m === 1 ? 'st' : m === 2 ? 'nd' : m === 3 ? 'rd' : 'th');
+      };
+
+      while (results.size < 36) {
+        const sign = (isNeg && Math.random() < 0.75) ? '-' : (!isNeg && Math.random() < 0.08 ? '-' : '');
+        if (isOrdinal) {
+          const n = Math.floor(Math.random() * 500) + 1;
+          const c = formatOrdinal(n);
+          if (c.toLowerCase() !== orig.toLowerCase()) results.add(c);
+        } else if (isDecimal) {
+          const whole = Math.floor(Math.random() * 400);
+          const decDigits = 1 + Math.floor(Math.random() * 3);
+          const frac = String(Math.floor(Math.random() * Math.pow(10, decDigits))).padStart(decDigits, '0');
+          const c = `${sign}${whole}.${frac}`;
+          if (c !== orig) results.add(c);
+        } else {
+          const digits = [1, 2, 2, 3, 3, 4, 5][Math.floor(Math.random() * 7)];
+          const min = digits === 1 ? 0 : Math.pow(10, digits - 1);
+          const max = Math.pow(10, digits) - 1;
+          const c = `${sign}${min + Math.floor(Math.random() * (max - min + 1))}`;
+          if (c !== orig) results.add(c);
+        }
+      }
+      return [...results];
+    }
+
+    function generatePunctuationCandidates(orig) {
+      const sentenceMarks = ['.', '!', '?', ',', ';', ':', '...', '!?', '—', '-', '?!'];
+      const quoteMarks = ['"', "'", '(', ')', '[', ']', '/', '\\'];
+      const pool = quoteMarks.includes(orig) ? [...quoteMarks, ...sentenceMarks.slice(0, 5)] : sentenceMarks;
+      return pool.filter(p => p !== orig);
+    }
+
+    function generateSymbolCandidates(orig) {
+      const currency = ['$', '€', '£', '¥', '₹', '₩', '₿', '₱', '฿', '₪', '¢'];
+      const mathSym = ['+', '-', '*', '/', '=', '%', '&', '@', '#', '^', '~', '<', '>', '|', '±', '×', '÷', '≈'];
+      if (currency.includes(orig)) return { label: 'CURRENCY', items: currency.filter(s => s !== orig) };
+      return { label: 'SYMBOL', items: mathSym.filter(s => s !== orig) };
+    }
+
+    function sampleArray(arr, count) {
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy.slice(0, count);
+    }
+
+    function getLocalCategoryPool(cls, excludeLower, prevLower) {
+      if (cls.customPool) {
+        return cls.customPool.filter(w => w.toLowerCase() !== excludeLower);
+      }
+
+      let rawPool = [];
+      if (cls.category === 'verb_catenative') {
+        rawPool = [...BANKS.verb_catenative];
+      } else if (cls.category === 'verb_catenative_3s') {
+        rawPool = BANKS.verb_catenative.map(v => inflectVerb(v, 'present3s'));
+      } else if (cls.category === 'verb_catenative_past') {
+        rawPool = BANKS.verb_catenative.map(v => inflectVerb(v, 'past'));
+      } else if (cls.category === 'verb_base' && cls.transitivity) {
+        const subset = cls.transitivity === 'intransitive' ? BANKS.verb_intransitive : BANKS.verb_transitive;
+        rawPool = [...subset];
+      } else if ((cls.category === 'verb_past' || cls.category === 'verb_gerund' || cls.category === 'verb_present3s') && cls.transitivity) {
+        const subset = cls.transitivity === 'intransitive' ? BANKS.verb_intransitive : BANKS.verb_transitive;
+        const form = cls.category === 'verb_past' ? 'past' : cls.category === 'verb_gerund' ? 'gerund' : 'present3s';
+        rawPool = [...new Set([...subset.map(v => inflectVerb(v, form)), ...(DICT[cls.category] || [])])];
+      } else {
+        rawPool = [...(DICT[cls.category] || DICT.noun_singular)];
+      }
+
+      let filtered = rawPool.filter(w => w.toLowerCase() !== excludeLower);
+
+      // Enforce a / an article agreement on local pools too!
+      if (prevLower === 'a') {
+        const cons = filtered.filter(w => !startsWithVowelSound(w));
+        if (cons.length > 0) filtered = cons;
+      } else if (prevLower === 'an') {
+        const vows = filtered.filter(w => startsWithVowelSound(w));
+        if (vows.length > 0) filtered = vows;
+      }
+
+      return filtered;
+    }
+
+    function isSlangWordForCategory(word, category) {
+      const l = word.toLowerCase();
+      return (SLANG_SETS[category] && SLANG_SETS[category].has(l)) ||
+        (category.startsWith('verb_') && SLANG_SETS.verb_base.has(l)) ||
+        SLANG_SETS.noun_singular.has(l) ||
+        SLANG_SETS.noun_mass.has(l) ||
+        SLANG_SETS.adj_base.has(l) ||
+        SLANG_SETS.adv_degree.has(l) ||
+        SLANG_SETS.adv.has(l) ||
+        SLANG_SETS.interjection.has(l);
+    }
+
+    // Build weighted option deck & 80-slot visual strip with 7-tier rarities
+    async function buildWordRouletteDeck(token, fullText) {
+      const orig = token.text;
+      let label = '';
+      let sourceLabel = 'PREDICTIVE';
+      let keepChance = 0.30;
+      let wordCategory = 'other';
+
+      let commonPool = [];
+      let uncommonPool = [];
+      let rarePool = [];
+      let wildPool = [];
+
+      if (token.type === 'number') {
+        label = orig.includes('.') ? 'DECIMAL' : /(st|nd|rd|th)$/i.test(orig) ? 'ORDINAL' : 'NUMBER';
+        sourceLabel = 'NUMERIC';
+        keepChance = 0.28 + Math.random() * 0.06;
+        const nums = generateNumberCandidates(orig);
+        commonPool = nums.slice(0, 4);
+        uncommonPool = nums.slice(4, 10);
+        rarePool = nums.slice(10, 18);
+        wildPool = nums.slice(18);
+      } else if (token.type === 'punctuation') {
+        label = 'PUNCTUATION';
+        sourceLabel = 'SYNTAX';
+        keepChance = 0.29;
+        const marks = generatePunctuationCandidates(orig);
+        commonPool = marks.slice(0, 3);
+        uncommonPool = marks.slice(3, 6);
+        rarePool = marks.slice(6, 8);
+        wildPool = marks.slice(8);
+      } else if (token.type === 'symbol') {
+        const res = generateSymbolCandidates(orig);
+        label = res.label;
+        sourceLabel = 'SYMBOLS';
+        keepChance = 0.28;
+        commonPool = res.items.slice(0, 3);
+        uncommonPool = res.items.slice(3, 6);
+        rarePool = res.items.slice(6, 9);
+        wildPool = res.items.slice(9);
+      } else {
+        const cls = classifyWord(token, fullText);
+        label = cls.label;
+        wordCategory = cls.category;
+        const lower = orig.toLowerCase();
+        const prevLower = (token.prevWord || '').toLowerCase();
+        keepChance = Math.max(0.25, Math.min(0.35, 0.35 - Math.min(0.10, orig.length * 0.008)));
+
+        if (cls.predictive && token.prevWord) {
+          const pred = await fetchPredictiveNextWords(token.prevWord, token.nextWord, cls.dmPos, cls.category, lower);
+          commonPool = pred.common.map(w => matchCase(orig, w));
+          uncommonPool = pred.uncommon.map(w => matchCase(orig, w));
+          rarePool = pred.rare.map(w => matchCase(orig, w));
+          sourceLabel = (commonPool.length + uncommonPool.length > 0) ? 'PREDICTIVE + SLANG' : 'COHERENCE + SLANG';
+        } else {
+          sourceLabel = cls.predictive ? 'COHERENCE + SLANG' : 'SYNTAX / ENTITY';
+        }
+
+        let localArr = getLocalCategoryPool(cls, lower, prevLower);
+
+        if (cls.category === 'adj_comparative' && localArr.length < 25) {
+          const ex = sampleArray([...DICT.adj_base], 20).filter(w => /^[a-z]{3,7}$/.test(w))
+            .map(w => w.endsWith('e') ? w + 'r' : w.endsWith('y') ? w.slice(0,-1)+'ier' : w + 'er');
+          localArr = [...new Set([...localArr, ...ex])];
+        } else if (cls.category === 'adj_superlative' && localArr.length < 25) {
+          const ex = sampleArray([...DICT.adj_base], 20).filter(w => /^[a-z]{3,7}$/.test(w))
+            .map(w => w.endsWith('e') ? w + 'st' : w.endsWith('y') ? w.slice(0,-1)+'iest' : w + 'est');
+          localArr = [...new Set([...localArr, ...ex])];
+        }
+
+        // Split local pool into slang vs standard so applicable slang gets a slight boost (~35-40% of sampled slots)
+        const localSlang = localArr.filter(w => isSlangWordForCategory(w, cls.category));
+        const localStd = localArr.filter(w => !isSlangWordForCategory(w, cls.category));
+
+        const pickedSlang = sampleArray(localSlang, 18);
+        const pickedStd = sampleArray(localStd, 32);
+        const blendedLocal = [];
+        const maxL = Math.max(pickedSlang.length, pickedStd.length);
+        for (let i = 0; i < maxL; i++) {
+          if (i < pickedSlang.length) blendedLocal.push(pickedSlang[i]);
+          if (i < pickedStd.length) blendedLocal.push(pickedStd[i]);
+          if (i + maxL < pickedStd.length) blendedLocal.push(pickedStd[i + maxL]);
+        }
+
+        const casedLocal = blendedLocal.map(w => matchCase(orig, w))
+          .filter(w => w !== orig && !commonPool.includes(w) && !uncommonPool.includes(w) && !rarePool.includes(w));
+
+        if (commonPool.length === 0) commonPool = casedLocal.slice(0, 5);
+        else if (pickedSlang.length > 0) {
+          // Inject 1-2 applicable slang words into commonPool too so they mingle naturally with top predictions
+          const topSlang = pickedSlang.slice(0, 2).map(w => matchCase(orig, w)).filter(w => w !== orig && !commonPool.includes(w));
+          commonPool = [...topSlang, ...commonPool];
+        }
+        if (uncommonPool.length === 0) uncommonPool = casedLocal.slice(5, 13);
+        if (rarePool.length === 0) rarePool = casedLocal.slice(13, 22);
+        wildPool = casedLocal.slice(22);
+        if (wildPool.length === 0) wildPool = casedLocal.slice(0, 12);
+      }
+
+      const options = [];
+      options.push({ text: orig, tier: 'original', pct: keepChance * 100 });
+
+      const remainingPct = (1 - keepChance) * 100;
+      const tierBudget = {
+        common: remainingPct * 0.36,
+        uncommon: remainingPct * 0.28,
+        rare: remainingPct * 0.20,
+        epic: remainingPct * 0.11,
+        legendary: remainingPct * 0.04,
+        mythic: remainingPct * 0.01
+      };
+
+      const addTierItems = (pool, count, tier, totalBudget) => {
+        const picked = sampleArray(pool, count);
+        if (picked.length === 0) return false;
+        // Weight applicable slang words ~1.4x slightly higher than regular words within the same tier
+        const weights = picked.map(w => (token.type === 'word' && isSlangWordForCategory(w, wordCategory)) ? 1.42 : 1.0);
+        const wSum = weights.reduce((a, b) => a + b, 0);
+        for (let i = 0; i < picked.length; i++) {
+          options.push({ text: picked[i], tier, pct: (weights[i] / wSum) * totalBudget });
+        }
+        return true;
+      };
+
+      const allFallback = [...new Set([...commonPool, ...uncommonPool, ...rarePool, ...wildPool])].filter(w => w !== orig);
+      const safePool = allFallback.length > 0 ? allFallback : [orig];
+
+      addTierItems(commonPool.length ? commonPool : safePool, Math.min(5, (commonPool.length || safePool.length)), 'common', tierBudget.common);
+      addTierItems(uncommonPool.length ? uncommonPool : safePool, Math.min(7, (uncommonPool.length || safePool.length)), 'uncommon', tierBudget.uncommon);
+      addTierItems(rarePool.length ? rarePool : safePool, Math.min(9, (rarePool.length || safePool.length)), 'rare', tierBudget.rare);
+      addTierItems(wildPool.length ? wildPool : safePool, Math.min(9, (wildPool.length || safePool.length)), 'epic', tierBudget.epic);
+
+      const legSource = wildPool.length >= 6 ? wildPool : safePool;
+      const legPicked = sampleArray(legSource, Math.min(5, legSource.length));
+      const legPer = tierBudget.legendary / Math.max(1, legPicked.length);
+      for (const w of legPicked) options.push({ text: w, tier: 'legendary', pct: Math.min(0.75, legPer) });
+
+      const mythSource = legSource.filter(w => !legPicked.includes(w));
+      const mythPick = (mythSource.length ? mythSource : safePool)[Math.floor(Math.random() * (mythSource.length || safePool.length))];
+      options.push({ text: mythPick, tier: 'mythic', pct: Math.max(0.15, Math.min(0.28, tierBudget.mythic)) });
+
+      // Normalize exact probabilities to sum to 100%
+      const sumPct = options.reduce((acc, o) => acc + o.pct, 0);
+      for (const o of options) o.pct = (o.pct / sumPct) * 100;
+
+      // Draw unbiased winner according to exact probabilities
+      let r = Math.random() * 100;
+      let winner = options[0];
+      for (const o of options) {
+        r -= o.pct;
+        if (r <= 0) { winner = o; break; }
+      }
+
+      // Build 80-slot visual strip
+      const STRIP_LEN = 80;
+      const WIN_INDEX = 62;
+      const deck = new Array(STRIP_LEN);
+      deck[WIN_INDEX] = winner;
+
+      const origSlots = Math.round((options[0].pct / 100) * (STRIP_LEN - 1));
+      const nonOrigSlots = [];
+      for (let i = 0; i < STRIP_LEN; i++) {
+        if (i !== WIN_INDEX) nonOrigSlots.push(i);
+      }
+
+      const origStep = nonOrigSlots.length / Math.max(1, origSlots);
+      const origIdxSet = new Set();
+      for (let k = 0; k < origSlots; k++) {
+        let p = Math.floor(k * origStep + Math.random() * Math.max(1, origStep * 0.65));
+        p = Math.min(nonOrigSlots.length - 1, p);
+        while (origIdxSet.has(nonOrigSlots[p])) p = (p + 1) % nonOrigSlots.length;
+        origIdxSet.add(nonOrigSlots[p]);
+      }
+
+      const altOptions = options.slice(1);
+      const altTotal = altOptions.reduce((a, o) => a + o.pct, 0);
+      const pickWeightedAlt = () => {
+        if (altOptions.length === 0) return options[0];
+        let x = Math.random() * altTotal;
+        for (const o of altOptions) {
+          x -= o.pct;
+          if (x <= 0) return o;
+        }
+        return altOptions[0];
+      };
+
+      const teaserPositions = [WIN_INDEX - 3, WIN_INDEX + 2, WIN_INDEX - 11].filter(idx => idx >= 0 && idx < STRIP_LEN && idx !== WIN_INDEX && !origIdxSet.has(idx));
+      const legOpt = altOptions.find(o => o.tier === 'legendary');
+      const mythOpt = altOptions.find(o => o.tier === 'mythic');
+
+      for (const idx of nonOrigSlots) {
+        if (origIdxSet.has(idx)) {
+          deck[idx] = options[0];
+        } else if (idx === teaserPositions[0] && mythOpt && winner.tier !== 'mythic') {
+          deck[idx] = mythOpt;
+        } else if (idx === teaserPositions[1] && legOpt) {
+          deck[idx] = legOpt;
+        } else {
+          deck[idx] = pickWeightedAlt();
+        }
+      }
+
+      return {
+        mode: 'word',
+        deck,
+        winIndex: WIN_INDEX,
+        winner,
+        kept: winner.text === orig,
+        label,
+        sourceLabel,
+        keepPercent: Math.round(options[0].pct)
+      };
+    }
+
+    /* =========================================================================
+       5. DELETE ROULETTE (SUPPORTS BOTH SINGLE KEYSTROKE & DRAG-SELECTION!)
+       ========================================================================= */
+    function analyzeDeleteOperation(text, selStart, selEnd, isForwardDelete) {
+      const hasSelection = selEnd > selStart;
+
+      if (hasSelection) {
+        // 1. Collect non-space chars inside the user's highlighted selection
+        const selectedIndices = [];
+        if (!isForwardDelete) {
+          for (let i = selEnd - 1; i >= selStart; i--) {
+            if (!/\s/.test(text[i])) selectedIndices.push(i);
+          }
+        } else {
+          for (let i = selStart; i < selEnd; i++) {
+            if (!/\s/.test(text[i])) selectedIndices.push(i);
+          }
+        }
+        if (selectedIndices.length === 0) return null; // Pure whitespace selection -> normal delete
+
+        // 2. Collect up to 3 adjacent overflow words beyond the selection for Legendary/Mythic overshoot
+        const collectOverflow = (dirForward) => {
+          const out = [];
+          let chunks = 0;
+          let inChunk = false;
+          if (!dirForward) {
+            for (let i = selStart - 1; i >= 0; i--) {
+              if (!/\s/.test(text[i])) {
+                out.push(i);
+                inChunk = true;
+              } else if (inChunk) {
+                chunks++;
+                inChunk = false;
+                if (chunks >= 3) break;
+              }
+            }
+          } else {
+            for (let i = selEnd; i < text.length; i++) {
+              if (!/\s/.test(text[i])) {
+                out.push(i);
+                inChunk = true;
+              } else if (inChunk) {
+                chunks++;
+                inChunk = false;
+                if (chunks >= 3) break;
+              }
+            }
+          }
+          return out;
+        };
+
+        let overflow = collectOverflow(isForwardDelete);
+        if (overflow.length === 0) overflow = collectOverflow(!isForwardDelete);
+
+        const combined = [...selectedIndices, ...overflow];
+        const previewRaw = text.slice(selStart, selEnd).trim();
+        const targetLabel = previewRaw.length > 26 ? previewRaw.slice(0, 24) + '…' : previewRaw;
+
+        return {
+          isSelection: true,
+          selectedCount: selectedIndices.length,
+          nonSpaceIndices: combined,
+          currentWordLen: selectedIndices.length,
+          maxDeletable: combined.length,
+          targetLabel,
+          isForwardDelete
+        };
+      }
+
+      // Single-caret Backspace / Delete
+      const caret = selStart;
+      if (!isForwardDelete && (caret === 0 || /\s/.test(text[caret - 1]))) return null;
+      if (isForwardDelete && (caret >= text.length || /\s/.test(text[caret]))) return null;
+      const nonSpaceIndices = [];
+      if (!isForwardDelete) {
+        for (let i = caret - 1; i >= 0; i--) {
+          if (!/\s/.test(text[i])) nonSpaceIndices.push(i);
+        }
+      } else {
+        for (let i = caret; i < text.length; i++) {
+          if (!/\s/.test(text[i])) nonSpaceIndices.push(i);
+        }
+      }
+      if (nonSpaceIndices.length === 0) return null;
+
+      const chunks = [];
+      let cur = [nonSpaceIndices[0]];
+      for (let k = 1; k < nonSpaceIndices.length; k++) {
+        const idx = nonSpaceIndices[k];
+        const prevIdx = nonSpaceIndices[k - 1];
+        if (Math.abs(idx - prevIdx) === 1) {
+          cur.push(idx);
+        } else {
+          chunks.push(cur);
+          cur = [idx];
+          if (chunks.length >= 4) break;
+        }
+      }
+      if (chunks.length < 4 && cur.length > 0) chunks.push(cur);
+
+      const firstCharIdx = nonSpaceIndices[0];
+      let wStart = firstCharIdx, wEnd = firstCharIdx + 1;
+      while (wStart > 0 && !/\s/.test(text[wStart - 1])) wStart--;
+      while (wEnd < text.length && !/\s/.test(text[wEnd])) wEnd++;
+      const fullWordText = text.slice(wStart, wEnd);
+
+      const currentWordLen = fullWordText.length;
+      const availableInDir = chunks.reduce((sum, c) => sum + c.length, 0);
+
+      return {
+        isSelection: false,
+        selectedCount: 1,
+        nonSpaceIndices: nonSpaceIndices.slice(0, availableInDir),
+        currentWordLen,
+        maxDeletable: availableInDir,
+        targetLabel: fullWordText,
+        isForwardDelete
+      };
+    }
+
+    function buildDeleteRouletteDeck(delInfo) {
+      const { isSelection, selectedCount, currentWordLen, maxDeletable, targetLabel } = delInfo;
+      const options = [];
+
+      const baselineCount = isSelection ? selectedCount : 1;
+      const hasLegendaries = maxDeletable > currentWordLen;
+
+      // Exact intended wipe (-1 char on keystroke, or -S chars on selection): ~32% Common
+      options.push({
+        count: baselineCount,
+        text: `-${baselineCount} char${baselineCount === 1 ? '' : 's'}`,
+        tier: 'common',
+        pct: 32
+      });
+
+      // Other counts within current word / selection (partial wipe or full single-word wipe)
+      let midNums = [];
+      for (let n = 1; n <= Math.min(currentWordLen, maxDeletable); n++) {
+        if (n !== baselineCount) midNums.push(n);
+      }
+      if (midNums.length > 12) {
+        midNums = [...new Set([1, ...sampleArray(midNums.slice(1, -1), 10), midNums[midNums.length - 1]])].sort((a, b) => a - b);
+      }
+
+      const midBudget = hasLegendaries ? 59 : 68;
+
+      if (midNums.length > 0) {
+        if (isSelection) {
+          // Partial selection wipes: surviving chars morph via edit distance!
+          const per = midBudget / midNums.length;
+          for (const n of midNums) {
+            options.push({
+              count: n,
+              text: `-${n} char${n === 1 ? '' : 's'}`,
+              tier: per >= 6 ? 'common' : 'uncommon',
+              pct: per
+            });
+          }
+        } else {
+          const wordKillPct = Math.min(14, Math.max(7, midBudget * 0.25));
+          const otherMid = midNums.filter(n => n !== currentWordLen);
+          const otherPct = otherMid.length > 0 ? (midBudget - wordKillPct) / otherMid.length : 0;
+
+          for (const n of midNums) {
+            const isFullWord = n === currentWordLen;
+            const pct = isFullWord ? (otherMid.length > 0 ? wordKillPct : midBudget) : otherPct;
+            const tier = isFullWord ? 'uncommon' : (pct >= 5 ? 'common' : 'uncommon');
+            options.push({
+              count: n,
+              text: `-${n} char${n === 1 ? '' : 's'}`,
+              tier,
+              pct
+            });
+          }
+        }
+      }
+
+      // Overshoot past word / selection into neighboring words -> LEGENDARY & MYTHIC!
+      if (hasLegendaries) {
+        const legNums = [];
+        for (let n = currentWordLen + 1; n <= maxDeletable; n++) legNums.push(n);
+        const legBudget = 9;
+        const chosenLeg = legNums.length <= 14
+          ? legNums
+          : [...new Set([legNums[0], ...sampleArray(legNums.slice(1, -1), 11), legNums[legNums.length - 1]])].sort((a, b) => a - b);
+
+        for (let i = 0; i < chosenLeg.length; i++) {
+          const n = chosenLeg[i];
+          const isMaxWipe = n === maxDeletable && legNums.length >= 3;
+          const pct = isMaxWipe
+            ? 0.22
+            : Math.min(0.75, (legBudget - (legNums.length >= 3 ? 0.22 : 0)) / Math.max(1, chosenLeg.length - (legNums.length >= 3 ? 1 : 0)));
+          options.push({
+            count: n,
+            text: `-${n} chars`,
+            tier: isMaxWipe ? 'mythic' : 'legendary',
+            pct
+          });
+        }
+      }
+
+      const sum = options.reduce((a, o) => a + o.pct, 0);
+      for (const o of options) o.pct = (o.pct / sum) * 100;
+
+      let r = Math.random() * 100;
+      let winner = options[0];
+      for (const o of options) {
+        r -= o.pct;
+        if (r <= 0) { winner = o; break; }
+      }
+
+      const STRIP_LEN = 80;
+      const WIN_INDEX = 62;
+      const deck = new Array(STRIP_LEN);
+      deck[WIN_INDEX] = winner;
+
+      const pickWeighted = () => {
+        let x = Math.random() * 100;
+        for (const o of options) {
+          x -= o.pct;
+          if (x <= 0) return o;
+        }
+        return options[0];
+      };
+
+      const legOption = options.find(o => o.tier === 'legendary');
+      const mythOption = options.find(o => o.tier === 'mythic');
+
+      for (let i = 0; i < STRIP_LEN; i++) {
+        if (i === WIN_INDEX) continue;
+        if (i === WIN_INDEX - 2 && legOption) deck[i] = legOption;
+        else if (i === WIN_INDEX + 2 && mythOption) deck[i] = mythOption;
+        else deck[i] = pickWeighted();
+      }
+
+      return {
+        mode: 'delete',
+        deck,
+        winIndex: WIN_INDEX,
+        winner,
+        label: isSelection ? 'SELECTION DELETE' : 'DELETE ROULETTE',
+        sourceLabel: `${maxDeletable} CHAR RANGE`,
+        keepPercent: Math.round(options[0].pct),
+        targetPreview: targetLabel
+      };
+    }
+
+    function applyDeleteCountAndMorphWords(text, info, deleteCount, caret) {
+      if (!info) return null;
+
+      const toDelete = info.nonSpaceIndices.slice(0, deleteCount);
+      const delSet = new Set(toDelete);
+
+      const minDelIdx = Math.min(...toDelete);
+      const maxDelIdx = Math.max(...toDelete);
+
+      let spanStart = minDelIdx;
+      while (spanStart > 0 && !/\s/.test(text[spanStart - 1])) spanStart--;
+
+      let spanEnd = maxDelIdx + 1;
+      while (spanEnd < text.length && !/\s/.test(text[spanEnd])) spanEnd++;
+
+      if (!info.isSelection) {
+        if (!info.isForwardDelete && caret > spanEnd && /^\s+$/.test(text.slice(spanEnd, caret))) {
+          spanEnd = caret;
+        } else if (info.isForwardDelete && caret < spanStart && /^\s+$/.test(text.slice(caret, spanStart))) {
+          spanStart = caret;
+        }
+      }
+
+      const rebuiltTokens = [];
+      let i = spanStart;
+      while (i < spanEnd) {
+        if (/\s/.test(text[i])) {
+          const wsStart = i;
+          while (i < spanEnd && /\s/.test(text[i])) i++;
+          rebuiltTokens.push({ type: 'ws', val: text.slice(wsStart, i) });
+        } else {
+          const tStart = i;
+          while (i < spanEnd && !/\s/.test(text[i])) i++;
+          const origTok = text.slice(tStart, i);
+          let surviving = '';
+          let hadDeletion = false;
+          for (let k = tStart; k < i; k++) {
+            if (delSet.has(k)) hadDeletion = true;
+            else surviving += text[k];
+          }
+          if (surviving.length > 0) {
+            let finalTok = surviving;
+            if (hadDeletion && /^[a-zA-Z]+$/.test(surviving)) {
+              finalTok = findClosestSameLengthWord(surviving, origTok);
+            }
+            rebuiltTokens.push({ type: 'tok', val: finalTok });
+          }
+        }
+      }
+
+      const cleanedParts = [];
+      for (const item of rebuiltTokens) {
+        if (item.type === 'tok') {
+          if (cleanedParts.length > 0 && cleanedParts[cleanedParts.length - 1].type === 'tok') {
+            cleanedParts.push({ type: 'ws', val: ' ' });
+          }
+          cleanedParts.push(item);
+        } else {
+          if (cleanedParts.length > 0 && cleanedParts[cleanedParts.length - 1].type === 'tok') {
+            cleanedParts.push(item);
+          }
+        }
+      }
+      while (cleanedParts.length > 0 && cleanedParts[cleanedParts.length - 1].type === 'ws') {
+        cleanedParts.pop();
+      }
+
+      let finalBeforeEnd = spanStart;
+      let finalAfterStart = spanEnd;
+      const newSpanText = cleanedParts.map(p => p.val).join('');
+
+      if (newSpanText.length === 0) {
+        if (finalBeforeEnd > 0 && text[finalBeforeEnd - 1] === ' ') {
+          finalBeforeEnd--;
+        } else if (finalAfterStart < text.length && text[finalAfterStart] === ' ') {
+          finalAfterStart++;
+        }
+      }
+
+      return {
+        spanStart: finalBeforeEnd,
+        spanEnd: finalAfterStart,
+        oldSpanText: text.slice(finalBeforeEnd, finalAfterStart),
+        newSpanText
+      };
+    }
+
+    /* =========================================================================
+       6. WEB AUDIO SFX (TICK, WIN, HIGH-RARITY FANFARE, POP)
+       ========================================================================= */
+    let audioCtx = null;
+    let sfxEnabled = true;
+    let turboMode = false;
+    let hasHadFirstRoll = false;
+
+    function ensureAudio() {
+      if (!sfxEnabled) return null;
+      if (!audioCtx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) audioCtx = new AC();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+      return audioCtx;
+    }
+
+    function playTickSound(speedRatio = 0.5) {
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(580 + speedRatio * 340, now);
+      osc.frequency.exponentialRampToValueAtTime(210, now + 0.024);
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.025);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.028);
+    }
+
+    function playOutcomeSound(tier, isDelete) {
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+
+      let notes;
+      if (tier === 'mythic') notes = [523.25, 659.25, 783.99, 1046.5, 1318.5, 1567.98];
+      else if (tier === 'legendary') notes = [440, 554.37, 659.25, 880, 1108.73];
+      else if (tier === 'epic') notes = [392, 493.88, 587.33, 783.99];
+      else if (isDelete) notes = [369.99, 311.13, 261.63];
+      else if (tier === 'original') notes = [523.25, 659.25, 783.99, 1046.5];
+      else notes = [440, 554.37, 659.25];
+
+      notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = (tier === 'legendary' || tier === 'mythic') ? 'triangle' : 'sine';
+        const t = now + i * 0.055;
+        osc.frequency.setValueAtTime(freq, t);
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.linearRampToValueAtTime(0.095, t + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.36);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.38);
+      });
+    }
+
+    function playPopIntoSound() {
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(500, now);
+      osc.frequency.exponentialRampToValueAtTime(150, now + 0.16);
+      gain.gain.setValueAtTime(0.07, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.17);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.18);
+    }
+
+    /* =========================================================================
+       7. CONFETTI ENGINE
+       ========================================================================= */
+    const confettiCanvas = document.getElementById('confetti-canvas');
+    const cCtx = confettiCanvas.getContext('2d');
+    let confettiParticles = [];
+    let confettiRaf = null;
+
+    function resizeConfettiCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      confettiCanvas.width = Math.floor(window.innerWidth * dpr);
+      confettiCanvas.height = Math.floor(window.innerHeight * dpr);
+      cCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    resizeConfettiCanvas();
+    window.addEventListener('resize', resizeConfettiCanvas);
+
+    function spawnOutwardConfetti(cx, cy, tier, isDelete) {
+      let palette = ['#38bdf8', '#60a5fa', '#2563eb', '#a855f7', '#ffffff'];
+      let count = 82;
+      if (tier === 'original') palette = ['#fbbf24', '#fde047', '#f59e0b', '#ffffff', '#38bdf8'];
+      else if (tier === 'epic') { palette = ['#a855f7', '#d8b4fe', '#7e22ce', '#f472b6', '#ffffff']; count = 110; }
+      else if (tier === 'legendary') { palette = ['#fbbf24', '#f59e0b', '#fef08a', '#ffffff', '#fb923c']; count = 140; }
+      else if (tier === 'mythic') { palette = ['#ec4899', '#f43f5e', '#38bdf8', '#a855f7', '#fde047', '#ffffff']; count = 185; }
+      else if (isDelete) { palette = ['#ef4444', '#f87171', '#fca5a5', '#dc2626', '#ffffff']; }
+
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 4.5 + Math.random() * (tier === 'mythic' ? 18 : 14);
+        confettiParticles.push({
+          x: cx + (Math.random() - 0.5) * 30,
+          y: cy + (Math.random() - 0.5) * 20,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 2.2,
+          gravity: 0.16,
+          drag: 0.968,
+          scale: 0.45 + Math.random() * 0.45,
+          zSpeed: 0.028 + Math.random() * 0.055,
+          maxScale: 2.5 + Math.random() * 1.4,
+          w: 7 + Math.random() * 6,
+          h: 4 + Math.random() * 4,
+          rot: Math.random() * Math.PI * 2,
+          vRot: (Math.random() - 0.5) * 0.3,
+          tilt: Math.random() * Math.PI,
+          vTilt: 0.12 + Math.random() * 0.18,
+          color: palette[i % palette.length],
+          alpha: 1,
+          decay: 0.013 + Math.random() * 0.011
+        });
+      }
+      startConfettiLoop();
+    }
+
+    function spawnEditorWordConfetti(rect, colorTheme) {
+      const cx = rect.left + Math.max(10, rect.width) / 2;
+      const cy = rect.top + rect.height / 2;
+      const palette = colorTheme === 'red'
+        ? ['#dc2626', '#ef4444', '#f87171', '#fca5a5', '#fb7185']
+        : ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#38bdf8'];
+
+      for (let i = 0; i < 26; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 1.6 + Math.random() * 4.5;
+        confettiParticles.push({
+          x: cx + (Math.random() - 0.5) * Math.min(36, Math.max(8, rect.width * 0.65)),
+          y: cy + (Math.random() - 0.5) * 6,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 1.7,
+          gravity: 0.13,
+          drag: 0.93,
+          scale: 0.85,
+          zSpeed: 0.004,
+          maxScale: 1.15,
+          w: 4.5 + Math.random() * 3.5,
+          h: 2.5 + Math.random() * 2.5,
+          rot: Math.random() * Math.PI * 2,
+          vRot: (Math.random() - 0.5) * 0.35,
+          tilt: Math.random() * Math.PI,
+          vTilt: 0.18,
+          color: palette[i % palette.length],
+          alpha: 1,
+          decay: 0.025 + Math.random() * 0.015
+        });
+      }
+      startConfettiLoop();
+    }
+
+    function startConfettiLoop() {
+      if (confettiRaf) return;
+      const step = () => {
+        cCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+        for (let i = confettiParticles.length - 1; i >= 0; i--) {
+          const p = confettiParticles[i];
+          p.vx *= p.drag;
+          p.vy = p.vy * p.drag + p.gravity;
+          p.x += p.vx;
+          p.y += p.vy;
+          p.scale = Math.min(p.maxScale, p.scale + p.zSpeed);
+          p.rot += p.vRot;
+          p.tilt += p.vTilt;
+          p.alpha -= p.decay;
+          if (p.alpha <= 0.01) { confettiParticles.splice(i, 1); continue; }
+
+          cCtx.save();
+          cCtx.globalAlpha = Math.max(0, p.alpha);
+          cCtx.translate(p.x, p.y);
+          cCtx.rotate(p.rot);
+          cCtx.scale(p.scale, p.scale * Math.cos(p.tilt));
+          cCtx.fillStyle = p.color;
+          cCtx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+          cCtx.restore();
+        }
+        if (confettiParticles.length > 0) confettiRaf = requestAnimationFrame(step);
+        else { confettiRaf = null; cCtx.clearRect(0, 0, window.innerWidth, window.innerHeight); }
+      };
+      confettiRaf = requestAnimationFrame(step);
+    }
+
+    /* =========================================================================
+       8. TOKENIZER & EDITOR STATE
+       ========================================================================= */
+    const CURRENCY_CHARS = '$€£¥₹₩₿₱฿₪¢';
+
+    function tokenizeText(text) {
+      const tokens = [];
+      let i = 0;
+      const n = text.length;
+      const isWordChar = (ch) => /[a-zA-Z]/.test(ch);
+      const isDigit = (ch) => /[0-9]/.test(ch);
+      const isSpace = (ch) => /\s/.test(ch);
+      const isCurrency = (ch) => CURRENCY_CHARS.includes(ch);
+
+      while (i < n) {
+        const ch = text[i];
+        if (isSpace(ch)) { i++; continue; }
+
+        if (isDigit(ch) || (ch === '-' && i + 1 < n && isDigit(text[i + 1]) && (i === 0 || isSpace(text[i - 1]) || isCurrency(text[i - 1]) || /[([=]/.test(text[i - 1])))) {
+          const start = i;
+          if (ch === '-') i++;
+          while (i < n && isDigit(text[i])) i++;
+          if (i < n && text[i] === '.' && i + 1 < n && isDigit(text[i + 1])) {
+            i++;
+            while (i < n && isDigit(text[i])) i++;
+          } else {
+            const rest = text.slice(i, i + 2).toLowerCase();
+            if (/^(st|nd|rd|th)$/.test(rest) && (i + 2 >= n || !isWordChar(text[i + 2]))) i += 2;
+          }
+          const end = i;
+          const nextCh = end < n ? text[end] : '';
+          const pendingTrailingDot = !text.slice(start, end).includes('.') && nextCh === '.' && end + 1 === n;
+          tokens.push({
+            type: 'number',
+            text: text.slice(start, end),
+            start,
+            end,
+            completed: !pendingTrailingDot && nextCh !== '' && !isDigit(nextCh) && !isWordChar(nextCh)
+          });
+          continue;
+        }
+
+        if (isWordChar(ch)) {
+          const start = i;
+          while (i < n && (isWordChar(text[i]) || (text[i] === "'" && i + 1 < n && isWordChar(text[i + 1])))) i++;
+          const end = i;
+          const nextCh = end < n ? text[end] : '';
+          const prevCh = start > 0 ? text[start - 1] : '';
+          tokens.push({
+            type: 'word',
+            text: text.slice(start, end),
+            start,
+            end,
+            precededByDot: prevCh === '.',
+            completed: nextCh !== '' && !isWordChar(nextCh) && nextCh !== "'"
+          });
+          continue;
+        }
+
+        const three = text.slice(i, i + 3);
+        const two = text.slice(i, i + 2);
+        if (three === '...') {
+          const start = i; i += 3;
+          const nextCh = i < n ? text[i] : '';
+          tokens.push({ type: 'punctuation', text: '...', start, end: i, completed: nextCh !== '' && isSpace(nextCh) });
+          continue;
+        }
+        if (two === '!?' || two === '?!') {
+          const start = i; i += 2;
+          const nextCh = i < n ? text[i] : '';
+          tokens.push({ type: 'punctuation', text: two, start, end: i, completed: nextCh !== '' && isSpace(nextCh) });
+          continue;
+        }
+
+        if (/[.,!?;:\-—'"()\[\]\/\\]/.test(ch)) {
+          const start = i; i++;
+          const nextCh = i < n ? text[i] : '';
+          tokens.push({ type: 'punctuation', text: ch, start, end: i, completed: nextCh !== '' && isSpace(nextCh) });
+          continue;
+        }
+
+        const start = i; i++;
+        const nextCh = i < n ? text[i] : '';
+        const isCurr = isCurrency(ch);
+        tokens.push({
+          type: 'symbol',
+          text: ch,
+          start,
+          end: i,
+          completed: isCurr ? (nextCh !== '' && (isSpace(nextCh) || isDigit(nextCh))) : (nextCh !== '' && isSpace(nextCh))
+        });
+      }
+
+      const wordTokens = tokens.filter(t => t.type === 'word');
+      for (let w = 0; w < wordTokens.length; w++) {
+        wordTokens[w].prev2Word = w > 1 ? wordTokens[w - 2].text : null;
+        wordTokens[w].prevWord = w > 0 ? wordTokens[w - 1].text : null;
+        wordTokens[w].nextWord = w + 1 < wordTokens.length ? wordTokens[w + 1].text : null;
+      }
+      return tokens;
+    }
+
+    /* =========================================================================
+       9. UI ELEMENTS, SPAN TRACKING, PASTE QUEUE & EXECUTION
+       ========================================================================= */
+    const textarea = document.getElementById('editor-textarea');
+    const mirror = document.getElementById('editor-mirror');
+    const placeholderEl = document.getElementById('editor-placeholder');
+    const backdrop = document.getElementById('roulette-backdrop');
+    const shakeWrapper = document.getElementById('shake-wrapper');
+    const modal = document.getElementById('roulette-modal');
+    const stripEl = document.getElementById('roulette-strip');
+    const viewportEl = document.getElementById('roulette-viewport');
+    const needleCapTop = document.getElementById('needle-cap-top');
+    const outcomeBanner = document.getElementById('outcome-banner');
+    const queueControls = document.getElementById('queue-controls');
+    const queueCountLabel = document.getElementById('queue-count-label');
+
+    const rarityIntrusion = document.getElementById('rarity-intrusion');
+    const rarityBurstBg = document.getElementById('rarity-burst-bg');
+    const rarityStampLabel = document.getElementById('rarity-stamp-label');
+    const rarityPctPopup = document.getElementById('rarity-pct-popup');
+
+    const statCountsEl = document.getElementById('stat-counts');
+    const statLuckEl = document.getElementById('stat-luck');
+    const filenameInput = document.getElementById('filename-input');
+
+    let lastText = '';
+    let settledSpans = [];
+    let rollQueue = [];
+    let isProcessingRoll = false;
+    let skipRemainingRequested = false;
+    let statsKept = 0;
+    let statsRolled = 0;
+    let pendingPaste = null;
+
+    function revealGamblingUI() {
+      if (hasHadFirstRoll) return;
+      hasHadFirstRoll = true;
+      document.querySelectorAll('.revealed-after-roll').forEach(el => el.classList.add('shown'));
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function renderPlainMirror(text) {
+      mirror.textContent = text + '\n';
+      placeholderEl.classList.toggle('hidden', text.length > 0);
+      updateCounts(text);
+    }
+
+    function updateCounts(text) {
+      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+      const chars = text.length;
+      statCountsEl.textContent = `${words.toLocaleString()} word${words === 1 ? '' : 's'} · ${chars.toLocaleString()} char${chars === 1 ? '' : 's'}`;
+      statLuckEl.textContent = `Kept: ${statsKept} · Randomized: ${statsRolled}`;
+    }
+
+    textarea.addEventListener('scroll', () => {
+      mirror.scrollTop = textarea.scrollTop;
+      mirror.scrollLeft = textarea.scrollLeft;
+    });
+
+    const probeEl = document.createElement('span');
+    probeEl.style.cssText = `
+      position: fixed;
+      visibility: hidden;
+      pointer-events: none;
+      white-space: pre;
+      font-family: var(--font-sans);
+      font-size: 17px;
+      font-weight: 500;
+      line-height: 1.75;
+      letter-spacing: 0px;
+      font-kerning: normal;
+      font-variant-ligatures: none;
+      font-feature-settings: "liga" 0, "calt" 0;
+    `;
+    document.body.appendChild(probeEl);
+
+    function measureTextWidth(str) {
+      const cs = window.getComputedStyle(textarea);
+      probeEl.style.fontSize = cs.fontSize;
+      probeEl.style.fontFamily = cs.fontFamily;
+      probeEl.style.fontWeight = cs.fontWeight;
+      probeEl.textContent = str;
+      return probeEl.getBoundingClientRect().width;
+    }
+
+    function computeEditRange(oldText, newText) {
+      let prefix = 0;
+      const minLen = Math.min(oldText.length, newText.length);
+      while (prefix < minLen && oldText[prefix] === newText[prefix]) prefix++;
+
+      let oldSuffix = oldText.length;
+      let newSuffix = newText.length;
+      while (oldSuffix > prefix && newSuffix > prefix && oldText[oldSuffix - 1] === newText[newSuffix - 1]) {
+        oldSuffix--;
+        newSuffix--;
+      }
+      return { prefix, oldSuffix, newSuffix };
+    }
+
+    function computeEditRangeWithHint(oldText, newText, hintStart) {
+      let prefix = 0;
+      const maxPrefix = typeof hintStart === 'number'
+        ? Math.min(hintStart, oldText.length, newText.length)
+        : Math.min(oldText.length, newText.length);
+      while (prefix < maxPrefix && oldText[prefix] === newText[prefix]) prefix++;
+
+      let oldSuffix = oldText.length;
+      let newSuffix = newText.length;
+      while (oldSuffix > prefix && newSuffix > prefix && oldText[oldSuffix - 1] === newText[newSuffix - 1]) {
+        oldSuffix--;
+        newSuffix--;
+      }
+      return { prefix, oldSuffix, newSuffix };
+    }
+
+    function adjustSettledSpans(prefix, oldSuffix, delta) {
+      const updated = [];
+      for (const sp of settledSpans) {
+        if (sp.end <= prefix) updated.push(sp);
+        else if (sp.start >= oldSuffix) updated.push({ start: sp.start + delta, end: sp.end + delta, text: sp.text });
+      }
+      settledSpans = updated;
+    }
+
+    function markAllCompletedAsSettled(text) {
+      settledSpans = tokenizeText(text).filter(t => t.completed).map(t => ({ start: t.start, end: t.end, text: t.text }));
+    }
+
+    function shiftSpansAfterReplacement(repStart, oldEnd, delta, newWord) {
+      for (const sp of settledSpans) {
+        if (sp.start >= oldEnd) { sp.start += delta; sp.end += delta; }
+      }
+      if (newWord) settledSpans.push({ start: repStart, end: repStart + newWord.length, text: newWord });
+      for (const q of rollQueue) {
+        if (q.kind === 'word' && q.token.start >= oldEnd) {
+          q.token.start += delta;
+          q.token.end += delta;
+        }
+      }
+    }
+
+    textarea.addEventListener('paste', (e) => {
+      if (isProcessingRoll) {
+        e.preventDefault();
+        return;
+      }
+      pendingPaste = {
+        start: textarea.selectionStart,
+        selEnd: textarea.selectionEnd,
+        time: Date.now()
+      };
+    });
+
+    textarea.addEventListener('input', () => {
+      if (isProcessingRoll) return;
+      const newText = textarea.value;
+      const pasteMeta = (pendingPaste && Date.now() - pendingPaste.time < 1000) ? pendingPaste : null;
+      pendingPaste = null;
+
+      const isPaste = Boolean(pasteMeta);
+      const isDeletionOnly = !isPaste && newText.length < lastText.length;
+      const { prefix, oldSuffix, newSuffix } = computeEditRangeWithHint(lastText, newText, pasteMeta?.start);
+
+      adjustSettledSpans(prefix, oldSuffix, newSuffix - oldSuffix);
+      lastText = newText;
+      renderPlainMirror(newText);
+
+      if (isDeletionOnly) return;
+
+      const tokens = tokenizeText(newText);
+      let added = false;
+      for (const tok of tokens) {
+        const settled = settledSpans.some(sp => sp.start === tok.start && sp.end === tok.end && sp.text === tok.text);
+        const queued = rollQueue.some(q => q.kind === 'word' && q.token.start === tok.start && q.token.end === tok.end && q.token.text === tok.text);
+
+        // When pasting, queue every token inside the pasted span (including final word/punctuation),
+        // unless it fused directly into trailing existing word characters past newSuffix.
+        const fromPaste = isPaste && tok.end > prefix && tok.end <= newSuffix;
+        if ((tok.completed || fromPaste) && !settled && !queued) {
+          rollQueue.push({ kind: 'word', token: tok, fromPaste });
+          added = true;
+        }
+      }
+      if (added && !isProcessingRoll) processQueue();
+    });
+
+    // Intercept Backspace & Delete (both single-caret and highlighted drag/select!)
+    textarea.addEventListener('keydown', (e) => {
+      if (isProcessingRoll) {
+        e.preventDefault();
+        return;
+      }
+      if (e.key !== 'Backspace' && e.key !== 'Delete') return;
+
+      const selStart = textarea.selectionStart;
+      const selEnd = textarea.selectionEnd;
+      const isForward = e.key === 'Delete';
+      const info = analyzeDeleteOperation(textarea.value, selStart, selEnd, isForward);
+      if (!info) return; // Empty or whitespace-only selection -> allow normal keydown
+
+      e.preventDefault();
+      rollQueue.push({ kind: 'delete', caret: selStart, isForward, info });
+      processQueue();
+    });
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    async function processQueue() {
+      if (isProcessingRoll || rollQueue.length === 0) return;
+      isProcessingRoll = true;
+      skipRemainingRequested = false;
+      textarea.readOnly = true;
+
+      while (rollQueue.length > 0) {
+        const job = rollQueue.shift();
+        if (job.kind === 'delete') {
+          await runDeleteRouletteAndMorph(job);
+        } else {
+          const tok = job.token;
+          if (textarea.value.slice(tok.start, tok.end) !== tok.text) continue;
+          if (skipRemainingRequested) {
+            settledSpans.push({ start: tok.start, end: tok.end, text: tok.text });
+            continue;
+          }
+          const liveTok = tokenizeText(textarea.value).find(t => t.start === tok.start && t.end === tok.end && t.text === tok.text) || tok;
+          await runWordRouletteAndMorph(liveTok);
+        }
+      }
+
+      isProcessingRoll = false;
+      skipRemainingRequested = false;
+      textarea.readOnly = false;
+      textarea.classList.remove('anim-hide-caret');
+      textarea.focus();
+    }
+
+    /* =========================================================================
+       10. SCREEN SHAKE & RARITY INTRUSION HELPERS
+       ========================================================================= */
+    function triggerImpactShake(intensity, durationMs) {
+      const start = performance.now();
+      const step = (now) => {
+        const t = (now - start) / durationMs;
+        if (t >= 1) {
+          shakeWrapper.style.transform = '';
+          return;
+        }
+        const decay = Math.pow(1 - t, 1.8);
+        const x = (Math.random() - 0.5) * 2 * intensity * decay;
+        const y = (Math.random() - 0.5) * 2 * intensity * decay;
+        const rot = (Math.random() - 0.5) * 0.4 * (intensity / 8) * decay;
+        shakeWrapper.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) rotate(${rot.toFixed(2)}deg)`;
+        requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    }
+
+    function showRarityCelebration(tier, pct) {
+      modal.classList.remove('rarity-glow-epic', 'rarity-glow-legendary', 'rarity-glow-mythic');
+      rarityIntrusion.classList.remove('active');
+      rarityPctPopup.classList.remove('visible');
+
+      if (!['epic', 'legendary', 'mythic'].includes(tier)) return;
+
+      modal.classList.add(`rarity-glow-${tier}`);
+      rarityStampLabel.className = `rarity-stamp tier-${tier}`;
+
+      if (tier === 'epic') {
+        rarityStampLabel.textContent = 'EPIC ROLL!';
+        rarityBurstBg.style.background = 'radial-gradient(circle, rgba(168,85,247,0.45), transparent 70%)';
+        triggerImpactShake(7, 360);
+      } else if (tier === 'legendary') {
+        rarityStampLabel.textContent = '★ LEGENDARY ★';
+        rarityBurstBg.style.background = 'radial-gradient(circle, rgba(251,191,36,0.5), transparent 70%)';
+        rarityPctPopup.textContent = `${pct.toFixed(2)}% CHANCE`;
+        rarityPctPopup.classList.add('visible');
+        triggerImpactShake(13, 540);
+      } else if (tier === 'mythic') {
+        rarityStampLabel.textContent = '✦ MYTHIC ✦';
+        rarityBurstBg.style.background = 'radial-gradient(circle, rgba(236,72,153,0.55), rgba(56,189,248,0.25), transparent 72%)';
+        rarityPctPopup.textContent = `${pct.toFixed(2)}% CHANCE`;
+        rarityPctPopup.classList.add('visible');
+        triggerImpactShake(18, 700);
+      }
+
+      requestAnimationFrame(() => rarityIntrusion.classList.add('active'));
+    }
+
+    function resetRarityVisuals() {
+      modal.classList.remove('rarity-glow-epic', 'rarity-glow-legendary', 'rarity-glow-mythic');
+      rarityIntrusion.classList.remove('active');
+      rarityPctPopup.classList.remove('visible');
+      shakeWrapper.style.transform = '';
+    }
+
+    function populateStripDOM(deck) {
+      stripEl.innerHTML = '';
+      stripEl.style.transform = 'translate3d(0px, 0, 0)';
+      const cardEls = [];
+      for (const item of deck) {
+        const card = document.createElement('div');
+        card.className = `slot-card tier-${item.tier}`;
+
+        const badge = document.createElement('span');
+        badge.className = 'slot-badge';
+        badge.textContent = item.tier === 'original' ? 'ORIGINAL' : item.tier.toUpperCase();
+
+        const wordSpan = document.createElement('span');
+        const lenCls = item.text.length > 13 ? 'len-long' : item.text.length > 9 ? 'len-med' : '';
+        wordSpan.className = `slot-word ${lenCls}`;
+        wordSpan.textContent = item.text;
+
+        const pctSpan = document.createElement('span');
+        pctSpan.className = 'slot-pct';
+        pctSpan.textContent = item.pct < 1 ? `${item.pct.toFixed(2)}%` : `${item.pct.toFixed(1)}%`;
+
+        card.appendChild(badge);
+        card.appendChild(wordSpan);
+        card.appendChild(pctSpan);
+        stripEl.appendChild(card);
+        cardEls.push(card);
+      }
+      return cardEls;
+    }
+
+    function animateRouletteSpin(startX, targetX, duration, pitch, centerOffset) {
+      return new Promise(resolve => {
+        const startTime = performance.now();
+        let lastIndex = -1;
+
+        function tick(now) {
+          const elapsed = now - startTime;
+          const t = Math.min(1, elapsed / duration);
+          const ease = 1 - Math.pow(1 - t, 4.65);
+          const currentX = startX + (targetX - startX) * ease;
+          stripEl.style.transform = `translate3d(${currentX}px, 0, 0)`;
+
+          if (!turboMode && t > 0.25 && t < 0.96) {
+            const amp = t < 0.7 ? 1.5 : 2.6 * (1 - (t - 0.7) / 0.3);
+            const sx = (Math.random() - 0.5) * amp;
+            const sy = (Math.random() - 0.5) * amp;
+            shakeWrapper.style.transform = `translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0)`;
+          } else if (t >= 0.96) {
+            shakeWrapper.style.transform = '';
+          }
+
+          const centerPosInStrip = centerOffset - currentX;
+          const currentIndex = Math.floor(centerPosInStrip / pitch);
+          if (currentIndex !== lastIndex) {
+            if (lastIndex !== -1) {
+              playTickSound(1 - t);
+              needleCapTop.classList.add('tick-kick');
+              setTimeout(() => needleCapTop.classList.remove('tick-kick'), 55);
+            }
+            lastIndex = currentIndex;
+          }
+
+          if (t < 1) requestAnimationFrame(tick);
+          else {
+            stripEl.style.transform = `translate3d(${targetX}px, 0, 0)`;
+            shakeWrapper.style.transform = '';
+            resolve();
+          }
+        }
+        requestAnimationFrame(tick);
+      });
+    }
+
+    /* =========================================================================
+       11. WORD ROULETTE & BLUE MORPH FLOW
+       ========================================================================= */
+    async function runWordRouletteAndMorph(token) {
+      revealGamblingUI();
+      resetRarityVisuals();
+      modal.classList.remove('delete-mode');
+
+      const deckData = await buildWordRouletteDeck(token, textarea.value);
+
+      const posTag = document.getElementById('modal-pos-tag');
+      posTag.className = 'tag-chip tag-pos';
+      posTag.textContent = deckData.label;
+      document.getElementById('modal-odds-tag').textContent = `KEEP ODDS: ${deckData.keepPercent}%`;
+      document.getElementById('modal-source-tag').textContent = deckData.sourceLabel;
+      document.getElementById('modal-typed-label').textContent = 'TYPED';
+      document.getElementById('modal-typed-word').textContent = token.text;
+
+      outcomeBanner.className = 'outcome-banner';
+      outcomeBanner.textContent = 'Rolling...';
+
+      if (rollQueue.length > 0) {
+        queueControls.style.display = 'flex';
+        queueCountLabel.textContent = `${rollQueue.length} more queued`;
+      } else {
+        queueControls.style.display = 'none';
+      }
+
+      const cardEls = populateStripDOM(deckData.deck);
+
+      modal.classList.remove('pop-into-editor');
+      modal.style.transform = '';
+      document.body.classList.add('modal-active');
+      backdrop.classList.add('open');
+
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+      const viewportWidth = viewportEl.clientWidth;
+      const cardWidth = cardEls[0].offsetWidth;
+      const pitch = cardWidth + 10;
+      const centerOffset = viewportWidth / 2;
+      const jitter = (Math.random() - 0.5) * (cardWidth * 0.56);
+      const startX = -(1 * pitch + cardWidth / 2 - centerOffset);
+      const targetX = -(deckData.winIndex * pitch + cardWidth / 2 + jitter - centerOffset);
+
+      const spinDuration = turboMode ? 1550 : 3550;
+      await animateRouletteSpin(startX, targetX, spinDuration, pitch, centerOffset);
+
+      const winCard = cardEls[deckData.winIndex];
+      winCard.classList.add('winner-card');
+
+      const winItem = deckData.winner;
+      if (deckData.kept) {
+        statsKept++;
+        outcomeBanner.className = 'outcome-banner win-kept';
+        outcomeBanner.textContent = `KEPT! "${winItem.text}" survived the roll.`;
+      } else {
+        statsRolled++;
+        outcomeBanner.className = 'outcome-banner win-rolled';
+        outcomeBanner.textContent = `[${winItem.tier.toUpperCase()}] "${token.text}" → "${winItem.text}"`;
+      }
+      updateCounts(textarea.value);
+
+      if (!['epic', 'legendary', 'mythic'].includes(winItem.tier)) {
+        triggerImpactShake(4.5, 220);
+      }
+      showRarityCelebration(winItem.tier, winItem.pct);
+
+      const winRect = winCard.getBoundingClientRect();
+      spawnOutwardConfetti(winRect.left + winRect.width / 2, winRect.top + winRect.height / 2, winItem.tier, false);
+      playOutcomeSound(winItem.tier, false);
+
+      const isHighTier = ['epic', 'legendary', 'mythic'].includes(winItem.tier);
+      const holdMs = turboMode
+        ? (isHighTier ? 1050 : 560)
+        : (winItem.tier === 'mythic' ? 2300 : winItem.tier === 'legendary' ? 2000 : winItem.tier === 'epic' ? 1650 : 1220);
+      await sleep(holdMs);
+
+      await executeEditorMorph({
+        spanStart: token.start,
+        spanEnd: token.end,
+        oldSpanText: token.text,
+        newSpanText: winItem.text,
+        theme: 'blue'
+      });
+    }
+
+    /* =========================================================================
+       12. DELETE ROULETTE & RED MORPH FLOW
+       ========================================================================= */
+    async function runDeleteRouletteAndMorph(job) {
+      revealGamblingUI();
+      resetRarityVisuals();
+      modal.classList.add('delete-mode');
+
+      const deckData = buildDeleteRouletteDeck(job.info);
+
+      const posTag = document.getElementById('modal-pos-tag');
+      posTag.className = 'tag-chip tag-pos delete-chip';
+      posTag.textContent = deckData.label;
+      document.getElementById('modal-odds-tag').textContent =
+        job.info.isSelection ? `EXACT ODDS: ${deckData.keepPercent}%` : `-1 ODDS: ${deckData.keepPercent}%`;
+      document.getElementById('modal-source-tag').textContent = deckData.sourceLabel;
+      document.getElementById('modal-typed-label').textContent = 'TARGET';
+      document.getElementById('modal-typed-word').textContent = deckData.targetPreview;
+
+      outcomeBanner.className = 'outcome-banner';
+      outcomeBanner.textContent = 'Rolling deletion count...';
+      queueControls.style.display = 'none';
+
+      const cardEls = populateStripDOM(deckData.deck);
+
+      modal.classList.remove('pop-into-editor');
+      modal.style.transform = '';
+      document.body.classList.add('modal-active');
+      backdrop.classList.add('open');
+
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+      const viewportWidth = viewportEl.clientWidth;
+      const cardWidth = cardEls[0].offsetWidth;
+      const pitch = cardWidth + 10;
+      const centerOffset = viewportWidth / 2;
+      const jitter = (Math.random() - 0.5) * (cardWidth * 0.54);
+      const startX = -(1 * pitch + cardWidth / 2 - centerOffset);
+      const targetX = -(deckData.winIndex * pitch + cardWidth / 2 + jitter - centerOffset);
+
+      const spinDuration = turboMode ? 1550 : 3400;
+      await animateRouletteSpin(startX, targetX, spinDuration, pitch, centerOffset);
+
+      const winCard = cardEls[deckData.winIndex];
+      winCard.classList.add('winner-card');
+
+      const winItem = deckData.winner;
+      const plan = applyDeleteCountAndMorphWords(textarea.value, job.info, winItem.count, job.caret);
+      statsRolled++;
+
+      outcomeBanner.className = 'outcome-banner win-delete';
+      outcomeBanner.textContent = `[${winItem.tier.toUpperCase()}] Deleted ${winItem.count} char${winItem.count === 1 ? '' : 's'}` +
+        (plan && plan.newSpanText && plan.newSpanText !== plan.oldSpanText ? ` → "${plan.newSpanText}"` : '');
+      updateCounts(textarea.value);
+
+      if (!['epic', 'legendary', 'mythic'].includes(winItem.tier)) {
+        triggerImpactShake(5, 240);
+      }
+      showRarityCelebration(winItem.tier, winItem.pct);
+
+      const winRect = winCard.getBoundingClientRect();
+      spawnOutwardConfetti(winRect.left + winRect.width / 2, winRect.top + winRect.height / 2, winItem.tier, true);
+      playOutcomeSound(winItem.tier, true);
+
+      const isHighTier = ['epic', 'legendary', 'mythic'].includes(winItem.tier);
+      const holdMs = turboMode
+        ? (isHighTier ? 1050 : 560)
+        : (winItem.tier === 'mythic' ? 2250 : winItem.tier === 'legendary' ? 1950 : 1200);
+      await sleep(holdMs);
+
+      if (plan) {
+        await executeEditorMorph({
+          spanStart: plan.spanStart,
+          spanEnd: plan.spanEnd,
+          oldSpanText: plan.oldSpanText,
+          newSpanText: plan.newSpanText,
+          theme: 'red'
+        });
+      } else {
+        document.body.classList.remove('modal-active');
+        backdrop.classList.remove('open');
+      }
+    }
+
+    /* =========================================================================
+       13. SHARED POP-INTO-TEXT & SMOOTH BLUE/RED MORPH ANIMATION
+       ========================================================================= */
+    async function executeEditorMorph({ spanStart, spanEnd, oldSpanText, newSpanText, theme }) {
+      const before = textarea.value.slice(0, spanStart);
+      const after = textarea.value.slice(spanEnd);
+      const isRed = theme === 'red';
+
+      mirror.innerHTML =
+        escapeHtml(before) +
+        `<span id="active-target-word" class="token-lock-target">${escapeHtml(oldSpanText)}</span>` +
+        escapeHtml(after) +
+        '\n';
+      mirror.scrollTop = textarea.scrollTop;
+
+      const targetSpan = document.getElementById('active-target-word');
+      const targetRect = targetSpan.getBoundingClientRect();
+      const oldWidth = targetRect.width;
+      const newWidth = newSpanText.length > 0 ? measureTextWidth(newSpanText) : 0;
+
+      const modalRect = modal.getBoundingClientRect();
+      const dx = (targetRect.left + targetRect.width / 2) - (modalRect.left + modalRect.width / 2);
+      const dy = (targetRect.top + targetRect.height / 2) - (modalRect.top + modalRect.height / 2);
+
+      playPopIntoSound();
+      textarea.classList.add('anim-hide-caret');
+      targetSpan.classList.add(isRed ? 'pre-red' : 'pre-blue');
+
+      modal.classList.add('pop-into-editor');
+      modal.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(0.06)`;
+      document.body.classList.remove('modal-active');
+      backdrop.classList.remove('open');
+
+      await sleep(320);
+
+      modal.classList.remove('pop-into-editor');
+      modal.style.transform = '';
+      resetRarityVisuals();
+
+      const curSelStart = textarea.selectionStart;
+      const curSelEnd = textarea.selectionEnd;
+      const delta = newSpanText.length - oldSpanText.length;
+
+      const updatedFullText = before + newSpanText + after;
+      textarea.value = updatedFullText;
+      lastText = updatedFullText;
+
+      if (isRed) {
+        const newCaret = spanStart + newSpanText.length;
+        textarea.setSelectionRange(newCaret, newCaret);
+        markAllCompletedAsSettled(updatedFullText);
+        if (newSpanText.length > 0) {
+          settledSpans.push({ start: spanStart, end: spanStart + newSpanText.length, text: newSpanText });
+        }
+      } else {
+        const nextCursorStart = curSelStart >= spanEnd ? curSelStart + delta : Math.min(curSelStart, spanStart + newSpanText.length);
+        const nextCursorEnd = curSelEnd >= spanEnd ? curSelEnd + delta : Math.min(curSelEnd, spanStart + newSpanText.length);
+        textarea.setSelectionRange(nextCursorStart, nextCursorEnd);
+        shiftSpansAfterReplacement(spanStart, spanEnd, delta, newSpanText);
+      }
+
+      updateCounts(updatedFullText);
+
+      mirror.innerHTML =
+        escapeHtml(before) +
+        `<span id="morph-pill" class="morph-pill" style="width:${oldWidth}px;">` +
+          `<span id="morph-blur-bar" class="morph-blur-bar ${isRed ? 'red-theme' : ''} visible"></span>` +
+          `<span id="morph-new-word" class="morph-new-word ${isRed ? 'red-theme' : ''}">${escapeHtml(newSpanText)}</span>` +
+        `</span>` +
+        escapeHtml(after) +
+        '\n';
+      mirror.scrollTop = textarea.scrollTop;
+
+      const pillEl = document.getElementById('morph-pill');
+      const barEl = document.getElementById('morph-blur-bar');
+      const newWordEl = document.getElementById('morph-new-word');
+
+      void pillEl.offsetWidth;
+
+      requestAnimationFrame(() => {
+        pillEl.style.width = `${newWidth}px`;
+        newWordEl.classList.add('revealed');
+        spawnEditorWordConfetti(pillEl.getBoundingClientRect(), theme);
+      });
+
+      await sleep(260);
+      barEl.classList.add('fade-out');
+      newWordEl.classList.remove('revealed');
+      newWordEl.classList.add('settled');
+
+      await sleep(400);
+      renderPlainMirror(textarea.value);
+      textarea.classList.remove('anim-hide-caret');
+    }
+
+    /* =========================================================================
+       14. TOOLBAR CONTROLS
+       ========================================================================= */
+    document.getElementById('btn-skip-queue').addEventListener('click', () => {
+      skipRemainingRequested = true;
+      queueControls.style.display = 'none';
+    });
+
+    document.getElementById('btn-turbo').addEventListener('click', (e) => {
+      turboMode = !turboMode;
+      e.currentTarget.textContent = `Turbo: ${turboMode ? 'On' : 'Off'}`;
+      e.currentTarget.classList.toggle('active-toggle', turboMode);
+    });
+
+    document.getElementById('btn-sfx').addEventListener('click', (e) => {
+      sfxEnabled = !sfxEnabled;
+      e.currentTarget.textContent = `SFX: ${sfxEnabled ? 'On' : 'Off'}`;
+      e.currentTarget.classList.toggle('active-toggle', sfxEnabled);
+    });
+
+    document.getElementById('btn-new').addEventListener('click', () => {
+      if (textarea.value.length > 0 && !confirm('Clear current .txt document and start fresh?')) return;
+      textarea.value = '';
+      lastText = '';
+      settledSpans = [];
+      rollQueue = [];
+      statsKept = 0;
+      statsRolled = 0;
+      filenameInput.value = 'untitled.txt';
+      document.title = 'Untitled — Text Editor';
+      renderPlainMirror('');
+      textarea.focus();
+    });
+
+    filenameInput.addEventListener('input', () => {
+      const name = filenameInput.value.trim() || 'Untitled';
+      document.title = `${name} — Text Editor`;
+    });
+
+    const fileInput = document.getElementById('file-input');
+    document.getElementById('btn-open').addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const content = String(reader.result || '').replace(/\r\n/g, '\n');
+        textarea.value = content;
+        lastText = content;
+        rollQueue = [];
+        markAllCompletedAsSettled(content);
+        const fname = file.name.endsWith('.txt') ? file.name : `${file.name}.txt`;
+        filenameInput.value = fname;
+        document.title = `${fname} — Text Editor`;
+        renderPlainMirror(content);
+        textarea.focus();
+      };
+      reader.readAsText(file);
+      fileInput.value = '';
+    });
+
+    document.getElementById('btn-save').addEventListener('click', () => {
+      let name = (filenameInput.value || 'untitled.txt').trim();
+      if (!name.toLowerCase().endsWith('.txt')) name += '.txt';
+      const blob = new Blob([textarea.value], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    });
+
+    renderPlainMirror('');
+    textarea.focus();
+  })();
+  </script>
+</body>
+</html>
